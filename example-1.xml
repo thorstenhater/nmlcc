@@ -1,6 +1,4 @@
 <Lems>
-    <iaf3 extends="iaf1"/>
-
     <Dimension name="voltage" m="1" l="2" t="-3" i="-1" />
     <Dimension name="time" t="1" />
     <Dimension name="per_time" t="-1" />
