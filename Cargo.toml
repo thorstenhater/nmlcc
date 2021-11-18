@@ -6,10 +6,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde      = { version = "^1.0", features = [ "derive" ] }
-serde_json = { version = "^1.0" }
-quick-xml  = { version = "^0.22", features = [ "serialize" ] }
-color-eyre = { version = "^0.5" }
+nom            = { version = "^7.1.0" }
+roxmltree      = { version = "^0.14.1" }
 
 [[bin]]
 name = "lems"
@@ -18,7 +16,3 @@ path = "src/main.rs"
 [[bin]]
 name = "schema"
 path = "src/schema.rs"
-
-[[bin]]
-name = "test"
-path = "src/test.rs"

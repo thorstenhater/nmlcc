@@ -1,0 +1,6 @@
+[submodule "ext/NeuroML2"]
+	path = ext/NeuroML2
+	url = https://github.com/NeuroML/NeuroML2.git
+[submodule "ext/LEMS"]
+	path = ext/LEMS
+	url = https://github.com/LEMS/LEMS.git
