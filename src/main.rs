@@ -366,28 +366,20 @@ impl Collapsed {
         let mut ctx = ctx.clone();
         ctx.enter(inst.id.as_deref().or_else(|| name.as_deref()).unwrap(),
                   &ct.exposures.keys()
-                  .chain(ct.parameters.iter())
-                  .chain(ct.constants.keys())
-                  .chain(ct.variables.iter().map(|v| &v.name))
-                  .cloned()
-                  .collect::<Vec<_>>()[..]);
+                    .chain(ct.parameters.iter())
+                    .chain(ct.constants.keys())
+                    .chain(ct.variables.iter().map(|v| &v.name))
+                    .cloned()
+                    .collect::<Vec<_>>()[..]);
 
-        result.exposures  = ct.exposures.iter()
-                                                         .map(|(k, v)| (ctx.add_prefix(k), v.clone()))
-                                                         .collect();
-        result.constants  = ct.constants.iter()
-                                                         .map(|(k, v)| (ctx.add_prefix(k), v.clone()))
-                                                         .collect();
-        result.parameters = ct.parameters.iter()
-                                                          .map(|k| (ctx.add_prefix(k), inst.parameters.get(k).cloned()))
-                                                          .collect();
-        result.attributes = ct.attributes.iter()
-                                                          .map(|k| (ctx.add_prefix(k), inst.attributes.get(k).cloned()))
-                                                          .collect();
+        result.exposures  = ct.exposures.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
+        result.constants  = ct.constants.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
+        result.parameters = ct.parameters.iter().map(|k| (ctx.add_prefix(k), inst.parameters.get(k).cloned())).collect();
+        result.attributes = ct.attributes.iter().map(|k| (ctx.add_prefix(k), inst.attributes.get(k).cloned())).collect();
 
         for v in ct.variables.clone() {
             let name      = ctx.add_prefix(&v.name);
-            let exposure  =  v.exposure.map(|s| ctx.add_prefix(&s));
+            let exposure  = v.exposure.map(|s| ctx.add_prefix(&s));
             let mut kind  = v.kind.clone(); ctx.rename_kind(&mut kind);
             let dimension = v.dimension.clone();
             result.variables.push(Variable { name, exposure, kind, dimension});
