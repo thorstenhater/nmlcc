@@ -19,7 +19,7 @@ impl Quantity {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub enum BoolOp { AND, OR, EQ, NE, GE, LE, LT, GT, }
+pub enum BoolOp { AD, OR, EQ, NE, GE, LE, LT, GT, }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Expr {
@@ -59,14 +59,14 @@ impl Expr {
             Expr::Var(x) => x.to_string(),
             Expr::Bol(o, l, r) => {
                 let op = match o {
-                    BoolOp::AND => "&&",
-                    BoolOp::OR  => "&&",
-                    BoolOp::EQ  => "==",
-                    BoolOp::NE  => "!=",
-                    BoolOp::GE  => ">=",
-                    BoolOp::LE  => "<=",
-                    BoolOp::GT  => ">",
-                    BoolOp::LT  => "<",
+                    BoolOp::AD => "&&",
+                    BoolOp::OR => "||",
+                    BoolOp::EQ => "==",
+                    BoolOp::NE => "!=",
+                    BoolOp::GE => ">=",
+                    BoolOp::LE => "<=",
+                    BoolOp::GT => ">",
+                    BoolOp::LT => "<",
                 };
                 format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
             }
@@ -122,7 +122,7 @@ impl Match {
         }
     }
 
-    pub fn add_prefix(&mut self, pfx: &Vec<String>) {
+    pub fn add_prefix(&mut self, pfx: &[String]) {
         self.0 = pfx.iter()
                     .map(|p| Path::Fixed(p.to_string()))
                     .chain(self.0.iter().cloned())
@@ -131,11 +131,10 @@ impl Match {
 
     pub fn on_path(&self, exposures: &Map<String, String>) -> Vec<String> {
         let mut ms = Vec::new();
-        for (ex, _) in exposures {
+        for ex in exposures.keys() {
             let mut es = ex.split('_');
-            let mut ps = self.0.iter();
             let mut ok = true;
-            while let Some(p) = ps.next() {
+            for p in &self.0 {
                 match p {
                     Path::Fixed(f) => {
                         ok &= if let Some(r) = es.next() {
@@ -187,7 +186,7 @@ pub fn fold_leaves<T>(expr: &Expr, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
             fold_leaves(&*a, acc, f);
             fold_leaves(&*b, acc, f);
         }
-        e => f(e, acc),
+        e => f(&e, acc),
     }
 }
 
@@ -242,7 +241,7 @@ mod parse {
 
     pub fn lit(input: &str) -> IResult<&str, Expr> {
         // TODO(TH): ugly AF
-        if input.starts_with("inf") || input.starts_with("nan") || input.starts_with("+") {
+        if input.starts_with("inf") || input.starts_with("nan") || input.starts_with('+') {
             fail::<_,&str,_>(input)?;
         }
         let (input, f) = float(input)?;
@@ -372,7 +371,7 @@ mod parse {
             "gt"  => BoolOp::GT,
             "leq" => BoolOp::LE,
             "geq" => BoolOp::GE,
-            "and" => BoolOp::AND,
+            "and" => BoolOp::AD,
             "or"  => BoolOp::OR,
             x     => panic!("Unknown boolean op: {}", x),
         };
@@ -434,7 +433,7 @@ fn simplify_add(es: &[Expr]) -> Expr {
     }
 }
 
-fn simplify_exp(es: &Box<Expr>) -> Expr {
+fn simplify_exp(es: &Expr) -> Expr {
     let xs = es.simplify();
     if let Expr::F64(x) = xs {
         Expr::F64(x.exp())

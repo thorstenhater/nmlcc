@@ -164,7 +164,7 @@ impl ComponentType {
                 Constant(c)  => { constants.insert(c.name.to_string(), expr::Quantity::parse(&c.value)?); }
                 Exposure(e)  => { exposures.insert(e.name.to_string(), e.dimension.to_string());  }
                 Text(t)      => { attributes.push(t.name.to_string()); }
-                Dynamics(d)  => { lems_dynamics(&d, &mut variables)?; },
+                Dynamics(d)  => { lems_dynamics(d, &mut variables)?; },
                 _ => {}
             }
         }
@@ -257,20 +257,21 @@ struct Collapsed {
 }
 
 /// Map variables to dependencies
-fn find_dependencies(variables: &Vec<Variable>) -> Map<String, Set<String>> {
+fn find_dependencies(variables: &[Variable]) -> Map<String, Set<String>> {
     let mut deps = Map::new();
+    let add_var = |e: &expr::Expr, acc: &mut Set<String>| if let expr::Expr::Var(v) = e { acc.insert(v.to_string()); };
     for v in variables {
-        let u = deps.entry(v.name.to_string()).or_insert(Set::new());
+        let u = deps.entry(v.name.to_string()).or_insert_with(Set::new);
         match &v.kind {
             VarKind::State(it, dv) => {
-                it.as_ref().map(|i| expr::fold_leaves(&i, u, &|e, acc| if let expr::Expr::Var(v) = e { acc.insert(v.to_string()); }));
-                dv.as_ref().map(|d| expr::fold_leaves(&d, u, &|e, acc| if let expr::Expr::Var(v) = e { acc.insert(v.to_string()); }));
+                if let Some(i) = it.as_ref() { expr::fold_leaves(i, u, &add_var) }
+                if let Some(d) = dv.as_ref() { expr::fold_leaves(d, u, &add_var) }
             }
             VarKind::Derived(cs, df) => {
-                df.as_ref().map(|d| expr::fold_leaves(&d, u, &|e, acc| if let expr::Expr::Var(v) = e { acc.insert(v.to_string()); }));
+                if let Some(d) = df.as_ref() { expr::fold_leaves(d, u, &add_var) }
                 for (c, x) in cs {
-                    expr::fold_leaves(&c, u, &|e, acc| if let expr::Expr::Var(v) = e { acc.insert(v.to_string()); });
-                    expr::fold_leaves(&x, u, &|e, acc| if let expr::Expr::Var(v) = e { acc.insert(v.to_string()); });
+                    expr::fold_leaves(c, u, &add_var);
+                    expr::fold_leaves(x, u, &add_var);
                 }
             }
             _ => {}
@@ -286,7 +287,7 @@ fn find_dependencies(variables: &Vec<Variable>) -> Map<String, Set<String>> {
 ///    b : only constants
 ///    a : b and constants
 ///    r : a and b
-fn sorted_dependencies_of(start: &Vec<String>, deps: &Map<String, Set<String>>, known: &Set<String>) -> Result<Vec<String>> {
+fn sorted_dependencies_of(start: &[String], deps: &Map<String, Set<String>>, known: &Set<String>) -> Result<Vec<String>> {
     // Build transitive dependencies
     let mut todo = Vec::new();
     let mut current = start.to_vec();
@@ -320,11 +321,11 @@ fn sorted_dependencies_of(start: &Vec<String>, deps: &Map<String, Set<String>>, 
     Ok(result)
 }
 
-fn print_dependencies(roots: &Vec<String>, vars: &Vec<Variable>, known: &Set<String>) -> Result<()> {
+fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) -> Result<()> {
     let dependencies = find_dependencies(vars);
     let mut deps = sorted_dependencies_of(roots, &dependencies, known)?;
     println!("  LOCAL {}", deps.join(", "));
-    println!("");
+    println!();
     deps.extend(roots.iter().cloned());
 
     for d in deps {
@@ -363,7 +364,7 @@ impl Collapsed {
         let mut result = Collapsed::new(&inst.id);
 
         let mut ctx = ctx.clone();
-        ctx.enter(inst.id.as_deref().or(name.as_deref()).unwrap(),
+        ctx.enter(inst.id.as_deref().or_else(|| name.as_deref()).unwrap(),
                   &inst.component_type.exposures.keys()
                        .chain(inst.component_type.parameters.iter())
                        .chain(inst.component_type.constants.keys())
@@ -377,10 +378,10 @@ impl Collapsed {
                                                          .map(|(k, v)| (ctx.add_prefix(k), v.clone()))
                                                          .collect();
         result.parameters = inst.component_type.parameters.iter()
-                                                          .map(|k| (ctx.add_prefix(&k), inst.parameters.get(k).cloned()))
+                                                          .map(|k| (ctx.add_prefix(k), inst.parameters.get(k).cloned()))
                                                           .collect();
         result.attributes = inst.component_type.attributes.iter()
-                                                          .map(|k| (ctx.add_prefix(&k), inst.attributes.get(k).cloned()))
+                                                          .map(|k| (ctx.add_prefix(k), inst.attributes.get(k).cloned()))
                                                           .collect();
 
         for v in inst.component_type.variables.clone() {
@@ -398,7 +399,7 @@ impl Collapsed {
             ctx.exit();
         }
         // Merge child by prefixing w{} child
-        for (n, inst) in &inst.child { result.add(&inst, &ctx, Some(n.to_string()))?; }
+        for (n, inst) in &inst.child { result.add(inst, &ctx, Some(n.to_string()))?; }
 
         // concretise reductions/selects by converting Select/Product/Sum into DerivedVariables
         for v in result.variables.iter_mut() {
@@ -407,7 +408,7 @@ impl Collapsed {
                                                       .map(|m| expr::Expr::Var(m.to_string()))
                                                       .collect::<Vec<expr::Expr>>();
                 let kind = match &by {
-                    SelectBy::Get => if let &[ref n] = &ms[..] {
+                    SelectBy::Get => if let [ref n] = ms[..] {
                         n.clone()
                     } else {
                         panic!("Required field is not found for {:?} in {:?}", ps, result.exposures);
@@ -511,10 +512,8 @@ impl Collapsed {
 
             for v in &prv.variables {
                 if let VarKind::Derived(cs, Some(k)) = &v.kind {
-                    if cs.is_empty() {
-                        if matches!(k, expr::Expr::F64(_) | expr::Expr::Var(_)) {
+                    if cs.is_empty() && matches!(k, expr::Expr::F64(_) | expr::Expr::Var(_)) {
                             table.insert(v.name.to_string(), k.clone());
-                        }
                     }
                 }
             }
@@ -530,15 +529,15 @@ impl Collapsed {
             for v in cur.variables.iter_mut() {
                 match &v.kind {
                     VarKind::State(i, d) => {
-                        let i = i.as_ref().map(|e| expr::map_leaves(&e, &splat).simplify());
-                        let d = d.as_ref().map(|e| expr::map_leaves(&e, &splat).simplify());
+                        let i = i.as_ref().map(|e| expr::map_leaves(e, &splat).simplify());
+                        let d = d.as_ref().map(|e| expr::map_leaves(e, &splat).simplify());
                         v.kind = VarKind::State(i, d);
                     }
                     VarKind::Derived(cs, df) => {
                         let cs = cs.iter()
-                                   .map(|(c, e)| (expr::map_leaves(&c, &splat).simplify(), expr::map_leaves(&e, &splat).simplify()))
+                                   .map(|(c, e)| (expr::map_leaves(c, &splat).simplify(), expr::map_leaves(e, &splat).simplify()))
                                    .collect::<Vec<_>>();
-                        let df = df.as_ref().map(|e| expr::map_leaves(&e, &splat).simplify());
+                        let df = df.as_ref().map(|e| expr::map_leaves(e, &splat).simplify());
                         v.kind = VarKind::Derived(cs, df);
                     }
                     _ => {}
@@ -547,7 +546,7 @@ impl Collapsed {
             if cur == prv { break; }
             prv = cur;
         }
-        prv.clone()
+        prv
     }
 
     fn to_nmodl(&self) -> Result<()> {
@@ -584,7 +583,7 @@ impl Collapsed {
                         .collect::<Set<_>>();
 
         let pfx = self.name.as_ref().unwrap().to_string();
-        let ion = self.attributes.get(&format!("{}_species", pfx)).cloned().flatten().unwrap_or("l".to_string());
+        let ion = self.attributes.get(&format!("{}_species", pfx)).cloned().flatten().unwrap_or_else(|| "l".to_string());
         let cod = format!("{}_g", pfx);
         println!("NEURON {{");
         println!("  SUFFIX {}", self.name.as_ref().unwrap());
@@ -607,20 +606,20 @@ impl Collapsed {
         println!("}}\n");
 
         println!("INITIAL {{");
-        let init = state_i.iter().map(|v| v.name.to_string()).collect();
+        let init = state_i.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
         let deps = deriv.iter().chain(state_d.iter()).cloned().collect::<Vec<_>>();
         print_dependencies(&init, &deps, &known)?;
         println!("}}\n");
 
         println!("DERIVATIVE dstate {{");
-        let init = state_d.iter().map(|v| v.name.to_string()).collect();
+        let init = state_d.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
         let deps = deriv.iter().chain(state_d.iter()).cloned().collect::<Vec<_>>();
         print_dependencies(&init, &deps, &known)?;
         println!("}}\n");
 
         println!("BREAKPOINT {{");
         println!("  SOLVE dstate METHOD cnexp");
-        print_dependencies(&vec![cod.to_string()], &deriv, &known)?;
+        print_dependencies(&[cod.to_string()], &deriv, &known)?;
         println!("  i{} = {}*(v - e{})", ion, cod, ion);
         println!("}}\n");
         Ok(())
@@ -659,7 +658,7 @@ impl Context {
     fn rename_kind(&self, kind: &mut VarKind) {
         let rename = |v: &mut expr::Expr| {
             *v = expr::map_leaves(v, &|e| if let expr::Expr::Var(s) = e {
-                let n = self.rename(&s);
+                let n = self.rename(s);
                 expr::Expr::Var(n)
             } else {
                 e.clone()
@@ -669,12 +668,12 @@ impl Context {
         match kind {
             VarKind::Select(_, ref mut ps)  => { ps.add_prefix(&pfx); }
             VarKind::Derived(ref mut cs, ref mut df) => {
-                df.as_mut().map(|x| rename(x));
+                if let Some(x) = df.as_mut() { rename(x) }
                 cs.iter_mut().for_each(|(ref mut c, ref mut e)| { rename(c); rename(e); });
             }
             VarKind::State(ref mut i, ref mut d) => {
-                d.as_mut().map(|x| rename(x));
-                i.as_mut().map(|x| rename(x));
+                if let Some(x) = d.as_mut() { rename(x) }
+                if let Some(x) = i.as_mut() { rename(x) }
             }
         }
     }
