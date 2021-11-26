@@ -448,17 +448,15 @@ fn main() -> Result<()> {
     let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
 
     let nm = format!("{}/ext/NeuroML2/Schemas/NeuroML2/NeuroML_v2.2.xsd", cwd.to_string_lossy());
-    println!("Reading NML2 schema from: {}", nm);
     let xml = std::fs::read_to_string(nm).map_err(|e| e.to_string())?;
     let data = schema(&xml)?;
-    let mut out = File::create("src/nml.rs").map_err(|e| e.to_string())?;
+    let mut out = File::create("src/neuroml/raw.rs").map_err(|e| e.to_string())?;
     out.write(emit_src(&data)?.as_bytes()).map_err(|e| e.to_string())?;
 
     let nm = format!("{}/ext/LEMS/Schemas/LEMS/LEMS_v0.7.6.xsd", cwd.to_string_lossy());
-    println!("Reading LEMS schema from: {}", nm);
     let xml = std::fs::read_to_string(nm).map_err(|e| e.to_string())?;
     let data = schema(&xml)?;
-    let mut out = File::create("src/lems.rs").map_err(|e| e.to_string())?;
+    let mut out = File::create("src/lems/raw.rs").map_err(|e| e.to_string())?;
     out.write(emit_src(&data)?.as_bytes()).map_err(|e| e.to_string())?;
 
     Ok(())
