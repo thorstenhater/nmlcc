@@ -1,0 +1,445 @@
+#+TITLE: NeuroML2 From Whole Cloth
+
+* Introduction
+
+This document describes my current knowledge of NeuroML2 and in a way aims to
+replace its missing developer documentation. It is likely flawed and constantly
+evolving. However, this text is needed as the actual projects' documentation is
+sparse and sometimes confusing and, most importantly, thin on the high concepts.
+
+NeuroML2 is an effort to provide portable descriptions of neuro-scientific
+simulations, including networks, and morphologically detailled neurons. NeuroML2
+supersedes NeuroML1 and is not a simple iteration. Therefore, NeuroML will be
+used synonymously with NeuroML2 and abbreviated as NML or NML2.
+
+Despite its flaws, NeuroML2 is a valiant effort and an important feature to
+support.
+
+* NeuroML2 and LEMS
+
+Here I lay out the overall look and feel of NeuroML2, links to in-depth sections
+follow.
+
+NeuroML2 is -- in contrast to v1 -- implemented in LEMS[fn:: Low-entropy
+modelling language. Using the moniker 'low-entropy' for an XML based format must
+be an attempt at humor.], modelling language for chemical, physical, and
+biological processes. Furthermore, NML2 has a kind of symbiotic relationship
+with LEMS in the large, which will be explored in depth later.
+
+Both NML2 and LEMS are written in XML, making the human interaction slightly
+awkward. Schemata (XSD) exist in the relevant git repositories. These form the
+basis of our exploration of NML2.
+
+The fundamental relationship between LEMS and NML2 is this: every functional
+item in NML2 has a matching definition in LEMS. So, to interpret a NML2 file, we
+need to look up these definitions in the corresponding LEMS files. An example
+might look like this
+
+- LEMS definition
+  #+begin_src xml
+  <ComponentType name="ion_channel">
+      <Parameter name="g" dimension="conductance"/>
+  </ComponentType>
+  #+end_src
+- NML2 file
+  #+begin_src xml
+  <ion_channel g="5 uS" />
+  #+end_src
+
+The tag ~<ComponentType name="foo">~ introduces a new type, which can be
+instanced by using ~<Component type="foo" id="bar">~ or the shorthand ~<foo
+id="bar">~, the latter being the idiomatic use, especially in NML2. For brevity,
+I skipped the definition of units and dimensions. Because of this model, no
+discussion (or implementation) can proceed without constantly switching between
+LEMS and NML2.
+
+Both LEMS and NML2 follow an inheritance model akin to object-oriented programming.
+This means
+- A ~ComponentType~ may specify its 'base class' using ~extends="base"~.
+- Whenever a value of type ~base~ is required, a derived type may be substituted.
+- /Thankfully/ we only have to deal with single inheritance
+
+Again an example
+- LEMS definition
+  #+begin_src xml
+  <ComponentType name="gate" />
+
+  <ComponentType name="hh_exp_gate" extends="gate" />
+  <ComponentType name="hh_lin_gate" extends="gate" />
+
+  <ComponentType name="ion_channel">
+    <Children name="gates" type="gate"/>
+  </ComponentType>
+  #+end_src
+
+- NML2
+  #+begin_src xml
+  <ion_channel>
+    <hh_exp_gate id="exp" />
+    <hh_lin_gate id="lin" />
+    <hh_lin_gate id="lin'" />
+  </ion_channel>
+  #+end_src
+
+There is also the concept of public and private data members. In particular
+access is mediated by 'exposures', which declare externally readable members.
+
+LEMS:
+#+begin_src xml
+<ComponentType name="q10_settings">
+  <Exposure name="q10" dimension="none"/>
+</ComponentType>
+
+<ComponentType name="q10_fix" extends="base_q10">
+  <Parameter name="fixed_q10" dimension="none"/>
+  <Dynamics>
+    <DerivedVariable name="internal_q10" exposure="q10" dimension="none" value="fixed_q10"/>
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+Here we also introduced the tags ~Parameter~ (externally settable value) and
+~DerivedVariable~ (dependent quantity). ~Parameter~ values are set using XML
+attributes. The internal variable ~q10_fix~ is only readable through the
+exposure ~q10~, even in enclosing scopes.
+
+NML2:
+#+begin_src xml
+<foo>
+  <q10_fix id="fixed" q10_fix="42">
+  <Dynamics>
+    <DerivedVariable name="my_q10" dimension="none" select="q10_fix/q10"/>
+  </Dynamics>
+</foo>
+#+end_src
+
+Again we encounter two new bits of related functionality: paths and select. The
+rules are as follows:
+
+If a ~ComponentType~ declares a ~Child~ of type ~type~ with an exposed value
+~name~, that value can be used via ~select~ by addressing the /path/
+~type/name~. ~Child~ implies a single instance of type ~type~ to be used.
+However, multiple instances can be part of a ~ComponentType~, which is declared
+using ~Children~. Addressing values from children is done slightly differently.
+A /single/ child's value is addressed using ~select="child_id/name"~. It is
+possible to accumulate over children using ~select="children[*]/name
+reduce="multiply"~ or ~select="children[*]/name reduce="add"~. More
+complicated selection is possible, see later.
+
+Example, assume the definitions from above being available
+
+LEMS:
+#+begin_src xml
+<ComponentType name="q10_user">
+  <Children name="q10s" type="q10_settings">
+
+  <Dynamics>
+    <DerivedVariable name="prod_q10"  dimension="none" select="q10[*]/q10" reduce="multiply"/>
+    <DerivedVariable name="first_q10" dimension="none" select="fixed_1/q10" />
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+NML2:
+#+begin_src xml
+<q10_user>
+  <q10_fix id="fixed_1" q10_fix="1">
+  <q10_fix id="fixed_2" q10_fix="2">
+  <q10_fix id="fixed_3" q10_fix="4">
+  <q10_fix id="fixed_4" q10_fix="8">
+</q10_user>
+#+end_src
+Here, ~prod_q10=64~ and ~first_q10=1~, although is general there is no way of
+knowing ~fixed_1~ being present, unless enforced otherwise.
+
+* Inheritance
+
+As alluded to above, the LEMS/NML2 model for describing relations between
+components is similar to the 'is-a' type inheritance model used in Python or C++.
+To illustrate, we use the HH model from the NML2 'stdlib found in ~Channels.xml~
+
+#+begin_src xml
+<ComponentType name="baseVoltageDepRate">
+  <Exposure name="r" dimension="per_time"/>
+  <Requirement name="v" dimension="voltage"/>
+</ComponentType>
+
+<ComponentType name="baseHHRate" extends="baseVoltageDepRate">
+  <Parameter name="rate" dimension="per_time"/>
+  <Parameter name="midpoint" dimension="voltage"/>
+  <Parameter name="scale" dimension="voltage"/>
+</ComponentType>
+
+<ComponentType name="HHExpRate" extends="baseHHRate">
+  <Dynamics>
+    <DerivedVariable name="r" exposure="r" value="rate * exp((v - midpoint)/scale)" dimension="per_time"/>
+  </Dynamics>
+</ComponentType>
+
+<ComponentType name="HHSigmoidRate" extends="baseHHRate">
+  <Dynamics>
+    <DerivedVariable name="r" exposure="r" value="rate / (1 + exp(0 - (v - midpoint)/scale))" dimension="per_time"/>
+  </Dynamics>
+</ComponentType>
+
+<ComponentType name="HHExpLinearRate" extends="baseHHRate">
+  <Dynamics>
+    <DerivedVariable name="x" value="(v - midpoint) / scale" dimension="none"/>
+    <ConditionalDerivedVariable name="r" exposure="r" dimension="per_time">
+      <Case condition="x .neq. 0" value="rate * x / (1 - exp(0 - x))"/>
+      <Case condition="x .eq. 0"  value="rate"/>
+    </ConditionalDerivedVariable>
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+Note the following consequences of the 'is-a' model
+- derived items have access to their bases' ~Parameter~ values.
+- types can have a ~Requirement~ on the presence of certain variable in the surrounding scope.
+- ~HHExpRate~ can be inserted instead of a ~baseHHRate~ *or* ~baseVoltageDepRate~.
+
+*QUESTION* from the examples and discussions I have the impression that having a
+~Dynamics~ item in both base and derived items will cause the item from base to
+overwritten. Is this correct and where is it documented?
+
+* Recap So Far
+
+As we have learned in the sections above, NML2 is /written in/ LEMS, where the
+salient definitions can be found in the LEMS files provided within the NeuroML2
+repositories. This means each XML tag in an NML document, eg ~<ionChannelHH>~, can
+be looked up in the corresponding LEMS file, in this case ~Channels.xml~.
+
+In addition, both LEMS and NML2 have -- minimal, ie a working NML2/LEMS document
+will validate, but not every validating document is working NML2/LEMS -- XSD
+schemata attached.
+
+To compose a concrete component from an NML2 document we will be required to
+- parse the related LEMS files
+- build an inheritance tree (since requirements are in terms of 'base classes')
+- extract dynamics and other items from the LEMS descriptions
+- obtain parameters and similar from the NML2 XML node
+- recursively instantiate children of the object
+
+* A Larger Example
+
+We are almost in a position to decode our first practical example
+#+begin_src xml
+<?xml version="1.0" encoding="UTF-8"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
+         id="NML2_SimpleIonChannel">
+    <ionChannelHH id="NaConductance" conductance="10pS" species="na">
+        <gateHHrates id="m" instances="3">
+            <forwardRate type="HHExpLinearRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
+            <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
+        </gateHHrates>
+        <gateHHrates id="h" instances="1">
+            <forwardRate type="HHExpRate" rate="0.07per_ms" midpoint="-65mV" scale="-20mV"/>
+            <reverseRate type="HHSigmoidRate" rate="1per_ms" midpoint="-35mV" scale="10mV"/>
+        </gateHHrates>
+    </ionChannelHH>
+</neuroml>
+#+end_src
+
+To do so, we have to find the LEMS definitions, of which will we use simplified versions.
+
+First, we take a look at the ion channel.
+#+begin_src xml
+<ComponentType name="baseIonChannel">
+  <Parameter name="conductance" dimension="conductance"/>
+  <Exposure name="g" dimension="conductance"/>
+  <Exposure name="fopen" dimension="none"/>
+  <Requirement name="v" dimension="voltage"/>
+</ComponentType>
+
+<ComponentType name="ionChannelHH" extends="baseIonChannel">
+  <Children name="gates" type="gate"/>
+
+  <Dynamics>
+    <DerivedVariable name="fopen" dimension="none" select="gates[*]/fcond" reduce="multiply"/>
+    <DerivedVariable name="g" exposure="g" value="conductance * fopen" dimension="conductance"/>
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+Recall the definitions for the ~rate~ hierarchy above. Finally, we need to inspect the ~gates~
+#+begin_src xml
+<ComponentType name="gate">
+    <Parameter name="instances" dimension="none"/>
+    <Exposure name="fcond" dimension="none"/>
+    <Exposure name="q" dimension="none"/>
+</ComponentType>
+
+<ComponentType name="gateHHrates" extends="gate">
+  <Child name="forwardRate" type="baseVoltageDepRate"/>
+  <Child name="reverseRate" type="baseVoltageDepRate"/>
+
+  <Exposure name="alpha" dimension="per_time"/>
+  <Exposure name="beta"  dimension="per_time"/>
+  <Exposure name="tau"   dimension="time"/>
+  <Exposure name="inf"   dimension="none"/>
+
+  <Dynamics>
+    <StateVariable name="q" dimension="none" exposure="q"/>
+    <DerivedVariable name="alpha" dimension="per_time" exposure="alpha" select="forwardRate/r"/>
+    <DerivedVariable name="beta"  dimension="per_time" exposure="beta"  select="reverseRate/r"/>
+    <DerivedVariable name="fcond" dimension="none"     exposure="fcond" value="q^instances"/>
+    <DerivedVariable name="inf"   dimension="none"     exposure="inf"   value="alpha/(alpha+beta)"/>
+    <DerivedVariable name="tau"   dimension="time"     exposure="tau"   value="1/(alpha+beta)"/>
+
+    <TimeDerivative variable="q" value="(inf - q) / tau"/>
+
+    <OnStart>
+      <StateAssignment variable="q" value="inf"/>
+    </OnStart>
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+Finally, we can put this together to extract the meaning of ~gateHHrates~
+#+begin_latex
+q(t=0)   &= \frac{a}{a + b}\\
+q'(t)    &= a - \frac{q}{a + b}
+#+end_latex
+
+where $a$ and $b$ are defined by the ~forwardRate~ and ~reverseRate~ items. Now,
+we can compose this into ~ionChannelHH~ while simplifying the equations and
+renaming quantities
+#+begin_latex
+m(t=0) &= \frac{r_{lin}}{r_{lin} + r_{exp}}\\
+m'(t)  &= r_{lin} - \frac{m}{r_{lin} + r_{exp}}\\
+h(t=0) &= \frac{r_{exp}}{r_{exp} + r_{sig}}\\
+h(t)   &= r_{exp} - \frac{h}{r_{exp} + r_{sig}}\\
+g      &= h m^3 \gamma
+#+end_latex
+NB. while we /are/ using the same symbols here, $r_{exp}$ signifies two
+independent quantities in the equations for $m$ and $h$.
+#+begin_latex
+r_{exp} &= \rho_{exp}\exp((U - \mu_{exp})/\sigma_{exp})\\\\
+r_{sig} &= \frac{\rho_{sig}}{1 + \exp((\mu_{sig} - U)/\sigma_{sig})}\\
+x_{lin} &= \frac{\mu_{lin} - U}{\sigma_{lin}} \\
+r_{lin} &= \frac{\rho_{sig} x}{1 - \exp((- x)}}
+#+end_latex
+As notational convenience, we used greek letters for parameters. Unsurprisingly,
+we find the HH neuron model here.
+
+* How to Interpret NML2
+
+In the last part we saw that /intuitively/ NML2/LEMS is quite straightforward to
+interpret. However, we will need to formalise the process to be able to deal with
+NML2 in general. Starting with this section, the document will delve into the
+technical details. Our current goal will be to write a tool able to translate at
+least the ~ionChannelHH~ model into a symbolic description. Although NML2 can be
+extended using LEMS, we will use the static schema provided in the NML2 repository
+as is.
+
+Here is a list of invariants we need to uphold
+- Each type must be aware of its base type, eg ~gateHHrates <- gate~, required
+  to
+  - check and sort ~Children~, eg given ~<Children type="gate" name="gates"/>~
+    we need to collect everything deriving from ~gate~ into an array ~gates~.
+  - compose the derived items parameters and variables from the inherited items
+  - we cannot shorten ~A <- B <- C~ to ~A <- C~ since ~C~ might be used as either
+- Each item must be aware of its enclosing items
+  #+begin_example
+  NaConductance - gates +- m +- forwardRate
+                        |    +- reverseRate
+                        |
+                        +- h +- forwardRate
+                             +- reverseRate
+  #+end_example
+  This is needed to facilitate path-based selection.
+
+We need to situationally account for these cases
+- ~A~ declares a ~<Child name="child" type="B">~
+  #+begin_src xml
+  <A>
+    <child type="B" />
+  </A>
+  #+end_src
+  or
+  #+begin_src xml
+  <A>
+    <child type="Derived_from_B" />
+  </A>
+  #+end_src
+  *QUESTION* is this acceptable as well?
+  #+begin_src xml
+  <A>
+    <!-- or name="child"? -->
+    <B id="child" />
+  </A>
+  #+end_src
+- ~A~ declares a ~<Children name="children" type="B">~
+  #+begin_src xml
+  <A>
+    <B id="B1" />
+    <Derived_from_B id="B2" />
+  </A>
+  #+end_src
+  The name ~children~ now relates to a collection of things deriving from ~B~, ie
+  ~\forall T \sup B: String -> T~, akin to dynamic polymorphism/existentials.
+
+  *NOTE* the dichotomy between ~<name type="T">~ and ~<T id="name">~ for ~Child~ and ~Children~
+       is a bit annoying.
+
+  The possible instantiations of ~ionChannel~ are
+  - ~baseIonChannel~ :: the base class
+  - ~ionChannel~ / ~ionChannelHH~ :: the are identical, but both present for convenience
+  - ~ionChannelKS~ :: ion channel with a ~gate~ based on a kinetic scheme
+  - ~ionChannelVShift~ :: ion channel with a voltage offset.
+  Practically, we only expect to support ~ionChannel~ for now and voltage
+  shifted channels being a trivial extension later. Kinetic schemata are out of
+  scope and ~baseIonChannel~ is of no practical use.
+
+  However, it infeasible to generate a fixed set of prebuilt implementations as
+  ~ionChannel~ instances can have an arbitrary number of ~gate~ instances which
+  implement most of the functionality. This invalidates previous plans for
+  implementation following that strategy.
+
+  *QUESTION* Is the ~id~ field always allowed? *ANSWER* Yes, ~id~ is implied.
+
+  *QUESTION* Scoping
+  - derived variables:
+    - local: visible
+    - enclosing:
+    - enclosed:
+  - state variables:
+    - local: visible
+    - enclosing:
+    - enclosed:
+  - parameters
+    - local: visible
+    - enclosing: private
+    - enclosed:
+  - constants:
+    - local: visible
+    - enclosing:
+    - enclosed:
+
+  In order to produce efficient representations, we will need to collapse
+  instances and types into a flat format, eg
+  #+begin_src xml
+  <ComponentType name="B">
+    <Exposure name="eX">
+    <DerivedVariable name="X" exposure="eX"/>
+  </ComponentType>
+
+  <ComponentType name="A">
+    <Child name="ab">
+    <Dynamics>
+      <DerivedVariable name="Y" select="B/eX"/>
+    <Dynamics>
+  </ComponentType>
+  #+end_src
+  should be flattened into
+  #+begin_src xml
+  <ComponentType name="C">
+    <Exposure name="ab_eX">
+    <Dynamics>
+      <DerivedVariable name="ab_X" exposure="ab_eX"/>
+      <DerivedVariable name="Y" value="ab_eX"/>
+    </Dynamics>
+  </ComponentType>
+  #+end_src

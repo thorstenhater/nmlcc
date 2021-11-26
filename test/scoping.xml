@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Lems xmlns="http://www.neuroml.org/lems/0.7.6"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.neuroml.org/lems/0.7.6 ../../LEMS/Schemas/LEMS/LEMS_v0.7.6.xsd"
+      description="Test Scoping rules">
+
+  <ComponentType name="base">
+    <Parameter name="p_base" dimension="none"/>
+
+    <Exposure name="e_p_base" dimension="none"/>
+
+    <Child name="in0" type="inner"/>
+
+    <Dynamics>
+      <!-- Setting derived vars from literals -->
+      <DerivedVariable name="d_base" value="42"/>
+      <!-- Setting derived vars from parameters -->
+      <DerivedVariable name="d_p_base" value="p_base" exposure="e_p_base"/>
+      <!-- TODO Setting derived vars from child parameters -->
+      <!-- Fun fact: using pylems and 'in' implodes, since using `x.in` is a syntax error -->
+      <DerivedVariable name="d_p_base" select="in0/e_dd_inner" dimension="none"/>
+    </Dynamics>
+  </ComponentType>
+
+  <ComponentType name="inner">
+    <!-- <Requirement name="e_p_base" dimension="none"/> -->
+    <Exposure name="e_dd_inner" dimension="none"/>
+
+    <Dynamics>
+      <!-- Setting derived vars from literals -->
+      <DerivedVariable name="d_inner" value="42"/>
+      <!-- Setting derived vars from others-->
+      <DerivedVariable name="dd_inner" value="2*d_inner" exposure="e_dd_inner"/>
+
+      <!-- TODO Getting variables from outer scope -->
+      <DerivedVariable name="dp_base" value="e_p_base"/>
+    </Dynamics>
+  </ComponentType>
+
+  <!-- We need this in order to get _something_ out of (j|py)lems -->
+  <Target component="my0"/>
+
+  <base id="my0" p_base="23">
+    <in0 type="inner"/>
+  </base>
+</Lems>
