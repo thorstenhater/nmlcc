@@ -362,29 +362,30 @@ impl Collapsed {
 
     fn from_instance_(inst: &Instance, ctx: &Context, name: Option<String>) -> Result<Self> {
         let mut result = Collapsed::new(&inst.id);
-
+        let ct = &inst.component_type;
         let mut ctx = ctx.clone();
         ctx.enter(inst.id.as_deref().or_else(|| name.as_deref()).unwrap(),
-                  &inst.component_type.exposures.keys()
-                       .chain(inst.component_type.parameters.iter())
-                       .chain(inst.component_type.constants.keys())
-                       .chain(inst.component_type.variables.iter().map(|v| &v.name))
-                       .cloned()
-                       .collect::<Vec<_>>()[..]);
-        result.exposures  = inst.component_type.exposures.iter()
+                  &ct.exposures.keys()
+                  .chain(ct.parameters.iter())
+                  .chain(ct.constants.keys())
+                  .chain(ct.variables.iter().map(|v| &v.name))
+                  .cloned()
+                  .collect::<Vec<_>>()[..]);
+
+        result.exposures  = ct.exposures.iter()
                                                          .map(|(k, v)| (ctx.add_prefix(k), v.clone()))
                                                          .collect();
-        result.constants  = inst.component_type.constants.iter()
+        result.constants  = ct.constants.iter()
                                                          .map(|(k, v)| (ctx.add_prefix(k), v.clone()))
                                                          .collect();
-        result.parameters = inst.component_type.parameters.iter()
+        result.parameters = ct.parameters.iter()
                                                           .map(|k| (ctx.add_prefix(k), inst.parameters.get(k).cloned()))
                                                           .collect();
-        result.attributes = inst.component_type.attributes.iter()
+        result.attributes = ct.attributes.iter()
                                                           .map(|k| (ctx.add_prefix(k), inst.attributes.get(k).cloned()))
                                                           .collect();
 
-        for v in inst.component_type.variables.clone() {
+        for v in ct.variables.clone() {
             let name      = ctx.add_prefix(&v.name);
             let exposure  =  v.exposure.map(|s| ctx.add_prefix(&s));
             let mut kind  = v.kind.clone(); ctx.rename_kind(&mut kind);
@@ -411,7 +412,7 @@ impl Collapsed {
                     SelectBy::Get => if let [ref n] = ms[..] {
                         n.clone()
                     } else {
-                        panic!("Required field is not found for {:?} in {:?}", ps, result.exposures);
+                        return Err(format!("Required field is not found for {:?} in {:?}", ps, result.exposures));
                     },
                      // TODO _technically_ we don't not need to guard ./. empty here, it will be squashed by simplify
                     SelectBy::Product => if ms.is_empty() { expr::Expr::F64(1.0) } else { expr::Expr::Mul(ms) },
