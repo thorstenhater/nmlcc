@@ -186,7 +186,7 @@ pub fn fold_leaves<T>(expr: &Expr, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
             fold_leaves(&*a, acc, f);
             fold_leaves(&*b, acc, f);
         }
-        e => f(&e, acc),
+        e => f(e, acc),
     }
 }
 
