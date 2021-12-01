@@ -1,10 +1,16 @@
 use std::collections::HashMap as Map;
 use std::collections::HashSet as Set;
+use std::fs::write;
+
 use roxmltree::Node;
+
+use clap::Parser;
 
 mod xml;
 mod lems;
 mod expr;
+
+use expr::{Quantity, Expr, Match};
 
 type Result<T> = std::result::Result<T, String>;
 
@@ -27,11 +33,11 @@ enum SelectBy { Get, Sum, Product, }
 #[derive(Clone, Debug, PartialEq)]
 enum VarKind {
     /// State variable defined by 1st order ODE X(t=0), X'(t)
-    State(Option<expr::Expr>, Option<expr::Expr>),
+    State(Option<Expr>, Option<Expr>),
     /// cases=[condition => expression] default=expression
-    Derived(Vec<(expr::Expr, expr::Expr)>, Option<expr::Expr>),
+    Derived(Vec<(Expr, Expr)>, Option<Expr>),
     /// Select one or more fields from children. NOTE will be gone after collapsing
-    Select(SelectBy, expr::Match),
+    Select(SelectBy, Match),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -79,13 +85,16 @@ struct ComponentType {
     /// attributes (non-numerical parameters?)
     attributes: Vec<String>,
     /// constants
-    constants: Map<String, expr::Quantity>,
+    constants: Map<String, Quantity>,
+    /// events: on event assign `variable` <- `Expr`
+    events: Vec<(String, Expr)>,
 }
 
 /// Helper: Process Dynamics part of ComponentType
-fn lems_dynamics(dynamics: &lems::raw::Dynamics, variables: &mut Vec<Variable>) -> Result<()> {
+fn lems_dynamics(dynamics: &lems::raw::Dynamics,
+                 variables: &mut Vec<Variable>,
+                 events: &mut Vec<(String, Expr)> ) -> Result<()> {
     use lems::raw::DynamicsBody::*;
-    use lems::raw::OnStartBody::*;
     use lems::raw::ConditionalDerivedVariableBody::*;
     for b in &dynamics.body {
         match b {
@@ -97,9 +106,9 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics, variables: &mut Vec<Variable>) 
                         None             => SelectBy::Get,
                         Some(x)          => return Err(format!("Unknown reduction {}", x)),
                     };
-                    VarKind::Select(by, expr::Match::parse(s)?)
+                    VarKind::Select(by, Match::parse(s)?)
                 } else if let Some(e) = v.value.as_ref() {
-                    VarKind::Derived(Vec::new(), Some(expr::Expr::parse(e)?))
+                    VarKind::Derived(Vec::new(), Some(Expr::parse(e)?))
                 } else {
                     return Err("Illegal DerivedVariable".to_string());
                 };
@@ -111,28 +120,46 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics, variables: &mut Vec<Variable>) 
                 let mut cs = Vec::new();
                 let mut df = None;
                 for Case(c) in &v.body {
-                    let e = expr::Expr::parse(&c.value)?;
+                    let e = Expr::parse(&c.value)?;
                     if let Some(b) = c.condition.as_ref() {
-                        cs.push((expr::Expr::parse_bool(b)?, e));
+                        cs.push((Expr::parse_bool(b)?, e));
                     } else {
                         df = Some(e);
                     }
                 }
                 variables.push(Variable::new(&v.name, &v.exposure, &v.dimension, &VarKind::Derived(cs, df)));
             }
-            OnStart(v) =>
+            OnStart(v) => {
+                use lems::raw::OnStartBody::*;
                 for StateAssignment(a) in &v.body {
                     let it = variables.iter_mut().find(|x| x.name == a.variable);
                     if let Some(Variable { kind: VarKind::State(ref mut i, _), ..}) = it {
-                        *i = Some(expr::Expr::parse(&a.value)?);
+                        *i = Some(Expr::parse(&a.value)?);
                     } else {
                         return Err(format!("Must be a StateVar: {}", a.variable));
                     }
                 }
+            }
+            OnEvent(v) => {
+                use lems::raw::OnEventBody::*;
+                for b in &v.body {
+                    match b {
+                        StateAssignment(a) => {
+                            let it = variables.iter().find(|x| x.name == a.variable);
+                            if let Some(Variable { kind: VarKind::State(_, _), ..}) = it {
+                                events.push((a.variable.to_string(), Expr::parse(&a.value)?));
+                            } else {
+                                return Err(format!("Must be a StateVar: {}", a.variable));
+                            }
+                        }
+                        b => println!("NOTE: Ignoring {:?} in {:?}", b, v),
+                    }
+                }
+            }
             TimeDerivative(v) => {
                 let it = variables.iter_mut().find(|x| x.name == v.variable);
                 if let Some(Variable { kind: VarKind::State(_, ref mut d), ..}) = it {
-                    *d = Some(expr::Expr::parse(&v.value)?);
+                    *d = Some(Expr::parse(&v.value)?);
                 } else {
                     return Err(format!("Must be a StateVar: {}", v.variable));
                 }
@@ -154,6 +181,7 @@ impl ComponentType {
         let mut parameters = Vec::new();
         let mut attributes = Vec::new();
         let mut constants = Map::new();
+        let mut events = Vec::new();
 
         for ix in &ct.body {
             use lems::raw::ComponentTypeBody::*;
@@ -161,14 +189,14 @@ impl ComponentType {
                 Child(c)     => { child.insert(c.name.to_string(), c.r#type.to_string()); }
                 Children(c)  => { children.insert(c.name.to_string(), c.r#type.as_ref().unwrap().to_string()); }
                 Parameter(p) => { parameters.push(p.name.to_string()); }
-                Constant(c)  => { constants.insert(c.name.to_string(), expr::Quantity::parse(&c.value)?); }
+                Constant(c)  => { constants.insert(c.name.to_string(), Quantity::parse(&c.value)?); }
                 Exposure(e)  => { exposures.insert(e.name.to_string(), e.dimension.to_string());  }
                 Text(t)      => { attributes.push(t.name.to_string()); }
-                Dynamics(d)  => { lems_dynamics(d, &mut variables)?; },
+                Dynamics(d)  => { lems_dynamics(d, &mut variables, &mut events)?; },
                 _ => {}
             }
         }
-        Ok(Self { name, base, child, children, exposures, variables, constants, parameters, attributes })
+        Ok(Self { name, base, child, children, exposures, variables, constants, parameters, attributes, events })
     }
 }
 
@@ -251,28 +279,26 @@ struct Collapsed {
     name: Option<String>,
     exposures: Map<String, String>,
     variables: Vec<Variable>,
-    constants: Map<String, expr::Quantity>,
-    parameters: Map<String, Option<expr::Quantity>>,
+    constants: Map<String, Quantity>,
+    parameters: Map<String, Option<Quantity>>,
     attributes: Map<String, Option<String>>,
+    events: Vec<(String, Expr)>,
 }
 
 /// Map variables to dependencies
 fn find_dependencies(variables: &[Variable]) -> Map<String, Set<String>> {
     let mut deps = Map::new();
-    let add_var = |e: &expr::Expr, acc: &mut Set<String>| if let expr::Expr::Var(v) = e { acc.insert(v.to_string()); };
+    let add_var = |e: &Expr, acc: &mut Set<String>| if let Expr::Var(v) = e { acc.insert(v.to_string()); };
     for v in variables {
         let u = deps.entry(v.name.to_string()).or_insert_with(Set::new);
         match &v.kind {
             VarKind::State(it, dv) => {
-                if let Some(i) = it.as_ref() { expr::fold_leaves(i, u, &add_var) }
-                if let Some(d) = dv.as_ref() { expr::fold_leaves(d, u, &add_var) }
+                if let Some(i) = it.as_ref() { i.fold(u, &add_var) }
+                if let Some(d) = dv.as_ref() { d.fold(u, &add_var) }
             }
             VarKind::Derived(cs, df) => {
-                if let Some(d) = df.as_ref() { expr::fold_leaves(d, u, &add_var) }
-                for (c, x) in cs {
-                    expr::fold_leaves(c, u, &add_var);
-                    expr::fold_leaves(x, u, &add_var);
-                }
+                if let Some(d) = df.as_ref() { d.fold(u, &add_var) }
+                for (c, x) in cs { c.fold(u, &add_var); x.fold(u, &add_var); }
             }
             _ => {}
         }
@@ -321,41 +347,42 @@ fn sorted_dependencies_of(start: &[String], deps: &Map<String, Set<String>>, kno
     Ok(result)
 }
 
-fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) -> Result<()> {
+fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) -> Result<String> {
+    let mut result = Vec::new();
     let dependencies = find_dependencies(vars);
     let mut deps = sorted_dependencies_of(roots, &dependencies, known)?;
-    println!("  LOCAL {}", deps.join(", "));
-    println!();
+    if !deps.is_empty() {
+        result.push(format!("  LOCAL {}\n", deps.join(", ")));
+    }
     deps.extend(roots.iter().cloned());
-
     for d in deps {
         match vars.iter().find(|k| k.name == d) {
             Some(Variable{ kind: VarKind::Derived(cs, df), .. }) => {
                 let mut depth = 0;
                 for (b, e) in cs {
-                    if depth != 0 { println!("  else {{"); }
-                    println!("  if ({}) {{ {} = {} }}", b.print_to_string(), d, e.print_to_string());
+                    if depth != 0 { result.push(String::from("  else {")); }
+                    result.push(format!("  if ({}) {{ {} = {} }}", b.print_to_string(), d, e.print_to_string()));
                     depth += 1;
                 }
                 if let Some(e) = df {
-                    if depth != 0 { println!("  else {{"); }
-                    println!("  {} = {}", d, e.print_to_string());
-                    if depth != 0 { println!("  }}"); }
+                    if depth != 0 { result.push(String::from("  else {")); }
+                    result.push(format!("  {} = {}", d, e.print_to_string()));
+                    if depth != 0 { result.push(String::from("  }")); }
                 }
-                for _ in 0..depth-1 { println!("  }}"); }
+                for _ in 0..depth-1 { result.push(String::from("  }")); }
             }
-            Some(Variable{ kind: VarKind::State(Some(x), None), .. }) => { println!("  {} = {}",  d, x.print_to_string()); }
-            Some(Variable{ kind: VarKind::State(None, Some(x)), .. }) => { println!("  {}' = {}", d, x.print_to_string()); }
+            Some(Variable{ kind: VarKind::State(Some(x), None), .. }) => { result.push(format!("  {} = {}",  d, x.print_to_string())); }
+            Some(Variable{ kind: VarKind::State(None, Some(x)), .. }) => { result.push(format!("  {}' = {}", d, x.print_to_string())); }
             Some(e) => { return Err(format!("Don't know what to do with variable: {:?}", e)); }
             None => { return Err(format!("No such variable: {}", d)); }
         }
     }
-    Ok(())
+    Ok(result.join("\n"))
 }
 
 impl Collapsed {
     fn new(nm: &Option<String>) -> Self {
-        Collapsed { name: nm.clone(), exposures: Map::new(), variables: Vec::new(), constants: Map::new(), parameters: Map::new(), attributes: Map::new() }
+        Collapsed { name: nm.clone(), exposures: Map::new(), variables: Vec::new(), constants: Map::new(), parameters: Map::new(), attributes: Map::new(), events: Vec::new() }
     }
 
     fn from_instance(inst: &Instance) -> Result<Self> { Self::from_instance_(inst, &Context::new(), None) }
@@ -373,14 +400,15 @@ impl Collapsed {
                     .collect::<Vec<_>>()[..]);
 
         result.exposures  = ct.exposures.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
+        result.events     = ct.events.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
         result.constants  = ct.constants.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
         result.parameters = ct.parameters.iter().map(|k| (ctx.add_prefix(k), inst.parameters.get(k).cloned())).collect();
         result.attributes = ct.attributes.iter().map(|k| (ctx.add_prefix(k), inst.attributes.get(k).cloned())).collect();
 
-        for v in ct.variables.clone() {
+        for v in &ct.variables {
             let name      = ctx.add_prefix(&v.name);
-            let exposure  = v.exposure.map(|s| ctx.add_prefix(&s));
-            let mut kind  = v.kind.clone(); ctx.rename_kind(&mut kind);
+            let exposure  = v.exposure.as_ref().map(|s| ctx.add_prefix(&s));
+            let kind      = ctx.rename_kind(&v.kind);
             let dimension = v.dimension.clone();
             result.variables.push(Variable { name, exposure, kind, dimension});
         }
@@ -398,8 +426,8 @@ impl Collapsed {
         for v in result.variables.iter_mut() {
             if let VarKind::Select(by, ps) = &v.kind {
                 let ms = ps.on_path(&result.exposures).iter()
-                                                      .map(|m| expr::Expr::Var(m.to_string()))
-                                                      .collect::<Vec<expr::Expr>>();
+                                                      .map(|m| Expr::Var(m.to_string()))
+                                                      .collect::<Vec<Expr>>();
                 let kind = match &by {
                     SelectBy::Get => if let [ref n] = ms[..] {
                         n.clone()
@@ -407,8 +435,8 @@ impl Collapsed {
                         return Err(format!("Required field is not found for {:?} in {:?}", ps, result.exposures));
                     },
                      // TODO _technically_ we don't not need to guard ./. empty here, it will be squashed by simplify
-                    SelectBy::Product => if ms.is_empty() { expr::Expr::F64(1.0) } else { expr::Expr::Mul(ms) },
-                    SelectBy::Sum     => if ms.is_empty() { expr::Expr::F64(0.0) } else { expr::Expr::Add(ms) },
+                    SelectBy::Product => if ms.is_empty() { Expr::F64(1.0) } else { Expr::Mul(ms) },
+                    SelectBy::Sum     => if ms.is_empty() { Expr::F64(0.0) } else { Expr::Add(ms) },
                 };
                 v.kind = VarKind::Derived(Vec::new(), Some(kind));
             }
@@ -444,7 +472,7 @@ impl Collapsed {
         if !self.parameters.is_empty() {
             println!("   * Parameters");
             for (k, v) in &self.parameters {
-                if let Some(expr::Quantity {value: x, unit: u}) = v {
+                if let Some(Quantity {value: x, unit: u}) = v {
                     println!("     * {} = {} ({:?})", k, x, u);
                 } else {
                     println!("     * {} = UNSET", k);
@@ -494,26 +522,26 @@ impl Collapsed {
     fn simplify(&self) -> Self {
         let mut prv = self.clone();
         for _ in 0..5 {
-            let mut table: Map<String, expr::Expr> = Map::new();
+            let mut table: Map<String, Expr> = Map::new();
 
             // NOTE(TH): this seems overly aggressive
             // for (p, v) in &self.parameters {
-                // if let Some(expr::Quantity{ value, ..}) = v {
+                // if let Some(Quantity{ value, ..}) = v {
                     // table.insert(p, value);
                 // }
             // }
 
             for v in &prv.variables {
                 if let VarKind::Derived(cs, Some(k)) = &v.kind {
-                    if cs.is_empty() && matches!(k, expr::Expr::F64(_) | expr::Expr::Var(_)) {
+                    if cs.is_empty() && matches!(k, Expr::F64(_) | Expr::Var(_)) {
                             table.insert(v.name.to_string(), k.clone());
                     }
                 }
             }
 
             let mut cur = prv.clone();
-            let splat = |v: &expr::Expr| {
-                if let expr::Expr::Var(n) = v {
+            let splat = |v: &Expr| {
+                if let Expr::Var(n) = v {
                     if let Some(x) = table.get(n) { return x.clone(); }
                 }
                 v.clone()
@@ -522,15 +550,15 @@ impl Collapsed {
             for v in cur.variables.iter_mut() {
                 match &v.kind {
                     VarKind::State(i, d) => {
-                        let i = i.as_ref().map(|e| expr::map_leaves(e, &splat).simplify());
-                        let d = d.as_ref().map(|e| expr::map_leaves(e, &splat).simplify());
+                        let i = i.as_ref().map(|e| e.map(&splat).simplify());
+                        let d = d.as_ref().map(|e| e.map(&splat).simplify());
                         v.kind = VarKind::State(i, d);
                     }
                     VarKind::Derived(cs, df) => {
                         let cs = cs.iter()
-                                   .map(|(c, e)| (expr::map_leaves(c, &splat).simplify(), expr::map_leaves(e, &splat).simplify()))
+                                   .map(|(c, e)| (c.map(&splat).simplify(), e.map(&splat).simplify()))
                                    .collect::<Vec<_>>();
-                        let df = df.as_ref().map(|e| expr::map_leaves(e, &splat).simplify());
+                        let df = df.as_ref().map(|e| e.map(&splat).simplify());
                         v.kind = VarKind::Derived(cs, df);
                     }
                     _ => {}
@@ -542,25 +570,18 @@ impl Collapsed {
         prv
     }
 
-    fn to_nmodl(&self) -> Result<()> {
-        let mut state   = Vec::new();        // State variable names
-        let mut state_i = Vec::new();        // State initialisation
-        let mut state_d = Vec::new();        // State derivatives
-        let mut deriv   = Vec::new();        // Derived variables
+    fn nmodl_init_block(&self) -> Result<String> {
+        let mut state = Vec::new();
+        let mut deriv = Vec::new();
 
         for var in &self.variables {
             match &var.kind {
-                VarKind::State(i, d) => {
-                    if !state.contains(&var.name) { state.push(var.name.to_string()); }
-                    if d.is_some() {
-                        let mut v = var.clone();
-                        v.kind = VarKind::State(None, d.clone());
-                        state_d.push(v);
-                    }
+                VarKind::State(i, _) => {
                     if i.is_some() {
                         let mut v = var.clone();
-                        v.kind = VarKind::State(i.clone(), None);
-                        state_i.push(v);
+                        v.kind = VarKind::State(None, i.clone());
+                        state.push(v.clone());
+                        deriv.push(v);
                     }
                 }
                 VarKind::Derived(_, _) => deriv.push(var.clone()),
@@ -568,54 +589,136 @@ impl Collapsed {
             }
         }
 
-        // Variables we can access everywhere: parameters, constants, state
+        // Variables we can access everywhere: parameters, constants, but not state (might not be defined yet)
         let known = self.parameters.iter().map(|p| p.0.to_string())
                         .chain(self.constants.iter().map(|p|p.0.to_string()))
-                        .chain(state.iter().cloned())
                         .chain(std::iter::once("v".to_string()))
                         .collect::<Set<_>>();
 
-        let pfx = self.name.as_ref().unwrap().to_string();
-        let ion = self.attributes.get(&format!("{}_species", pfx)).cloned().flatten().unwrap_or_else(|| "l".to_string());
-        let cod = format!("{}_g", pfx);
-        println!("NEURON {{");
-        println!("  SUFFIX {}", self.name.as_ref().unwrap());
-        println!("  USEION {} READ e{} WRITE i{}", ion, ion, ion);
-        println!("}}\n");
+        let init = state.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
+        let deps = deriv.iter().chain(state.iter()).cloned().collect::<Vec<_>>();
+        let result = vec![String::from("INITIAL {"),
+                         print_dependencies(&init, &deps, &known)?,
+                         String::from("}\n"),];
+        Ok(result.join("\n"))
+    }
 
-        println!("STATE {{");
-        for v in &state_d { println!("  {}", v.name); }
-        println!("}}\n");
+    fn nmodl_deriv_block(&self) -> Result<String> {
+        let mut state = Vec::new();
+        let mut deriv = Vec::new();
 
-
-        println!("PARAMETER {{");
-        for (k, v) in &self.parameters {
-            if let Some(v) = v {
-                println!("  {} = {}", k, v.value);
-            } else {
-                println!("  {}", k);
+        for var in &self.variables {
+            match &var.kind {
+                VarKind::State(_, d) => {
+                    if d.is_some() {
+                        let mut v = var.clone();
+                        v.kind = VarKind::State(None, d.clone());
+                        state.push(v.clone());
+                        deriv.push(v);
+                    }
+                }
+                VarKind::Derived(_, _) => deriv.push(var.clone()),
+                VarKind::Select(_, _) => return Err(format!("Select variable in {} post flattening stage.", var.name)),
             }
         }
-        println!("}}\n");
 
-        println!("INITIAL {{");
-        let init = state_i.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
-        let deps = deriv.iter().chain(state_d.iter()).cloned().collect::<Vec<_>>();
-        print_dependencies(&init, &deps, &known)?;
-        println!("}}\n");
+        // Variables we can access everywhere: parameters, constants, state and voltage
+        let known = self.parameters.iter().map(|p| p.0.to_string())
+                        .chain(self.constants.iter().map(|p|p.0.to_string()))
+                        .chain(state.iter().map(|v| v.name.to_string()))
+                        .chain(std::iter::once("v".to_string()))
+                        .collect::<Set<_>>();
 
-        println!("DERIVATIVE dstate {{");
-        let init = state_d.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
-        let deps = deriv.iter().chain(state_d.iter()).cloned().collect::<Vec<_>>();
-        print_dependencies(&init, &deps, &known)?;
-        println!("}}\n");
+        let init = state.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
+        let deps = deriv.iter().chain(state.iter()).cloned().collect::<Vec<_>>();
+        let result = vec![String::from("DERIVATIVE dstate {"),
+                          print_dependencies(&init, &deps, &known)?,
+                          String::from("}\n"),];
+        Ok(result.join("\n"))
+    }
 
-        println!("BREAKPOINT {{");
-        println!("  SOLVE dstate METHOD cnexp");
-        print_dependencies(&[cod.to_string()], &deriv, &known)?;
-        println!("  i{} = {}*(v - e{})", ion, cod, ion);
-        println!("}}\n");
-        Ok(())
+    fn nmodl_break_block(&self) -> Result<String> {
+        let mut state  = Vec::new();
+        let mut deriv  = Vec::new();
+
+        for var in &self.variables {
+            match &var.kind {
+                VarKind::State(_, d) => {
+                    if d.is_some() {
+                        let mut v = var.clone();
+                        v.kind = VarKind::State(None, d.clone());
+                        state.push(v.clone());
+                        deriv.push(v);
+                    }
+                }
+                VarKind::Derived(_, _) => deriv.push(var.clone()),
+                VarKind::Select(_, _) => return Err(format!("Select variable in {} post flattening stage.", var.name)),
+            }
+        }
+
+        // Variables we can access everywhere: parameters, constants, state and voltage
+        let known = self.parameters.iter().map(|p| p.0.to_string())
+                        .chain(self.constants.iter().map(|p|p.0.to_string()))
+                        .chain(state.iter().map(|v| v.name.to_string()))
+                        .chain(std::iter::once("v".to_string()))
+                        .collect::<Set<_>>();
+
+        let ion = self.ion_species();
+        let cod = format!("{}_g", self.suffix());
+        let result = vec![String::from("BREAKPOINT {"),
+                          format!("  SOLVE {} METHOD cnexp", "dstate"),
+                          print_dependencies(&[cod.to_string()], &deriv, &known)?,
+                          format!("  i{} = {}*(v - e{})", ion, cod, ion),
+                          String::from("}\n"),];
+        Ok(result.join("\n"))
+    }
+
+    fn nmodl_state_block(&self) -> Result<String> {
+        let mut result = vec![String::from("STATE {")];
+        for v in &self.variables{
+            if matches!(v.kind, VarKind::State(_, _)) {
+                result.push(format!("  {}", v.name));
+            }
+        }
+        result.push(String::from("}\n"));
+        Ok(result.join("\n"))
+    }
+
+    fn nmodl_param_block(&self) -> Result<String> {
+        let mut result = vec![String::from("PARAMETER {")];
+        for (k, v) in &self.parameters {
+            if let Some(v) = v {
+                result.push(format!("  {} = {}", k, v.value));
+            } else {
+                result.push(format!("  {}", k));
+            }
+        }
+        result.push(String::from("}\n"));
+        Ok(result.join("\n"))
+    }
+
+    fn suffix(&self) -> String { self.name.as_ref().unwrap().to_string() }
+    fn ion_species(&self) -> String { self.attributes.get(&format!("{}_species", self.suffix())).cloned().flatten().unwrap_or_else(|| "l".to_string()) }
+
+    fn to_nmodl(&self) -> Result<String> {
+        let ion = self.ion_species();
+        let mut result = vec![String::from("NEURON {"),
+                          format!("  SUFFIX {}", self.name.as_ref().unwrap()),
+                          format!("  USEION {} READ e{} WRITE i{}", ion, ion, ion),
+                          String::from("}\n"),
+                          self.nmodl_param_block()?,
+                          self.nmodl_state_block()?,
+                          self.nmodl_init_block()?,
+                          self.nmodl_deriv_block()?,
+                          self.nmodl_break_block()?,];
+        if !self.events.is_empty() {
+            result.push(String::from("NET_RECEIVE(weight) {"));
+            for (k, v) in &self.events {
+                result.push(format!("  {} = {}", k, v.print_to_string()));
+            }
+            result.push(String::from("}"));
+        }
+        Ok(result.join("\n"))
     }
 }
 
@@ -648,26 +751,26 @@ impl Context {
         pfx.join("_")
     }
 
-    fn rename_kind(&self, kind: &mut VarKind) {
-        let rename = |v: &mut expr::Expr| {
-            *v = expr::map_leaves(v, &|e| if let expr::Expr::Var(s) = e {
-                let n = self.rename(s);
-                expr::Expr::Var(n)
-            } else {
-                e.clone()
-            })
-        };
+    fn rename_expr(&self, v: &Expr) -> Expr {
+        v.map(&|e| if let Expr::Var(s) = e {
+            Expr::Var(self.rename(s))
+        } else {
+            e.clone()
+        })
+    }
+
+    fn rename_kind(&self, kind: &VarKind) -> VarKind {
         let pfx = self.0.iter().map(|p| p.0.to_string()).collect::<Vec<_>>();
         match kind {
-            VarKind::Select(_, ref mut ps)  => { ps.add_prefix(&pfx); }
-            VarKind::Derived(ref mut cs, ref mut df) => {
-                if let Some(x) = df.as_mut() { rename(x) }
-                cs.iter_mut().for_each(|(ref mut c, ref mut e)| { rename(c); rename(e); });
-            }
-            VarKind::State(ref mut i, ref mut d) => {
-                if let Some(x) = d.as_mut() { rename(x) }
-                if let Some(x) = i.as_mut() { rename(x) }
-            }
+            VarKind::Select(b, ps) => VarKind::Select(b.clone(), ps.add_prefix(&pfx)),
+            VarKind::Derived(cs, df) =>
+                VarKind::Derived(cs.iter()
+                                   .map(|(c, e)| (self.rename_expr(c), self.rename_expr(e)))
+                                   .collect(),
+                                 df.as_ref().map(|x| self.rename_expr(x))),
+                // cs.iter_mut().for_each(
+            VarKind::State(i, d) => VarKind::State(i.as_ref().map(|x| self.rename_expr(x)),
+                                                   d.as_ref().map(|x| self.rename_expr(x))),
         }
     }
 }
@@ -679,7 +782,7 @@ struct Instance {
     child: Map<String, Instance>,
     children: Map<String, Vec<Instance>>,
     id: Option<String>,
-    parameters: Map<String, expr::Quantity>,
+    parameters: Map<String, Quantity>,
     attributes: Map<String, String>,
 }
 
@@ -690,11 +793,12 @@ impl Instance {
 
         let mut attributes = Map::new();
         let mut parameters = Map::new();
+
         for attr in xml.attributes() {
             let key = attr.name().to_string();
             let val = attr.value();
             if component_type.parameters.contains(&key) {
-                parameters.insert(key, expr::Quantity::parse(val)?);
+                parameters.insert(key, Quantity::parse(val)?);
             } else if component_type.attributes.contains(&key) {
                 attributes.insert(key, val.to_string());
             }
@@ -720,19 +824,43 @@ impl Instance {
     }
 }
 
+#[derive(Parser)]
+#[clap(version="0.0.1", author="t.hater@fz-juelich.de")]
 struct Options {
-
+    /// Path to NMLCoreTypes
+    #[clap(short, long, default_value="ext/NeuroML2/NeuroML2CoreTypes")]
+    include_dir: String,
+    /// Toplevel CoreType definition file
+    #[clap(short, long, default_value="NeuroML2CoreTypes.xml")]
+    core: String,
+    /// A NeuroML2 compliant XML file
+    nml: String,
+    /// Base class to extract
+    #[clap(short, long, default_value="ionChannelHH")]
+    r#type: String,
+    /// Output file
+    #[clap(short, long)]
+    output: Option<String>,
+    /// Parameters to be retained as settable NIY
+    #[clap(short, long)]
+    parameters: Vec<String>,
 }
 
 fn main() -> Result<()> {
-    let lems = Lems::from_file("ext/NeuroML2/NeuroML2CoreTypes", "NeuroML2CoreTypes.xml")?;
-    let path = std::env::args().nth(1).ok_or("Usage: ./lems <file.nml>".to_string())?;
-    let xml  = std::fs::read_to_string(path).map_err(|_| "File not found")?;
+    let opts = Options::parse();
+    let lems = Lems::from_file(&opts.include_dir, &opts.core)?;
+    let xml  = std::fs::read_to_string(&opts.nml).map_err(|_| "File not found")?;
     let tree = roxmltree::Document::parse(&xml).map_err(|_| "Could not parse")?;
-    let name = "ionChannelHH";
     let node = tree.descendants()
-                   .find(|n| n.tag_name().name() == name)
-                   .ok_or(format!("Doc does not contain {}", name))?;
+                   .find(|n| n.tag_name().name() == opts.r#type)
+                   .ok_or(format!("Doc does not contain instances of {}", &opts.r#type))?;
     let instance = Instance::new(&lems, &node)?;
-    Collapsed::from_instance(&instance)?.simplify().to_nmodl()
+    let nmodl = Collapsed::from_instance(&instance)?.simplify().to_nmodl()?;
+    if let Some(file) = opts.output {
+        write(&file, nmodl).map_err(|_| "Error writing output to NMODL.")?;
+    } else {
+        print!("{}", nmodl);
+    };
+    eprintln!("{:?}", opts.parameters);
+    Ok(())
 }

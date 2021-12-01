@@ -37,6 +37,28 @@ pub enum Expr {
 }
 
 impl Expr {
+    pub fn map(&self, f: &impl Fn(&Expr) -> Expr) -> Expr {
+        match self {
+            Expr::Add(vs)      => Expr::Add(vs.iter().map(|v| v.map(f)).collect()),
+            Expr::Mul(vs)      => Expr::Mul(vs.iter().map(|v| v.map(f)).collect()),
+            Expr::Pow(vs)      => Expr::Pow(vs.iter().map(|v| v.map(f)).collect()),
+            Expr::Exp(b)       => Expr::Exp(Box::new(b.map(f))),
+            Expr::Bol(o, a, b) => Expr::Bol(o.clone(), Box::new(a.map(f)), Box::new(b.map(f))),
+            e => f(e),
+        }
+    }
+
+    pub fn fold<T>(&self, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
+        match self {
+            Expr::Add(vs)      => vs.iter().for_each(|v| v.fold(acc, f)),
+            Expr::Mul(vs)      => vs.iter().for_each(|v| v.fold(acc, f)),
+            Expr::Pow(vs)      => vs.iter().for_each(|v| v.fold(acc, f)),
+            Expr::Exp(b)       => b.fold(acc, f),
+            Expr::Bol(_, a, b) => { a.fold(acc, f); b.fold(acc, f); }
+            e => f(e, acc),
+        }
+    }
+
     pub fn parse(input: &str) -> Result<Self> {
         if let Ok((_, result)) = parse::add(input) {
             Ok(result.simplify())
@@ -112,8 +134,6 @@ pub enum Path {
 pub struct Match(Vec<Path>);
 
 impl Match {
-    fn new() -> Self { Match(Vec::new()) }
-
     pub fn parse(input: &str) -> Result<Self> {
         if let Ok((_, result)) = parse::path(input) {
             Ok(Match(result))
@@ -122,11 +142,11 @@ impl Match {
         }
     }
 
-    pub fn add_prefix(&mut self, pfx: &[String]) {
-        self.0 = pfx.iter()
-                    .map(|p| Path::Fixed(p.to_string()))
-                    .chain(self.0.iter().cloned())
-                    .collect();
+    pub fn add_prefix(&self, pfx: &[String]) -> Self {
+        Self(pfx.iter()
+                .map(|p| Path::Fixed(p.to_string()))
+                .chain(self.0.iter().cloned())
+                .collect())
     }
 
     pub fn on_path(&self, exposures: &Map<String, String>) -> Vec<String> {
@@ -161,33 +181,6 @@ impl Match {
         ms
     }
 
-}
-
-pub fn map_leaves(expr: &Expr, f: &impl Fn(&Expr) -> Expr) -> Expr {
-    match expr {
-        Expr::Add(vs)      => Expr::Add(vs.iter().map(|v| map_leaves(v, f)).collect()),
-        Expr::Mul(vs)      => Expr::Mul(vs.iter().map(|v| map_leaves(v, f)).collect()),
-        Expr::Pow(vs)      => Expr::Pow(vs.iter().map(|v| map_leaves(v, f)).collect()),
-        Expr::Exp(b)       => Expr::Exp(Box::new(map_leaves(&*b, f))),
-        Expr::Bol(o, a, b) => Expr::Bol(o.clone(),
-                                        Box::new(map_leaves(&*a, f)),
-                                        Box::new(map_leaves(&*b, f))),
-        e => f(e),
-    }
-}
-
-pub fn fold_leaves<T>(expr: &Expr, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
-    match expr {
-        Expr::Add(vs)      => vs.iter().for_each(|v| fold_leaves(v, acc, f)),
-        Expr::Mul(vs)      => vs.iter().for_each(|v| fold_leaves(v, acc, f)),
-        Expr::Pow(vs)      => vs.iter().for_each(|v| fold_leaves(v, acc, f)),
-        Expr::Exp(b)       => fold_leaves(&*b, acc, f),
-        Expr::Bol(_, a, b) => {
-            fold_leaves(&*a, acc, f);
-            fold_leaves(&*b, acc, f);
-        }
-        e => f(e, acc),
-    }
 }
 
 mod parse {

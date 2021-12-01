@@ -201,6 +201,7 @@ Note the following consequences of the 'is-a' model
 *QUESTION* from the examples and discussions I have the impression that having a
 ~Dynamics~ item in both base and derived items will cause the item from base to
 overwritten. Is this correct and where is it documented?
+*ANSWER* Correct, but nowhere written.
 
 * Recap So Far
 
@@ -210,8 +211,11 @@ repositories. This means each XML tag in an NML document, eg ~<ionChannelHH>~, c
 be looked up in the corresponding LEMS file, in this case ~Channels.xml~.
 
 In addition, both LEMS and NML2 have -- minimal, ie a working NML2/LEMS document
-will validate, but not every validating document is working NML2/LEMS -- XSD
-schemata attached.
+will likely validate, but not every validating document is working NML2/LEMS --
+XSD schemata attached.[fn:: For example the use of ~sequence~ in XSD implies
+order, but I am pretty sure this is not upheld everywhere. Also, most often
+~sequence~ is used together with ~count=unbounded~, which is semantically
+incorrect in many cases]
 
 To compose a concrete component from an NML2 document we will be required to
 - parse the related LEMS files
@@ -219,6 +223,10 @@ To compose a concrete component from an NML2 document we will be required to
 - extract dynamics and other items from the LEMS descriptions
 - obtain parameters and similar from the NML2 XML node
 - recursively instantiate children of the object
+
+From there, we can interpret the structure and integrate the equations of motion
+or produce an optimised represe first and interpret the result or export it to
+another format like native code or NMODL.
 
 * A Larger Example
 
@@ -400,46 +408,118 @@ We need to situationally account for these cases
 
   *QUESTION* Is the ~id~ field always allowed? *ANSWER* Yes, ~id~ is implied.
 
-  *QUESTION* Scoping
+** Scoping
   - derived variables:
     - local: visible
-    - enclosing:
-    - enclosed:
+    - enclosing: exposure
+    - enclosed: exposure
   - state variables:
     - local: visible
-    - enclosing:
-    - enclosed:
+    - enclosing: exposure
+    - enclosed: exposure
   - parameters
     - local: visible
     - enclosing: private
-    - enclosed:
+    - enclosed: private
   - constants:
     - local: visible
-    - enclosing:
-    - enclosed:
+    - enclosing: private
+    - enclosed: private
 
-  In order to produce efficient representations, we will need to collapse
-  instances and types into a flat format, eg
-  #+begin_src xml
-  <ComponentType name="B">
-    <Exposure name="eX">
-    <DerivedVariable name="X" exposure="eX"/>
-  </ComponentType>
+** Flattening Instances
+In order to produce efficient representations, we will need to collapse
+instances and types into a flat format, eg
+#+begin_src xml
+<ComponentType name="B">
+  <Exposure name="eX">
+  <DerivedVariable name="X" exposure="eX"/>
+</ComponentType>
 
-  <ComponentType name="A">
-    <Child name="ab">
-    <Dynamics>
-      <DerivedVariable name="Y" select="B/eX"/>
-    <Dynamics>
-  </ComponentType>
-  #+end_src
-  should be flattened into
-  #+begin_src xml
-  <ComponentType name="C">
-    <Exposure name="ab_eX">
-    <Dynamics>
-      <DerivedVariable name="ab_X" exposure="ab_eX"/>
-      <DerivedVariable name="Y" value="ab_eX"/>
-    </Dynamics>
-  </ComponentType>
-  #+end_src
+<ComponentType name="A">
+  <Child name="ab">
+  <Dynamics>
+    <DerivedVariable name="Y" select="B/eX"/>
+  <Dynamics>
+</ComponentType>
+#+end_src
+should be flattened into
+#+begin_src xml
+<ComponentType name="C">
+  <Exposure name="ab_eX">
+  <Dynamics>
+    <DerivedVariable name="ab_X" exposure="ab_eX"/>
+    <DerivedVariable name="Y" value="ab_eX"/>
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+* Synapses
+
+Next, we consider synapses, which have a different hierarchy, which is
+reproduced in the following, again, simplified for ease of reading [fn:: Note
+the comment, which we ignore is if it was fixed and fix in our own code.]
+#+begin_src xml
+<ComponentType name="basePointCurrent" extends="baseStandalone">
+  <Exposure name="i" dimension="current" description="The time varying current produced"/>
+</ComponentType>
+
+<ComponentType name="baseSynapse" extends="basePointCurrent">
+  <!-- Todo: see why Property isn't inherited by extended types -->
+  <Property name="weight" dimension="none" defaultValue="1"/>
+  <EventPort name="in" direction="in"/>
+</ComponentType>
+
+<ComponentType name="baseVoltageDepSynapse" extends="baseSynapse">
+  <Requirement name="v" dimension="voltage" description="voltage exposed by the parent"/>
+</ComponentType>
+
+<ComponentType name="baseConductanceBasedSynapse" extends="baseVoltageDepSynapse">
+  <Parameter name="gbase" dimension="conductance" description="Baseline conductance, ig the max conductance following a single spike"/>
+  <Parameter name="erev" dimension="voltage" description="Reversal potential of the synapse"/>
+  <Exposure name="g" dimension="conductance" description="Time varying conductance through the synapse"/>
+</ComponentType>
+
+<ComponentType name="expOneSynapse" extends="baseConductanceBasedSynapse">
+  <Parameter name="tauDecay" dimension="time" description="Time course of decay"/>
+  <Dynamics>
+    <StateVariable name="g" dimension="conductance" exposure="g"/>
+    <DerivedVariable name="i" exposure="i" dimension="current" value="g * (erev - v)" />
+    <TimeDerivative variable="g" value="-g / tauDecay" />
+    <OnStart>
+      <StateAssignment variable="g" value="0" />
+    </OnStart>
+    <OnEvent port="in">
+      <StateAssignment variable="g" value="g + (weight * gbase)" />
+    </OnEvent>
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+There's some additions to our knowledge of NML2 here:
+- ~Property~ :: Paraphrasing the LEMS documentation: 'like ~Parameter~, but may
+  be different for each instance'. So far, we did not encounter the ~Instance~
+  concept in LEMS and as it is used here for the synapse weight, we are going to
+  largely ignore it. [fn:: Arbor adds this on the library side to connections.]
+- ~OnEvent~ :: Contains assignments to state variables, similar to ~OnStart~,
+  but now triggered upon incoming events, ie spikes. May choose a port.
+
+Finally, we need to discuss ~EventPorts~. In contrast to simulators like Arbor
+and Neuron NML2 can differentiate between sources of incoming events and
+selectively emit events to channels. In pratice, however, only three such ports
+seem to be used in NML2 [fn :: Confirmed via `rg -Io 'port="[^"]+"' | sort -u`]
+- in :: Receive spikes
+- relay :: Forward spikes to sub-components
+- spike :: Emit spikes
+
+*** Implementation Details
+
+- ports :: Of these we only need to support ~in~ and ~relay~, the former is
+  covered, the latter currently not.
+- weight :: As Arbor uses this construction for NMODL input
+  #+begin_example
+  net_receive(weight) { ... }
+  #+end_example
+  we need to use our prior knowledge about the semantics of the parameter and
+  hard-code it into our NMODL translator.
+- vpeer :: Similar to ~weight~, sometimes needed for ~gradedSynapse~, can be
+  modelled in Arbor's NMODL dialect.
