@@ -385,13 +385,18 @@ impl Collapsed {
         Collapsed { name: nm.clone(), exposures: Map::new(), variables: Vec::new(), constants: Map::new(), parameters: Map::new(), attributes: Map::new(), events: Vec::new() }
     }
 
-    fn from_instance(inst: &Instance) -> Result<Self> { Self::from_instance_(inst, &Context::new(), None) }
+    fn from_instance(inst: &Instance) -> Result<Self> { Self::from_instance_(inst, &Context::new(), None, false) }
 
-    fn from_instance_(inst: &Instance, ctx: &Context, name: Option<String>) -> Result<Self> {
+    fn from_instance_(inst: &Instance, ctx: &Context, name: Option<String>, add_name: bool) -> Result<Self> {
         let mut result = Collapsed::new(&inst.id);
         let ct = &inst.component_type;
         let mut ctx = ctx.clone();
-        ctx.enter(inst.id.as_deref().or_else(|| name.as_deref()).unwrap(),
+        let nm = if add_name {
+            inst.id.as_deref().or_else(|| name.as_deref()).unwrap()
+        } else {
+            ""
+        };
+        ctx.enter(nm,
                   &ct.exposures.keys()
                     .chain(ct.parameters.iter())
                     .chain(ct.constants.keys())
@@ -446,7 +451,7 @@ impl Collapsed {
     }
 
     fn add(&mut self, inst: &Instance, ctx: &Context, name: Option<String>) -> Result<()> {
-        let other = Self::from_instance_(inst, ctx, name)?;
+        let other = Self::from_instance_(inst, ctx, name, true)?;
         self.parameters.extend(other.parameters.iter().map(|(a, b)| (a.clone(), b.clone())));
         self.attributes.extend(other.attributes.iter().map(|(a, b)| (a.clone(), b.clone())));
         self.constants.extend(other.constants.iter().map(|(a, b)| (a.clone(), b.clone())));
@@ -570,6 +575,15 @@ impl Collapsed {
         prv
     }
 
+    fn automatic_variables(&self) -> Vec<String> {
+        vec!["v".to_string(),
+             "v_peer".to_string(),
+             format!("e{}", self.ion_species()),
+             format!("i{}", self.ion_species()),
+             format!("{}i", self.ion_species()),
+             format!("{}o", self.ion_species()),]
+    }
+
     fn nmodl_init_block(&self) -> Result<String> {
         let mut state = Vec::new();
         let mut deriv = Vec::new();
@@ -589,17 +603,19 @@ impl Collapsed {
             }
         }
 
+        if state.is_empty() { return Ok(String::new()); }
+
         // Variables we can access everywhere: parameters, constants, but not state (might not be defined yet)
         let known = self.parameters.iter().map(|p| p.0.to_string())
                         .chain(self.constants.iter().map(|p|p.0.to_string()))
-                        .chain(std::iter::once("v".to_string()))
+                        .chain(self.automatic_variables().iter().cloned())
                         .collect::<Set<_>>();
 
         let init = state.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
         let deps = deriv.iter().chain(state.iter()).cloned().collect::<Vec<_>>();
         let result = vec![String::from("INITIAL {"),
                          print_dependencies(&init, &deps, &known)?,
-                         String::from("}\n"),];
+                         String::from("}\n\n"),];
         Ok(result.join("\n"))
     }
 
@@ -622,18 +638,21 @@ impl Collapsed {
             }
         }
 
+
+        if state.is_empty() { return Ok(String::new()); }
+
         // Variables we can access everywhere: parameters, constants, state and voltage
         let known = self.parameters.iter().map(|p| p.0.to_string())
                         .chain(self.constants.iter().map(|p|p.0.to_string()))
                         .chain(state.iter().map(|v| v.name.to_string()))
-                        .chain(std::iter::once("v".to_string()))
+                        .chain(self.automatic_variables().iter().cloned())
                         .collect::<Set<_>>();
 
         let init = state.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
         let deps = deriv.iter().chain(state.iter()).cloned().collect::<Vec<_>>();
         let result = vec![String::from("DERIVATIVE dstate {"),
                           print_dependencies(&init, &deps, &known)?,
-                          String::from("}\n"),];
+                          String::from("}\n\n"),];
         Ok(result.join("\n"))
     }
 
@@ -660,31 +679,32 @@ impl Collapsed {
         let known = self.parameters.iter().map(|p| p.0.to_string())
                         .chain(self.constants.iter().map(|p|p.0.to_string()))
                         .chain(state.iter().map(|v| v.name.to_string()))
-                        .chain(std::iter::once("v".to_string()))
+                        .chain(self.automatic_variables().iter().cloned())
                         .collect::<Set<_>>();
 
-        let ion = self.ion_species();
-        let cod = format!("{}_g", self.suffix());
-        let result = vec![String::from("BREAKPOINT {"),
-                          format!("  SOLVE {} METHOD cnexp", "dstate"),
-                          print_dependencies(&[cod.to_string()], &deriv, &known)?,
-                          format!("  i{} = {}*(v - e{})", ion, cod, ion),
-                          String::from("}\n"),];
+        let mut result = vec![String::from("BREAKPOINT {")];
+        if !state.is_empty() {
+            result.push(String::from("  SOLVE dstate METHOD cnexp"));
+        }
+        result.push(print_dependencies(&[format!("i{}", self.ion_species())], &deriv, &known)?);
+        result.push(String::from("}\n\n"));
         Ok(result.join("\n"))
     }
 
     fn nmodl_state_block(&self) -> Result<String> {
-        let mut result = vec![String::from("STATE {")];
-        for v in &self.variables{
-            if matches!(v.kind, VarKind::State(_, _)) {
-                result.push(format!("  {}", v.name));
-            }
+        let state = self.variables.iter()
+                                  .filter(|v| matches!(v.kind, VarKind::State(_, _)))
+                                  .map(|v| v.name.to_string())
+                                  .collect::<Vec<_>>();
+        if !state.is_empty() {
+            Ok(format!("STATE {{ {} }}\n\n", state.join(" ")))
+        } else {
+            Ok(String::new())
         }
-        result.push(String::from("}\n"));
-        Ok(result.join("\n"))
     }
 
     fn nmodl_param_block(&self) -> Result<String> {
+        if self.parameters.is_empty() { return Ok(String::new()); }
         let mut result = vec![String::from("PARAMETER {")];
         for (k, v) in &self.parameters {
             if let Some(v) = v {
@@ -693,32 +713,48 @@ impl Collapsed {
                 result.push(format!("  {}", k));
             }
         }
-        result.push(String::from("}\n"));
+        result.push(String::from("}\n\n"));
         Ok(result.join("\n"))
     }
 
+    fn nmodl_neuron_block(&self) -> Result<String> {
+        let ion = self.ion_species();
+        let current = if ion.is_empty() {
+            String::from("NONSPECIFIC_CURRENT i")
+        } else {
+            format!("USEION {} READ e{} WRITE i{}", ion, ion, ion)
+        };
+
+        let mut result = vec![String::from("NEURON {"),
+                              format!("", self.suffix()),
+        ];
+
+        Ok(format!("NEURON {{
+  SUFFIX {}
+  {}
+}}
+", self.suffix(), current))
+    }
+
     fn suffix(&self) -> String { self.name.as_ref().unwrap().to_string() }
-    fn ion_species(&self) -> String { self.attributes.get(&format!("{}_species", self.suffix())).cloned().flatten().unwrap_or_else(|| "l".to_string()) }
+    fn ion_species(&self) -> String { self.attributes.get("species").cloned().flatten().unwrap_or_else(String::new) }
 
     fn to_nmodl(&self) -> Result<String> {
         let ion = self.ion_species();
-        let mut result = vec![String::from("NEURON {"),
-                          format!("  SUFFIX {}", self.name.as_ref().unwrap()),
-                          format!("  USEION {} READ e{} WRITE i{}", ion, ion, ion),
-                          String::from("}\n"),
-                          self.nmodl_param_block()?,
-                          self.nmodl_state_block()?,
-                          self.nmodl_init_block()?,
-                          self.nmodl_deriv_block()?,
-                          self.nmodl_break_block()?,];
+        let mut result = vec![
+                              self.nmodl_param_block()?,
+                              self.nmodl_state_block()?,
+                              self.nmodl_init_block()?,
+                              self.nmodl_deriv_block()?,
+                              self.nmodl_break_block()?,];
         if !self.events.is_empty() {
-            result.push(String::from("NET_RECEIVE(weight) {"));
+            result.push(String::from("NET_RECEIVE(weight) {\n"));
             for (k, v) in &self.events {
-                result.push(format!("  {} = {}", k, v.print_to_string()));
+                result.push(format!("  {} = {}\n", k, v.print_to_string()));
             }
-            result.push(String::from("}"));
+            result.push(String::from("}\n\n"));
         }
-        Ok(result.join("\n"))
+        Ok(result.join(""))
     }
 }
 
@@ -730,7 +766,7 @@ impl Context {
     fn new() -> Self { Context(Vec::new()) }
     fn enter(&mut self, name: &str, vars: &[String]) { self.0.push((name.to_string(), vars.to_vec())); }
     fn exit(&mut self) { self.0.pop(); }
-    fn keys(&self) -> Vec<String> { self.0.iter().map(|t| t.0.clone()).collect() }
+    fn keys(&self) -> Vec<String> { self.0.iter().filter(|k| !k.0.is_empty()).map(|t| t.0.clone()).collect() }
 
     fn add_prefix(&self, name: &str) -> String {
         let mut ks = self.keys();
@@ -760,7 +796,7 @@ impl Context {
     }
 
     fn rename_kind(&self, kind: &VarKind) -> VarKind {
-        let pfx = self.0.iter().map(|p| p.0.to_string()).collect::<Vec<_>>();
+        let pfx = self.keys();
         match kind {
             VarKind::Select(b, ps) => VarKind::Select(b.clone(), ps.add_prefix(&pfx)),
             VarKind::Derived(cs, df) =>
@@ -854,7 +890,36 @@ fn main() -> Result<()> {
     let node = tree.descendants()
                    .find(|n| n.tag_name().name() == opts.r#type)
                    .ok_or(format!("Doc does not contain instances of {}", &opts.r#type))?;
-    let instance = Instance::new(&lems, &node)?;
+    let mut instance = Instance::new(&lems, &node)?;
+
+    // do fixes for known types
+    match opts.r#type.as_ref() {
+        "gapJunction" => {
+            // Gap Junctions need peer voltage, which is provided by Arbor
+            instance.component_type.variables.retain(|v| v.name != "vpeer");
+            instance.component_type.variables.push( Variable { name: String::from("vpeer"),
+                                                               exposure: None,
+                                                               dimension: String::from("voltage"),
+                                                               kind: VarKind::Derived(Vec::new(),
+                                                                                      Some(Expr::parse("v_peer")?))});
+            instance.component_type.parameters.push(String::from("weight"));
+            instance.parameters.insert(String::from("weight"), Quantity::parse("1")?);
+        }
+        "ionChannel" | "ionChannelHH" => {
+            let ion = instance.attributes.get("species").cloned().unwrap_or_else(String::new);
+            let current = format!("g*(v - e{})", ion);
+            instance.component_type.variables.push( Variable { name: format!("i{}", ion),
+                                                               exposure: None,
+                                                               dimension: String::from("current"),
+                                                               kind: VarKind::Derived(Vec::new(),
+                                                                                      Some(Expr::parse(&current)?)),
+            });
+        }
+        _ => {}
+    }
+
+
+
     let nmodl = Collapsed::from_instance(&instance)?.simplify().to_nmodl()?;
     if let Some(file) = opts.output {
         write(&file, nmodl).map_err(|_| "Error writing output to NMODL.")?;

@@ -523,3 +523,24 @@ seem to be used in NML2 [fn :: Confirmed via `rg -Io 'port="[^"]+"' | sort -u`]
   hard-code it into our NMODL translator.
 - vpeer :: Similar to ~weight~, sometimes needed for ~gradedSynapse~, can be
   modelled in Arbor's NMODL dialect.
+
+* Gap Junctions
+Gap junctions are similar to synapses and have the following hierarchy
+#+begin_example xml
+    <ComponentType name="gapJunction" extends="baseSynapse"/>
+
+        <Property name="weight" dimension="none" defaultValue="1"/>
+        <Parameter name="conductance" dimension="conductance"/>
+        <Exposure name="i" dimension="current"/>
+        <Requirement name="v" dimension="voltage"/>
+        <InstanceRequirement name="peer" type="gapJunction"/>
+
+        <Dynamics>
+            <DerivedVariable name="vpeer" dimension="voltage" select="peer/v"/>
+            <DerivedVariable name="i" exposure="i"  value="weight * conductance * (vpeer - v)"/>
+        </Dynamics>
+    </ComponentType>
+#+end_example
+The issue here with our scheme is that neither ~peer~ nor ~vpeer~ exist in our
+implementation of NML2. However, Arbor's NMODL dialect exposes ~v_peer~ as a
+global property.
