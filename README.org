@@ -7,7 +7,7 @@ Compile NML2 definitions to Arbor NMODL.
 * Setup
 
 - Clone recursively
-- Patch XSD
+- Patch XSD, see below
 - Build data model
   #+begin_src shell
   cargo run --bin schema
@@ -16,3 +16,90 @@ Compile NML2 definitions to Arbor NMODL.
   #+begin_src shell
   cargo run --bin lems -- -t ionChannelHH --output test.mod example/nml-simple-ion-channels.xml
   #+end_src
+
+
+* Patches
+
+** NML2
+This wreaks havoc and is deprecated anyhow.
+#+begin_example
+diff --git a/Schemas/NeuroML2/NeuroML_v2.2.xsd b/Schemas/NeuroML2/NeuroML_v2.2.xsd
+index 85d7be9..6eea36f 100644
+--- a/Schemas/NeuroML2/NeuroML_v2.2.xsd
++++ b/Schemas/NeuroML2/NeuroML_v2.2.xsd
+@@ -2146,21 +2146,6 @@
+
+     </xs:complexType>
+
+-
+-
+-
+-    <!-- TODO: remove -->
+-    <xs:complexType name="ConcentrationModel_D">
+-
+-        <xs:complexContent>
+-            <xs:extension base="DecayingPoolConcentrationModel">
+-
+-                <xs:attribute name="type" use="required" fixed="decayingPoolConcentrationModel"/>
+-
+-            </xs:extension>
+-        </xs:complexContent>
+-    </xs:complexType>
+-
+     <xs:complexType name="IntracellularProperties">
+
+         <xs:sequence>
+#+end_example
+
+** LEMS
+
+This is purely my lazyness ;)
+#+begin_example
+diff --git a/Schemas/LEMS/LEMS_v0.7.6.xsd b/Schemas/LEMS/LEMS_v0.7.6.xsd
+index 3843c9c..98c5cd6 100644
+--- a/Schemas/LEMS/LEMS_v0.7.6.xsd
++++ b/Schemas/LEMS/LEMS_v0.7.6.xsd
+@@ -27,33 +27,24 @@
+     elementFormDefault="qualified"
+     attributeFormDefault="unqualified">
+
+-    <xs:element name="Lems">
++    <xs:complexType name="Lems">
+         <xs:annotation>
+             <xs:documentation>The root Lems element.</xs:documentation>
+         </xs:annotation>
+
+-        <xs:complexType>
+-
+-            <xs:sequence>
+-                <xs:element name="Target" type="Target" minOccurs="0" maxOccurs="1"/>
+-                <xs:element name="Include" type="Include" minOccurs="0" maxOccurs="unbounded"/>
+-                <xs:element name="Dimension" type="Dimension" minOccurs="0" maxOccurs="unbounded"/>
+-                <xs:element name="Unit" type="Unit" minOccurs="0" maxOccurs="unbounded"/>
+-                <xs:element name="Constant" type="Constant" minOccurs="0" maxOccurs="unbounded"/>
+-                <xs:element name="ComponentType" type="ComponentType" minOccurs="0" maxOccurs="unbounded"/>
+-                <xs:element name="Component" type="Component" minOccurs="0" maxOccurs="unbounded"/>
+-            </xs:sequence>
+-
+-            <xs:attribute name="description" type="xs:string" use="optional"/>
+-
+-        </xs:complexType>
++        <xs:sequence>
++            <xs:element name="Target" type="Target" minOccurs="0" maxOccurs="1"/>
++            <xs:element name="Include" type="Include" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:element name="Dimension" type="Dimension" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:element name="Unit" type="Unit" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:element name="Constant" type="Constant" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:element name="ComponentType" type="ComponentType" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:element name="Component" type="Component" minOccurs="0" maxOccurs="unbounded"/>
++        </xs:sequence>
+
+-        <!--<xs:unique name="dimension_uniqueness">
+-               <xs:selector xpath="Dimension"></xs:selector>
+-               <xs:field xpath="@name"></xs:field>
+-        </xs:unique>-->
++        <xs:attribute name="description" type="xs:string" use="optional"/>
+
+-    </xs:element>
++    </xs:complexType>
+#+end_example
