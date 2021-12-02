@@ -720,20 +720,22 @@ impl Collapsed {
     fn nmodl_neuron_block(&self) -> Result<String> {
         let ion = self.ion_species();
         let current = if ion.is_empty() {
-            String::from("NONSPECIFIC_CURRENT i")
+            String::from("  NONSPECIFIC_CURRENT i\n")
         } else {
-            format!("USEION {} READ e{} WRITE i{}", ion, ion, ion)
+            format!("  USEION {} READ e{} WRITE i{}\n", ion, ion, ion)
         };
-
-        let mut result = vec![String::from("NEURON {"),
-                              format!("", self.suffix()),
-        ];
-
-        Ok(format!("NEURON {{
-  SUFFIX {}
-  {}
-}}
-", self.suffix(), current))
+        let range = if !self.parameters.is_empty() {
+            let rs = self.parameters.keys().cloned().collect::<Vec<_>>();
+            format!("  RANGE {}\n", rs.join(" "))
+        } else {
+            String::new()
+        };
+        let result = vec![String::from("NEURON {\n"),
+                          format!("  SUFFIX {}\n", self.suffix()),
+                          current,
+                          range,
+                          String::from("}\n\n")];
+        Ok(result.join(""))
     }
 
     fn suffix(&self) -> String { self.name.as_ref().unwrap().to_string() }
@@ -741,7 +743,7 @@ impl Collapsed {
 
     fn to_nmodl(&self) -> Result<String> {
         let ion = self.ion_species();
-        let mut result = vec![
+        let mut result = vec![self.nmodl_neuron_block()?,
                               self.nmodl_param_block()?,
                               self.nmodl_state_block()?,
                               self.nmodl_init_block()?,

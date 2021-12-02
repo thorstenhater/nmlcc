@@ -1,0 +1,18 @@
+#+TITLE: Readme
+
+* Introduction
+
+Compile NML2 definitions to Arbor NMODL.
+
+* Setup
+
+- Clone recursively
+- Patch XSD
+- Build data model
+  #+begin_src shell
+  cargo run --bin schema
+  #+end_src
+- Now try an example
+  #+begin_src shell
+  cargo run --bin lems -- -t ionChannelHH --output test.mod example/nml-simple-ion-channels.xml
+  #+end_src
