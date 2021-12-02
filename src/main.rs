@@ -726,7 +726,7 @@ impl Collapsed {
         };
         let range = if !self.parameters.is_empty() {
             let rs = self.parameters.keys().cloned().collect::<Vec<_>>();
-            format!("  RANGE {}\n", rs.join(" "))
+            format!("  RANGE {}\n", rs.join(", "))
         } else {
             String::new()
         };
@@ -738,24 +738,32 @@ impl Collapsed {
         Ok(result.join(""))
     }
 
+    fn nmodl_recv_block(&self) -> Result<String> {
+        if !self.events.is_empty() {
+            let evts = self.events.iter()
+                                  .map(|(k,v)| format!("  {} = {}", k, v.print_to_string()))
+                                  .collect::<Vec<_>>()
+                                  .join("\n");
+            let result = vec![String::from("NET_RECEIVE(weight) {"),
+                              evts,
+                              String::from("}\n"),];
+            Ok(result.join("\n"))
+        } else {
+            Ok(String::new())
+        }
+    }
+
     fn suffix(&self) -> String { self.name.as_ref().unwrap().to_string() }
     fn ion_species(&self) -> String { self.attributes.get("species").cloned().flatten().unwrap_or_else(String::new) }
 
     fn to_nmodl(&self) -> Result<String> {
-        let ion = self.ion_species();
-        let mut result = vec![self.nmodl_neuron_block()?,
-                              self.nmodl_param_block()?,
-                              self.nmodl_state_block()?,
-                              self.nmodl_init_block()?,
-                              self.nmodl_deriv_block()?,
-                              self.nmodl_break_block()?,];
-        if !self.events.is_empty() {
-            result.push(String::from("NET_RECEIVE(weight) {\n"));
-            for (k, v) in &self.events {
-                result.push(format!("  {} = {}\n", k, v.print_to_string()));
-            }
-            result.push(String::from("}\n\n"));
-        }
+        let result = vec![self.nmodl_neuron_block()?,
+                          self.nmodl_param_block()?,
+                          self.nmodl_state_block()?,
+                          self.nmodl_init_block()?,
+                          self.nmodl_deriv_block()?,
+                          self.nmodl_break_block()?,
+                          self.nmodl_recv_block()?,];
         Ok(result.join(""))
     }
 }
@@ -887,8 +895,8 @@ struct Options {
 fn main() -> Result<()> {
     let opts = Options::parse();
     let lems = Lems::from_file(&opts.include_dir, &opts.core)?;
-    let xml  = std::fs::read_to_string(&opts.nml).map_err(|_| "File not found")?;
-    let tree = roxmltree::Document::parse(&xml).map_err(|_| "Could not parse")?;
+    let xml  = std::fs::read_to_string(&opts.nml).map_err(|_| format!("File not found: {}", &opts.nml))?;
+    let tree = roxmltree::Document::parse(&xml).map_err(|_| format!("Could not parse input : {}", &opts.nml))?;
     let node = tree.descendants()
                    .find(|n| n.tag_name().name() == opts.r#type)
                    .ok_or(format!("Doc does not contain instances of {}", &opts.r#type))?;

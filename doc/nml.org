@@ -544,3 +544,27 @@ Gap junctions are similar to synapses and have the following hierarchy
 The issue here with our scheme is that neither ~peer~ nor ~vpeer~ exist in our
 implementation of NML2. However, Arbor's NMODL dialect exposes ~v_peer~ as a
 global property.
+
+* NMODL Export
+
+While we have hinted at NMODL and Arbor a few times so far, our implementation
+of NML2 has been almost completely generic. To export to NMODL though, we need
+to bridge a significant gap. After we have processed the instantiations into
+either an instance or a collapsed instance, we edit the resulting model based on
+special cases.
+
+At the moment, let us focus on current based models only, ie all our instances
+need to produce an ionic transmembrane current, dubbed ~iX~ in NMODL. Later, we
+might extend this to concentration models. For synapses and gap junctions this
+is defined directly. Ion channels produce only a conductance value, ~g~, so we
+add a derived variable ~iX =g (v - eX)~ where ~X~ is replaced by the ionic
+species.
+
+Based on the respective sections on implementation details, we edit the syntax
+trees to eliminate explicit definitions of ~vpeer~ and similar values, replacing
+them with Arbor's built-in variables.
+
+We then build individual blocks of the NMODL language from the AST by inspecting
+dependencies of the state variables and building the appropriate chains of
+expressions. All intermediates are stored as ~LOCAL~ to minimise memory
+accesses.

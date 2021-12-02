@@ -16,12 +16,14 @@ Compile NML2 definitions to Arbor NMODL.
   #+begin_src shell
   cargo run --bin lems -- -t ionChannelHH --output test.mod example/nml-simple-ion-channels.xml
   #+end_src
-
+- Get help
+  #+begin_src shell
+  cargo run --bin lems -- -h
+  #+end_src
 
 * Patches
-
 ** NML2
-This wreaks havoc and is deprecated anyhow.
+This wreaks havoc and is deprecated anyhow, so remove it.
 #+begin_example
 diff --git a/Schemas/NeuroML2/NeuroML_v2.2.xsd b/Schemas/NeuroML2/NeuroML_v2.2.xsd
 index 85d7be9..6eea36f 100644
@@ -53,7 +55,7 @@ index 85d7be9..6eea36f 100644
 
 ** LEMS
 
-This is purely my lazyness ;)
+This is purely my lazyness ;) Essentially change ~element~ to ~ComplexType~ here.
 #+begin_example
 diff --git a/Schemas/LEMS/LEMS_v0.7.6.xsd b/Schemas/LEMS/LEMS_v0.7.6.xsd
 index 3843c9c..98c5cd6 100644
