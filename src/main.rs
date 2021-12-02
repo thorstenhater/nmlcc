@@ -260,23 +260,33 @@ impl Lems {
                        ("uA_per_cm2",      "currentDensity"),
                        ("mol_per_cm3",     "concentration"),
                        ("K",               "temperature"),
+                       ("J_per_K_per_mol", "idealGasConstantDims"),
                        ("nS_per_mV",       "conductance_per_voltage"),];
+
+        let dimensions = raw.dimensions.iter().map(|d| (d.name.to_string(), d.clone())).collect();
+        let units: Map<_, _> = raw.units.iter().map(|d| (d.symbol.to_string(), d.clone())).collect();
+        let blessed_units = blessed.iter()
+                                   .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).unwrap().clone()))
+                                   .collect();
 
         let mut types = Map::new();
         let mut base_of = Map::new();
         for ct in &raw.component_types {
             if let Some(base) = &ct.extends { base_of.insert(ct.name.to_string(), base.to_string()); }
-            types.insert(ct.name.to_string(), ComponentType::from_lems(ct)?);
+            let mut ctype = ComponentType::from_lems(ct)?;
+            ctype.constants = ctype.constants.iter()
+                                             .map(|(s, c)| (s.to_string(),
+                                                            normalise_quantity(c, &units, &blessed_units).unwrap()))
+                                             .collect();
+            types.insert(ct.name.to_string(), ctype);
         }
-        let dimensions = raw.dimensions.iter().map(|d| (d.name.to_string(), d.clone())).collect();
-        let units: Map<_, _> = raw.units.iter().map(|d| (d.symbol.to_string(), d.clone())).collect();
-
-        let blessed_units = blessed.iter()
-                                   .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).unwrap().clone()))
-                                   .collect();
-
         Ok(Lems { base_of, types, units, dimensions, blessed_units })
     }
+
+    fn normalise_quantity(&self, quantity: &Quantity) -> Result<Quantity> {
+        normalise_quantity(quantity, &self.units, &self.blessed_units)
+    }
+
 
     /// Check if type `d` derives from type `b`.
     fn derived_from(&self, d: &str, b: &str) -> bool {
@@ -892,9 +902,7 @@ impl Instance {
             let key = attr.name().to_string();
             let val = attr.value();
             if component_type.parameters.contains(&key) {
-                let q = Quantity::parse(val)?;
-                let q = normalise_quantity(&q, &lems.units, &lems.blessed_units)?;
-                parameters.insert(key, q);
+                parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
             } else if component_type.attributes.contains(&key) {
                 attributes.insert(key, val.to_string());
             }
