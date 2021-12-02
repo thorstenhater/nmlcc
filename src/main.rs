@@ -593,7 +593,7 @@ impl Collapsed {
                 VarKind::State(i, _) => {
                     if i.is_some() {
                         let mut v = var.clone();
-                        v.kind = VarKind::State(None, i.clone());
+                        v.kind = VarKind::State(i.clone(), None);
                         state.push(v.clone());
                         deriv.push(v);
                     }
