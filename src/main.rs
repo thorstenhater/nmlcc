@@ -10,21 +10,42 @@ mod xml;
 mod lems;
 mod expr;
 
+use std::convert::TryInto;
 use expr::{Quantity, Expr, Match};
+use lems::raw::{Unit, Dimension};
 
 type Result<T> = std::result::Result<T, String>;
 
-/// Dimension = mass^m length^l time^t current^i ???^k concentration^n
-#[derive(Debug, Clone)]
-pub struct Dimension { pub m: i64, pub l: i64, pub t: i64, pub i: i64, pub k: i64, pub n: i64, }
-
-/// Unit = Dimension 10^power scale + offset
-#[derive(Debug, Clone)]
-pub struct Unit {
-  pub dimension: String,
-  pub power: i64,
-  pub scale: f64,
-  pub offset: f64,
+fn normalise_quantity(quantity: &Quantity,
+                      units: &Map<String, Unit>,                 // Known units by name
+                      blessed: &Map<String, Unit>)     // Blessed units by dimension
+                      -> Result<Quantity> {
+    if let Some(u) = quantity.unit.as_deref() {
+        if let Some(v) = units.get(u) {
+            if let Some(w) = blessed.get(&v.dimension) {
+                // We are scared by those
+                assert!(v.offset == 0.0);
+                assert!(w.offset == 0.0);
+                // Compute conversion
+                // f v.scale 10^v.power = w.scale 10^w.power
+                // => f = 10^(w.power - v.power)
+                let e: i32 = (w.power - v.power).try_into()
+                                                .map_err(|_|
+                                                         format!("Couldn't convert {} to i32",
+                                                                 w.power - v.power))?;
+                let f = (w.scale/v.scale)*f64::powi(10.0, e);
+                if f != 1.0 { eprintln!("NOTE: Adjusting {} -> {} by {}", v.symbol, w.symbol, f); }
+                Ok(Quantity { value: quantity.value*f, unit: Some(w.symbol.to_string()) })
+            } else {
+                Err(format!("Failed to find a blessed unit for dimension {}", v.dimension))
+            }
+        } else {
+            Err(format!("Failed to find unit {} for quantity {:?}", u, quantity))
+        }
+    } else {
+        // Non-dimensional units get just passed on.
+        Ok(quantity.clone())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -152,7 +173,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                                 return Err(format!("Must be a StateVar: {}", a.variable));
                             }
                         }
-                        b => println!("NOTE: Ignoring {:?} in {:?}", b, v),
+                        b => println!("NOTE: Ignoring {:?}", b),
                     }
                 }
             }
@@ -211,22 +232,50 @@ struct Lems {
     units: Map<String, Unit>,
     /// name -> dimension
     dimensions: Map<String, Dimension>,
+    /// dimension -> unit
+    blessed_units: Map<String, Unit>,
 }
 
 impl Lems {
     /// Pull LEMS from file
     fn from_file(dn: &str, file: &str) -> Result<Self> { Self::from_raw(&lems::Lems::from_file(dn, file)?) }
 
-    /// Ingest raw LEMS on munge into a digestible form
+    /// Ingest raw LEMS and munge into a digestible form
     fn from_raw(raw: &lems::Lems) -> Result<Self> {
-        let mut result = Self::default();
+        // Chosen from physiological/NRN/ARB units
+        let blessed = [("mV",              "voltage"),
+                       ("kohm",            "resistance"),
+                       ("mS",              "conductance"),
+                       ("cm",              "length"),
+                       ("cm2",             "area"),
+                       ("cm3",             "volume"),
+                       ("ms",              "time"),
+                       ("per_ms",          "per_time"),
+                       ("mS_per_cm2",      "conductanceDensity"),
+                       ("uF",              "capacitance"),
+                       ("uF_per_cm2",      "specificCapacitance"),
+                       ("kohm_cm",         "resistivity"),
+                       ("nA_ms_per_amol",  "charge_per_mole"),
+                       ("uA",              "current"),
+                       ("uA_per_cm2",      "currentDensity"),
+                       ("mol_per_cm3",     "concentration"),
+                       ("K",               "temperature"),
+                       ("nS_per_mV",       "conductance_per_voltage"),];
+
+        let mut types = Map::new();
+        let mut base_of = Map::new();
         for ct in &raw.component_types {
-            if let Some(base) = &ct.extends {
-                result.base_of.insert(ct.name.to_string(), base.to_string());
-            }
-            result.types.insert(ct.name.to_string(), ComponentType::from_lems(ct)?);
+            if let Some(base) = &ct.extends { base_of.insert(ct.name.to_string(), base.to_string()); }
+            types.insert(ct.name.to_string(), ComponentType::from_lems(ct)?);
         }
-        Ok(result)
+        let dimensions = raw.dimensions.iter().map(|d| (d.name.to_string(), d.clone())).collect();
+        let units: Map<_, _> = raw.units.iter().map(|d| (d.symbol.to_string(), d.clone())).collect();
+
+        let blessed_units = blessed.iter()
+                                   .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).unwrap().clone()))
+                                   .collect();
+
+        Ok(Lems { base_of, types, units, dimensions, blessed_units })
     }
 
     /// Check if type `d` derives from type `b`.
@@ -814,7 +863,6 @@ impl Context {
                                    .map(|(c, e)| (self.rename_expr(c), self.rename_expr(e)))
                                    .collect(),
                                  df.as_ref().map(|x| self.rename_expr(x))),
-                // cs.iter_mut().for_each(
             VarKind::State(i, d) => VarKind::State(i.as_ref().map(|x| self.rename_expr(x)),
                                                    d.as_ref().map(|x| self.rename_expr(x))),
         }
@@ -844,7 +892,9 @@ impl Instance {
             let key = attr.name().to_string();
             let val = attr.value();
             if component_type.parameters.contains(&key) {
-                parameters.insert(key, Quantity::parse(val)?);
+                let q = Quantity::parse(val)?;
+                let q = normalise_quantity(&q, &lems.units, &lems.blessed_units)?;
+                parameters.insert(key, q);
             } else if component_type.attributes.contains(&key) {
                 attributes.insert(key, val.to_string());
             }
@@ -927,8 +977,6 @@ fn main() -> Result<()> {
         }
         _ => {}
     }
-
-
 
     let nmodl = Collapsed::from_instance(&instance)?.simplify().to_nmodl()?;
     if let Some(file) = opts.output {
