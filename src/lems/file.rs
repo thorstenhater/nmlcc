@@ -1,4 +1,5 @@
 use std::collections::HashMap as Map;
+use tracing::info;
 
 use super::{Lems,
             raw::{Unit, Dimension}};
@@ -25,7 +26,7 @@ fn normalise_quantity(quantity: &Quantity,
                                                          format!("Couldn't convert {} to i32",
                                                                  w.power - v.power))?;
                 let f = (w.scale/v.scale)*f64::powi(10.0, e);
-                if f != 1.0 { eprintln!("NOTE: Adjusting {} -> {} by {}", v.symbol, w.symbol, f); }
+                if f != 1.0 { info!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f); }
                 Ok(Quantity { value: quantity.value*f, unit: Some(w.symbol.to_string()) })
             } else {
                 Err(format!("Failed to find a blessed unit for dimension {}", v.dimension))

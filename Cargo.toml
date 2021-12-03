@@ -2,16 +2,17 @@
 name = "nml2"
 version = "0.1.0"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+default-run = "nmlcc"
 
 [dependencies]
-nom            = { version = "^7.1.0" }
-roxmltree      = { version = "^0.14.1" }
-clap           = { version = "^3.0.0-beta.5" }
+nom                = { version = "^7.1.0" }
+roxmltree          = { version = "^0.14.1" }
+clap               = { version = "^3.0.0-beta.5" }
+tracing            = { version = "0.1" }
+tracing-subscriber = { version = "0.2" }
 
 [[bin]]
-name = "lems"
+name = "nmlcc"
 path = "src/main.rs"
 
 [[bin]]

@@ -1,3 +1,5 @@
+use tracing::info;
+
 /// LEMS ComponentType ('class') preprocessed
 #[derive(Clone, Debug, Default)]
 pub struct ComponentType {
@@ -123,7 +125,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                                 return Err(format!("Must be a StateVar: {}", a.variable));
                             }
                         }
-                        b => println!("NOTE: Ignoring {:?}", b),
+                        b => info!("Ignoring {:?}", b),
                     }
                 }
             }

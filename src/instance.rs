@@ -1,5 +1,6 @@
 use std::collections::HashMap as Map;
 
+use tracing::info;
 use roxmltree::Node;
 
 use crate::{Result,
@@ -210,7 +211,6 @@ impl Collapsed {
         }
     }
 
-
     pub fn simplify(&self) -> Self {
         let mut prv = self.clone();
         for _ in 0..5 {
@@ -288,7 +288,7 @@ impl Context {
             it |= vs.contains(&name);
             if it { pfx.push(p); }
         }
-        if !it { eprintln!("NOTE: Could not find {} in context.", name); }
+        if !it { info!("Could not find {} in context.", name); }
         pfx = pfx.iter().filter(|s| !s.is_empty()).rev().cloned().collect();
         pfx.join("_")
     }
@@ -441,7 +441,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                                 return Err(format!("Must be a StateVar: {}", a.variable));
                             }
                         }
-                        b => println!("NOTE: Ignoring {:?}", b),
+                        b => info!("Ignoring {:?}", b),
                     }
                 }
             }
