@@ -766,11 +766,14 @@ impl Collapsed {
         if self.parameters.is_empty() { return Ok(String::new()); }
         let mut result = vec![String::from("PARAMETER {")];
         for (k, v) in &self.parameters {
+            let mut ln = format!("  {}", k);
             if let Some(v) = v {
-                result.push(format!("  {} = {}", k, v.value));
-            } else {
-                result.push(format!("  {}", k));
+                ln.push_str(&format!(" = {}", v.value));
+                if let Some(u) = v.unit.as_ref() {
+                    ln.push_str(&format!(" ({})", u));
+                }
             }
+            result.push(ln);
         }
         result.push(String::from("}\n\n"));
         Ok(result.join("\n"))
@@ -980,8 +983,7 @@ fn main() -> Result<()> {
                                                                exposure: None,
                                                                dimension: String::from("current"),
                                                                kind: VarKind::Derived(Vec::new(),
-                                                                                      Some(Expr::parse(&current)?)),
-            });
+                                                                                      Some(Expr::parse(&current)?))});
         }
         _ => {}
     }
@@ -992,6 +994,5 @@ fn main() -> Result<()> {
     } else {
         print!("{}", nmodl);
     };
-    eprintln!("{:?}", opts.parameters);
     Ok(())
 }
