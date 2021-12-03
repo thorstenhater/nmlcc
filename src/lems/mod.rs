@@ -1,9 +1,10 @@
 pub mod raw;
+pub mod file;
 
 use roxmltree::Document;
 use crate::xml;
 
-type Result<T> = std::result::Result<T, String>;
+use crate::Result;
 
 #[derive(Debug)]
 pub struct Lems {

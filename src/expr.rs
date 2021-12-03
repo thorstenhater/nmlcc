@@ -1,6 +1,6 @@
 use std::collections::HashMap as Map;
 
-type Result<T> = std::result::Result<T, String>;
+use super::Result;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Quantity {
