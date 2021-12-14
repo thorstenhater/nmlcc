@@ -118,7 +118,10 @@ fn nmodl_break_block(coll: &Collapsed) -> Result<String> {
                                       .collect::<Set<_>>();
 
     let mut result = vec![String::from("BREAKPOINT {")];
-    if !dstate.is_empty()       { result.push(String::from("  SOLVE dstate METHOD cnexp")); } // TODO cannot have both
+    if !dstate.is_empty() && !coll.transitions.is_empty() {
+        return Err(String::from("Both KINETIC and ODEs given"));
+    }
+    if !dstate.is_empty()       { result.push(String::from("  SOLVE dstate METHOD cnexp")); }
     if !coll.transitions.is_empty() { result.push(String::from("  SOLVE scheme METHOD sparse")); }
     result.push(print_dependencies(&[format!("i{}", ion_species(coll))], &vars, &known)?);
     result.push(String::from("}\n\n"));
@@ -298,11 +301,7 @@ fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) 
             Some(Variable{ kind: VarKind::State(Some(x), None), .. }) => { result.push(format!("  {} = {}",  d, x.print_to_string())); }
             Some(Variable{ kind: VarKind::State(None, Some(x)), .. }) => { result.push(format!("  {}' = {}", d, x.print_to_string())); }
             Some(e) => { return Err(format!("Don't know what to do with variable: {:?}", e)); }
-            None => {
-                // TODO Fix
-                result.push(format!("  {} = ???",  d));
-                //return Err(format!("No such variable: {}", d));
-            }
+            None =>    { return Err(format!("No such variable: {}", d)); }
         }
     }
     Ok(result.join("\n"))

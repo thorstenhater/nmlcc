@@ -76,9 +76,7 @@ impl Instance {
             let val = attr.value();
             if component_type.parameters.contains(&key) {
                 parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
-            } else if component_type.attributes.contains(&key) {
-                attributes.insert(key, val.to_string());
-            } else if component_type.links.contains_key(&key) {
+            } else if component_type.attributes.contains(&key) || component_type.links.contains_key(&key) {
                 attributes.insert(key, val.to_string());
             }
         }
@@ -123,89 +121,85 @@ impl Collapsed {
 
     pub fn from_instance(inst: &Instance) -> Result<Self> {
         use crate::expr::Path;
-        let result = Self::from_instance_(inst, &Context::new(), None, false);
-        if let Ok(ref mut coll) = result.clone() { // TODO remove the clone at least
-            for ks in &coll.kinetic {
-                let Match(ps) = &ks.edge;
-                let mut ix = 0;
-                let mut nodes = vec![(vec![], inst.clone())];
-                'a: loop {
-                    if ix >= ps.len() { break; }
-                    let p = &ps[ix];
-                    ix += 1;
-                    match &p {
-                        Path::Fixed(s) => {
-                            for (pfx, node) in &nodes {
-                                if let Some(x) = node.child.get(s) {
-                                    let mut pfx = pfx.clone();
-                                    pfx.push(s.clone());
-                                    nodes = vec![(pfx, x.clone())];
-                                    continue 'a;
-                                }
+        let mut coll = Self::from_instance_(inst, &Context::new(), None, false)?;
+        for ks in &coll.kinetic {
+            let Match(ps) = &ks.edge;
+            let mut ix = 0;
+            let mut nodes = vec![(vec![], inst.clone())];
+            'a: loop {
+                if ix >= ps.len() { break; }
+                let p = &ps[ix];
+                ix += 1;
+                match &p {
+                    Path::Fixed(s) => {
+                        for (pfx, node) in &nodes {
+                            if let Some(x) = node.child.get(s) {
+                                let mut pfx = pfx.clone();
+                                pfx.push(s.clone());
+                                nodes = vec![(pfx, x.clone())];
+                                continue 'a;
                             }
-                            if ix < ps.len() {
-                                if let Path::Fixed(q) = &ps[ix] {
-                                    ix += 1;
-                                    for (pfx, node) in &nodes {
-                                        if let Some(xs) = node.children.get(s) {
-                                            let mut pfx = pfx.clone();
-                                            pfx.push(s.clone());
-                                            nodes = xs.iter().filter(|x| x.id == Some(q.to_string()))
-                                                             .cloned()
-                                                             .map(|x| {
-                                                                 let mut pfx = pfx.clone();
-                                                                 pfx.push(x.id.as_deref().unwrap().to_string());
-                                                                 (pfx, x.clone())
-                                                             })
-                                                             .collect();
-                                            continue 'a;
-                                        }
+                        }
+                        if ix < ps.len() {
+                            if let Path::Fixed(q) = &ps[ix] {
+                                ix += 1;
+                                for (pfx, node) in &nodes {
+                                    if let Some(xs) = node.children.get(s) {
+                                        let mut pfx = pfx.clone();
+                                        pfx.push(s.clone());
+                                        nodes = xs.iter().filter(|x| x.id == Some(q.to_string()))
+                                                         .cloned()
+                                                         .map(|x| {
+                                                             let mut pfx = pfx.clone();
+                                                             pfx.push(x.id.as_deref().unwrap().to_string());
+                                                             (pfx, x)
+                                                         })
+                                                         .collect();
+                                        continue 'a;
                                     }
                                 }
                             }
-                            panic!("Impossible path {:?}", ks.edge);
                         }
-                        Path::When(s, m) if m == "*" => {
-                            for (pfx, node) in &nodes {
-                                if let Some(xs) = node.children.get(s) {
-                                    nodes = xs.iter()
-                                              .map(|x| {
-                                                  let mut pfx = pfx.clone();
-                                                  pfx.push(s.to_string());
-                                                  pfx.push(x.id.as_deref().unwrap().to_string());
-                                                  (pfx, x.clone())
-                                              })
-                                              .collect();
-                                    continue 'a;
-                                }
+                        panic!("Impossible path {:?}", ks.edge);
+                    }
+                    Path::When(s, m) if m == "*" => {
+                        for (pfx, node) in &nodes {
+                            if let Some(xs) = node.children.get(s) {
+                                nodes = xs.iter()
+                                          .map(|x| {
+                                              let mut pfx = pfx.clone();
+                                              pfx.push(s.to_string());
+                                              pfx.push(x.id.as_deref().unwrap().to_string());
+                                              (pfx, x.clone())
+                                          })
+                                          .collect();
+                                continue 'a;
                             }
                         }
-                        _ => unimplemented!(),
                     }
-                }
-                for (pfx, node) in nodes {
-                    // TODO This is a horrible hack and must be replaced by proper lookup
-                    let mut qfx = Vec::new();
-                    let Match(ref qs) = &ks.node;
-                    for q in qs {
-                        match q {
-                            Path::Fixed(s)   => qfx.push(s.clone()),
-                            Path::When(s, _) => qfx.push(s.clone()),
-                        }
-                    }
-                    let qfx = qfx.join("_");
-                    // TODO End of horrible hack
-                    let pfx = pfx.join("_");
-                    coll.transitions.push((format!("{}_{}_{}", qfx, node.attributes.get("from").as_deref().unwrap(), ks.state),
-                                           format!("{}_{}_{}", qfx, node.attributes.get("to").as_deref().unwrap(), ks.state),
-                                           format!("{}_{}", pfx, ks.rfwd),
-                                           format!("{}_{}", pfx, ks.rbwd)));
+                    _ => unimplemented!(),
                 }
             }
-            Ok(coll.clone())
-        } else {
-            result
+            for (pfx, node) in nodes {
+                // TODO This is a horrible hack and must be replaced by proper lookup
+                let mut qfx = Vec::new();
+                let Match(ref qs) = &ks.node;
+                for q in qs {
+                    match q {
+                        Path::Fixed(s)   => qfx.push(s.clone()),
+                        Path::When(s, _) => qfx.push(s.clone()),
+                    }
+                }
+                let qfx = qfx.join("_");
+                // TODO End of horrible hack
+                let pfx = pfx.join("_");
+                coll.transitions.push((format!("{}_{}_{}", qfx, node.attributes.get("from").as_deref().unwrap(), ks.state),
+                                       format!("{}_{}_{}", qfx, node.attributes.get("to").as_deref().unwrap(), ks.state),
+                                       format!("{}_{}", pfx, ks.rfwd),
+                                       format!("{}_{}", pfx, ks.rbwd)));
+            }
         }
+        Ok(coll)
     }
 
     fn from_instance_(inst: &Instance, ctx: &Context, name: Option<String>, add_name: bool) -> Result<Self> {
@@ -234,7 +228,7 @@ impl Collapsed {
 
         for v in &ct.variables {
             let name      = ctx.add_prefix(&v.name);
-            let exposure  = v.exposure.as_ref().map(|s| ctx.add_prefix(&s));
+            let exposure  = v.exposure.as_ref().map(|s| ctx.add_prefix(s));
             let kind      = ctx.rename_kind(&v.kind);
             let dimension = v.dimension.clone();
             result.variables.push(Variable { name, exposure, kind, dimension});
@@ -260,7 +254,6 @@ impl Collapsed {
                     } else {
                         return Err(format!("Required field is not found for {:?} in {:?}", ps, result.exposures));
                     },
-                     // TODO _technically_ we don't not need to guard ./. empty here, it will be squashed by simplify
                     SelectBy::Product => if ms.is_empty() { Expr::F64(1.0) } else { Expr::Mul(ms) },
                     SelectBy::Sum     => if ms.is_empty() { Expr::F64(0.0) } else { Expr::Add(ms) },
                 };

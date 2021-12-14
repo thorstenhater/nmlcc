@@ -168,7 +168,7 @@ impl Match {
                         } else {
                             false
                         };
-                        ok &= es.next().is_some(); // TODO(TH): More elaborate matching
+                        ok &= es.next().is_some(); // qTODO(TH): More elaborate matching
                     }
                 }
             }
@@ -231,7 +231,7 @@ mod parse {
     pub fn expr(input: &str) -> IResult<&str, Expr> { add(input) }
 
     pub fn lit(input: &str) -> IResult<&str, Expr> {
-        // TODO(TH): ugly AF
+        // Exclude some values
         if input.starts_with("inf") || input.starts_with("nan") || input.starts_with('+') {
             fail::<_,&str,_>(input)?;
         }
@@ -371,13 +371,13 @@ mod parse {
 }
 
 fn simplify_pow(es: &[Expr]) -> Expr {
-    // TODO(TH) This could be better, actually simplify stuff here?
     let result = es.iter().map(|e| e.simplify()).collect::<Vec<_>>();
     match &result[..] {
         []  => Expr::F64(1.0),
         [e] => e.clone(),
-        [_, Expr::F64(v)] if *v == 0.0 => Expr::F64(1.0),
-        [x, Expr::F64(v)] if *v == 1.0 => x.clone(),
+        [_, Expr::F64(v)] if v.abs() > f64::EPSILON => Expr::F64(1.0),
+        [x, Expr::F64(v)] if (*v - 1.0).abs() > f64::EPSILON => x.clone(),
+        [x, Expr::F64(v)] if v.fract() == 0.0 => Expr::Mul(vec![x.clone(); *v as usize]),
         [Expr::F64(x), Expr::F64(y)] => Expr::F64(x.powf(*y)),
         es => Expr::Pow(es.to_vec()),
     }
@@ -395,7 +395,7 @@ fn simplify_mul(es: &[Expr]) -> Expr {
         }
     }
     if lit == 0.0 { return Expr::F64(0.0); }
-    if lit != 1.0 { result.push(Expr::F64(lit)); }
+    if lit.abs() > f64::EPSILON { result.push(Expr::F64(lit)); }
     result.sort_by(|a, b| a.partial_cmp(b).unwrap());
     match result.len() {
         0 => Expr::F64(1.0),

@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use tracing_subscriber;
 use std::fs::write;
 
 mod nmodl;
@@ -28,7 +27,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Cmd {
     /// Export to NMODL
-    NMODL {
+    Nmodl {
         /// A NeuroML2 compliant XML file
         nml: String,
         /// Base class to extract
@@ -49,12 +48,11 @@ fn main() -> Result<()> {
     let _guard = tracing::subscriber::set_global_default(collector);
 
     let opts = Cli::parse();
-    let lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
+    let mut lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
     match opts.cmd {
-        Cmd::NMODL { nml, r#type, parameters } => {
+        Cmd::Nmodl { nml, r#type, parameters } => {
             let xml  = std::fs::read_to_string(&nml).map_err(|_| format!("File not found: {}", &nml))?;
             let tree = roxmltree::Document::parse(&xml).map_err(|_| format!("Could not parse input : {}", &nml))?;
-            let mut lems = lems.clone();
             for node in tree.descendants() {
                 if node.tag_name().name() == "ComponentType" {
                     let ct: lems::raw::ComponentType = xml::XML::from_node(&node);
