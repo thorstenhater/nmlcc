@@ -8,6 +8,50 @@ use crate::{Result,
             variable::{Variable, VarKind, SelectBy},
             lems};
 
+/// Kinetic scheme from components
+/// This does not hold any real data, just links and prefixes. The surrounding
+/// component needs to held a set of components with prefix `node` each exposing
+/// a state variable with name `state`. These are states (NB. overloaded term)
+/// of the scheme. Similarly, we need to find components prefixed with `edge`
+/// each exposing `forward` and `backward` transition rates.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Kinetic {
+    /// Identifier
+    pub name:  String,
+    /// State node prefix in surrounding ComponentType
+    pub node: Match,
+    /// Transition edge prefix in surrounding ComponentType
+    pub edge: Match,
+    /// State variable name exposed by all nodes
+    pub state: String,
+    /// Backward rates exposed by all edges
+    pub rfwd: String,
+    /// Backward rates exposed by all edges
+    pub rbwd: String,
+}
+
+impl Kinetic {
+    pub fn new(ks: &lems::raw::KineticScheme) -> Result<Self> {
+        Ok(Kinetic { name: ks.name.clone(),
+                     node: Match::parse(&format!("{}[*]", ks.nodes))?,
+                     edge: Match::parse(&format!("{}[*]", ks.edges))?,
+                     state: ks.stateVariable.to_string(),
+                     rfwd: ks.forwardRate.to_string(),
+                     rbwd: ks.reverseRate.to_string(),})
+    }
+
+    fn add_prefix(&self, ctx: &Context) -> Self {
+        let pfx   = ctx.keys();
+        let name  = ctx.add_prefix(&self.name);
+        let node  = self.node.add_prefix(&pfx);
+        let edge  = self.edge.add_prefix(&pfx);
+        let state = self.state.to_string();
+        let rfwd  = self.rfwd.to_string();
+        let rbwd  = self.rbwd.to_string();
+        Kinetic { name, node, edge, state, rfwd, rbwd }
+    }
+}
+
 /// Instantiated NML2 ComponentType
 #[derive(Debug, Clone)]
 pub struct Instance {
@@ -34,6 +78,8 @@ impl Instance {
                 parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
             } else if component_type.attributes.contains(&key) {
                 attributes.insert(key, val.to_string());
+            } else if component_type.links.contains_key(&key) {
+                attributes.insert(key, val.to_string());
             }
         }
 
@@ -53,27 +99,114 @@ impl Instance {
                 }
             }
         }
-        Ok(Instance { component_type, child, children, id, parameters, attributes })
+        Ok(Instance { component_type, child, children, id, parameters, attributes,})
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Collapsed {
-    pub name: Option<String>,
-    pub exposures: Map<String, String>,
-    pub variables: Vec<Variable>,
-    pub constants: Map<String, Quantity>,
-    pub parameters: Map<String, Option<Quantity>>,
-    pub attributes: Map<String, Option<String>>,
-    pub events: Vec<(String, Expr)>,
+    pub name:        Option<String>,
+    pub exposures:   Map<String, String>,
+    pub variables:   Vec<Variable>,
+    pub constants:   Map<String, Quantity>,
+    pub parameters:  Map<String, Option<Quantity>>,
+    pub attributes:  Map<String, Option<String>>,
+    pub events:      Vec<(String, Expr)>,
+    pub kinetic:     Vec<Kinetic>,
+    pub transitions: Vec<(String, String, String, String)>,
 }
 
 impl Collapsed {
     pub fn new(nm: &Option<String>) -> Self {
-        Collapsed { name: nm.clone(), exposures: Map::new(), variables: Vec::new(), constants: Map::new(), parameters: Map::new(), attributes: Map::new(), events: Vec::new() }
+        Collapsed { name: nm.clone(), exposures: Map::new(), variables: Vec::new(), constants: Map::new(), parameters: Map::new(), attributes: Map::new(), events: Vec::new(), kinetic: Vec::new(), transitions: Vec::new() }
     }
 
-    pub fn from_instance(inst: &Instance) -> Result<Self> { Self::from_instance_(inst, &Context::new(), None, false) }
+    pub fn from_instance(inst: &Instance) -> Result<Self> {
+        use crate::expr::Path;
+        let result = Self::from_instance_(inst, &Context::new(), None, false);
+        if let Ok(ref mut coll) = result.clone() { // TODO remove the clone at least
+            for ks in &coll.kinetic {
+                let Match(ps) = &ks.edge;
+                let mut ix = 0;
+                let mut nodes = vec![(vec![], inst.clone())];
+                'a: loop {
+                    if ix >= ps.len() { break; }
+                    let p = &ps[ix];
+                    ix += 1;
+                    match &p {
+                        Path::Fixed(s) => {
+                            for (pfx, node) in &nodes {
+                                if let Some(x) = node.child.get(s) {
+                                    let mut pfx = pfx.clone();
+                                    pfx.push(s.clone());
+                                    nodes = vec![(pfx, x.clone())];
+                                    continue 'a;
+                                }
+                            }
+                            if ix < ps.len() {
+                                if let Path::Fixed(q) = &ps[ix] {
+                                    ix += 1;
+                                    for (pfx, node) in &nodes {
+                                        if let Some(xs) = node.children.get(s) {
+                                            let mut pfx = pfx.clone();
+                                            pfx.push(s.clone());
+                                            nodes = xs.iter().filter(|x| x.id == Some(q.to_string()))
+                                                             .cloned()
+                                                             .map(|x| {
+                                                                 let mut pfx = pfx.clone();
+                                                                 pfx.push(x.id.as_deref().unwrap().to_string());
+                                                                 (pfx, x.clone())
+                                                             })
+                                                             .collect();
+                                            continue 'a;
+                                        }
+                                    }
+                                }
+                            }
+                            panic!("Impossible path {:?}", ks.edge);
+                        }
+                        Path::When(s, m) if m == "*" => {
+                            for (pfx, node) in &nodes {
+                                if let Some(xs) = node.children.get(s) {
+                                    nodes = xs.iter()
+                                              .map(|x| {
+                                                  let mut pfx = pfx.clone();
+                                                  pfx.push(s.to_string());
+                                                  pfx.push(x.id.as_deref().unwrap().to_string());
+                                                  (pfx, x.clone())
+                                              })
+                                              .collect();
+                                    continue 'a;
+                                }
+                            }
+                        }
+                        _ => unimplemented!(),
+                    }
+                }
+                for (pfx, node) in nodes {
+                    // TODO This is a horrible hack and must be replaced by proper lookup
+                    let mut qfx = Vec::new();
+                    let Match(ref qs) = &ks.node;
+                    for q in qs {
+                        match q {
+                            Path::Fixed(s)   => qfx.push(s.clone()),
+                            Path::When(s, _) => qfx.push(s.clone()),
+                        }
+                    }
+                    let qfx = qfx.join("_");
+                    // TODO End of horrible hack
+                    let pfx = pfx.join("_");
+                    coll.transitions.push((format!("{}_{}_{}", qfx, node.attributes.get("from").as_deref().unwrap(), ks.state),
+                                           format!("{}_{}_{}", qfx, node.attributes.get("to").as_deref().unwrap(), ks.state),
+                                           format!("{}_{}", pfx, ks.rfwd),
+                                           format!("{}_{}", pfx, ks.rbwd)));
+                }
+            }
+            Ok(coll.clone())
+        } else {
+            result
+        }
+    }
 
     fn from_instance_(inst: &Instance, ctx: &Context, name: Option<String>, add_name: bool) -> Result<Self> {
         let mut result = Collapsed::new(&inst.id);
@@ -86,17 +219,18 @@ impl Collapsed {
         };
         ctx.enter(nm,
                   &ct.exposures.keys()
-                    .chain(ct.parameters.iter())
-                    .chain(ct.constants.keys())
-                    .chain(ct.variables.iter().map(|v| &v.name))
-                    .cloned()
-                    .collect::<Vec<_>>()[..]);
+                     .chain(ct.parameters.iter())
+                     .chain(ct.constants.keys())
+                     .chain(ct.variables.iter().map(|v| &v.name))
+                     .cloned()
+                     .collect::<Vec<_>>()[..]);
 
         result.exposures  = ct.exposures.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
         result.events     = ct.events.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
         result.constants  = ct.constants.iter().map(|(k, v)| (ctx.add_prefix(k), v.clone())).collect();
         result.parameters = ct.parameters.iter().map(|k| (ctx.add_prefix(k), inst.parameters.get(k).cloned())).collect();
         result.attributes = ct.attributes.iter().map(|k| (ctx.add_prefix(k), inst.attributes.get(k).cloned())).collect();
+        result.kinetic    = ct.kinetic.iter().map(|k| k.add_prefix(&ctx)).collect();
 
         for v in &ct.variables {
             let name      = ctx.add_prefix(&v.name);
@@ -118,9 +252,8 @@ impl Collapsed {
         // concretise reductions/selects by converting Select/Product/Sum into DerivedVariables
         for v in result.variables.iter_mut() {
             if let VarKind::Select(by, ps) = &v.kind {
-                let ms = ps.on_path(&result.exposures).iter()
-                                                      .map(|m| Expr::Var(m.to_string()))
-                                                      .collect::<Vec<Expr>>();
+                let ks = result.exposures.keys().cloned().collect::<Vec<_>>();
+                let ms = ps.on_path(&ks).iter().map(|m| Expr::Var(m.to_string())).collect::<Vec<Expr>>();
                 let kind = match &by {
                     SelectBy::Get => if let [ref n] = ms[..] {
                         n.clone()
@@ -145,70 +278,9 @@ impl Collapsed {
         self.constants.extend(other.constants.iter().map(|(a, b)| (a.clone(), b.clone())));
         self.exposures.extend(other.exposures.iter().map(|(a, b)| (a.clone(), b.clone())));
         self.variables.extend(other.variables.iter().cloned());
+        self.kinetic.extend(other.kinetic.iter().cloned());
+        self.events.extend(other.events.iter().cloned());
         Ok(())
-    }
-
-    pub fn pprint(&self) {
-        println!(" * {}", self.name.as_deref().unwrap_or("???"));
-        if !self.constants.is_empty() {
-            println!("   * Constants");
-            for v in &self.constants {
-                println!("     * {} = {:?}", v.0, v.1);
-            }
-        }
-        if !self.exposures.is_empty() {
-            println!("   * Exposures");
-            for (e, d) in &self.exposures {
-                println!("     * {} ({})", e, d);
-            }
-        }
-        if !self.parameters.is_empty() {
-            println!("   * Parameters");
-            for (k, v) in &self.parameters {
-                if let Some(Quantity {value: x, unit: u}) = v {
-                    println!("     * {} = {} ({:?})", k, x, u);
-                } else {
-                    println!("     * {} = UNSET", k);
-                }
-            }
-        }
-        if !self.attributes.is_empty() {
-            println!("   * Attributes");
-            for (k, v) in &self.attributes {
-                println!("     * {} = {:?}", k, v);
-            }
-        }
-        if !self.variables.is_empty() {
-            println!("   * Variables");
-            for v in &self.variables {
-                if let Some(ref e) = v.exposure {
-                    print!("     * {} -> {} ({}) = ", e, v.name, v.dimension);
-                } else {
-                    print!("     * {} ({}) = ", v.name, v.dimension);
-                }
-                match &v.kind {
-                    VarKind::State(i, d)  => {
-                        println!();
-                        println!("       | {}(t=0) = {}", v.name, i.as_ref().unwrap().print_to_string());
-                        println!("       | {}'(t)  = {}", v.name, d.as_ref().unwrap().print_to_string());
-                    },
-                    VarKind::Derived(cs, df) => {
-                        if cs.is_empty() {
-                            println!("{}", df.as_ref().unwrap().print_to_string());
-                        } else {
-                            println!();
-                            for (b, c) in cs {
-                                println!("       | {} => {}", b.print_to_string(), c.print_to_string());
-                            }
-                            if let Some(df) = df {
-                                println!("       | otherwise => {}", df.print_to_string());
-                            }
-                        }
-                    }
-                    _ => panic!("Impossible"),
-                }
-            }
-        }
     }
 
     pub fn simplify(&self) -> Self {
@@ -347,6 +419,11 @@ pub struct ComponentType {
     pub constants: Map<String, Quantity>,
     /// events: on event assign `variable` <- `Expr`
     pub events: Vec<(String, Expr)>,
+    /// Linked components
+    pub links: Map<String, String>,
+    /// Linked components
+    pub kinetic: Vec<Kinetic>,
+
 }
 
 impl ComponentType {
@@ -361,6 +438,8 @@ impl ComponentType {
         let mut attributes = Vec::new();
         let mut constants = Map::new();
         let mut events = Vec::new();
+        let mut kinetic = Vec::new();
+        let mut links = Map::new();
 
         for ix in &ct.body {
             use lems::raw::ComponentTypeBody::*;
@@ -371,18 +450,20 @@ impl ComponentType {
                 Constant(c)  => { constants.insert(c.name.to_string(), Quantity::parse(&c.value)?); }
                 Exposure(e)  => { exposures.insert(e.name.to_string(), e.dimension.to_string());  }
                 Text(t)      => { attributes.push(t.name.to_string()); }
-                Dynamics(d)  => { lems_dynamics(d, &mut variables, &mut events)?; },
+                Dynamics(d)  => { lems_dynamics(d, &mut variables, &mut events, &mut kinetic)?; },
+                Link(t)      => { links.insert(t.name.to_string(), t.r#type.to_string()); }
                 _ => {}
             }
         }
-        Ok(Self { name, base, child, children, exposures, variables, constants, parameters, attributes, events })
+        Ok(Self { name, base, child, children, exposures, variables, constants, parameters, attributes, events, links, kinetic })
     }
 }
 
 /// Helper: Process Dynamics part of ComponentType
 fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                  variables: &mut Vec<Variable>,
-                 events: &mut Vec<(String, Expr)> ) -> Result<()> {
+                 events: &mut Vec<(String, Expr)>,
+                 kinetic: &mut Vec<Kinetic>) -> Result<()> {
     use lems::raw::DynamicsBody::*;
     use lems::raw::ConditionalDerivedVariableBody::*;
     for b in &dynamics.body {
@@ -453,6 +534,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                     return Err(format!("Must be a StateVar: {}", v.variable));
                 }
             }
+            KineticScheme(k) => kinetic.push(Kinetic::new(k)?),
             _ => {}
         }
     }

@@ -90,19 +90,22 @@ fn nmodl_deriv_block(coll: &Collapsed) -> Result<String> {
 
 fn nmodl_break_block(coll: &Collapsed) -> Result<String> {
     let mut state  = Vec::new();
-    let mut deriv  = Vec::new();
+    let mut dstate = Vec::new();
+    let mut vars   = Vec::new();
 
     for var in &coll.variables {
         match &var.kind {
             VarKind::State(_, d) => {
+                let mut v = var.clone();
+                v.kind = VarKind::State(None, None);
+                state.push(v.clone());
+                vars.push(v.clone());
                 if d.is_some() {
-                    let mut v = var.clone();
                     v.kind = VarKind::State(None, d.clone());
-                    state.push(v.clone());
-                    deriv.push(v);
+                    dstate.push(v);
                 }
             }
-            VarKind::Derived(_, _) => deriv.push(var.clone()),
+            VarKind::Derived(_, _) => vars.push(var.clone()),
             VarKind::Select(_, _) => return Err(format!("Select variable in {} post flattening stage.", var.name)),
         }
     }
@@ -115,10 +118,9 @@ fn nmodl_break_block(coll: &Collapsed) -> Result<String> {
                                       .collect::<Set<_>>();
 
     let mut result = vec![String::from("BREAKPOINT {")];
-    if !state.is_empty() {
-        result.push(String::from("  SOLVE dstate METHOD cnexp"));
-    }
-    result.push(print_dependencies(&[format!("i{}", ion_species(coll))], &deriv, &known)?);
+    if !dstate.is_empty()       { result.push(String::from("  SOLVE dstate METHOD cnexp")); } // TODO cannot have both
+    if !coll.transitions.is_empty() { result.push(String::from("  SOLVE scheme METHOD sparse")); }
+    result.push(print_dependencies(&[format!("i{}", ion_species(coll))], &vars, &known)?);
     result.push(String::from("}\n\n"));
     Ok(result.join("\n"))
 }
@@ -150,6 +152,84 @@ fn nmodl_param_block(coll: &Collapsed) -> Result<String> {
     }
     result.push(String::from("}\n\n"));
     Ok(result.join("\n"))
+}
+
+fn nmodl_const_block(coll: &Collapsed) -> Result<String> {
+    if coll.constants.is_empty() { return Ok(String::new()); }
+    let mut result = vec![String::from("CONSTANT {")];
+    for (k, v) in &coll.constants {
+        let mut ln = format!("  {} = {}", k, v.value);
+        if let Some(u) = v.unit.as_ref() {
+            ln.push_str(&format!(" ({})", u));
+        }
+        result.push(ln);
+    }
+    result.push(String::from("}\n\n"));
+    Ok(result.join("\n"))
+}
+
+fn nmodl_kinetic_block(coll: &Collapsed) -> Result<String> {
+    if coll.transitions.is_empty() { return Ok(String::new()); }
+
+    let mut vars = Vec::new();
+
+    for var in &coll.variables {
+        match &var.kind {
+            VarKind::State(_, _)   => {}
+            VarKind::Derived(_, _) => vars.push(var.clone()),
+            VarKind::Select(_, _)  => return Err(format!("Select variable in {} post flattening stage.", var.name)),
+        }
+    }
+
+    // Variables we can access everywhere: parameters, constants, state and voltage
+    let known = coll.parameters.iter().map(|p| p.0.to_string())
+                                      .chain(coll.constants.iter().map(|p|p.0.to_string()))
+                                      .chain(automatic_variables(coll).iter().cloned())
+                                      .collect::<Set<_>>();
+
+    // try to merge transitions
+    let mut transitions = Map::new();
+    for (from, to, fwd, bwd) in &coll.transitions {
+        if from > to {
+            transitions.entry((from, to))
+                       .and_modify(|t: &mut (Expr, Expr)| { *t = (Expr::Add(vec![Expr::parse(fwd).unwrap(), t.0.clone()]).simplify(),
+                                                                  Expr::Add(vec![Expr::parse(bwd).unwrap(), t.1.clone()]).simplify())})
+                       .or_insert((Expr::parse(fwd).unwrap(), Expr::parse(bwd).unwrap()));
+        } else {
+            transitions.entry((to, from))
+                       .and_modify(|t: &mut (Expr, Expr)| { *t = (Expr::Add(vec![Expr::parse(bwd).unwrap(), t.0.clone()]).simplify(),
+                                                                  Expr::Add(vec![Expr::parse(fwd).unwrap(), t.1.clone()]).simplify())})
+                       .or_insert((Expr::parse(bwd).unwrap(), Expr::parse(fwd).unwrap()));
+        }
+    }
+
+    let mut table = Vec::new();
+    let mut depds = Vec::new();
+    for ((from, to), (fwd, bwd)) in &transitions {
+        let pfx = from.chars().zip(to.chars()).take_while(|(a,b)| a == b).map(|t| t.0).collect::<String>();
+        let f = from.strip_prefix(&pfx).unwrap_or(from);
+        let t = to.strip_prefix(&pfx).unwrap_or(to);
+        let fname = format!("{}{}_to_{}", pfx, f, t);
+        let bname = format!("{}{}_to_{}", pfx, t, f);
+        vars.push(Variable { name: fname.to_string(), kind: VarKind::Derived(Vec::new(), Some(fwd.clone())), dimension: String::new(), exposure: None });
+        vars.push(Variable { name: bname.to_string(), kind: VarKind::Derived(Vec::new(), Some(bwd.clone())), dimension: String::new(), exposure: None });
+        table.push(format!("  ~ {} <-> {} ({}, {})", from, to, fname, bname));
+        depds.push(fname.to_string());
+        depds.push(bname.to_string());
+    }
+
+    let result = format!("KINETIC scheme {{
+  LOCAL {}
+{}
+
+{}
+}}
+
+",
+                         depds.join(", "),
+                         print_dependencies(&depds, &vars, &known)?,
+                         table.join("\n"));
+    Ok(result)
 }
 
 fn nmodl_neuron_block(coll: &Collapsed) -> Result<String> {
@@ -218,7 +298,11 @@ fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) 
             Some(Variable{ kind: VarKind::State(Some(x), None), .. }) => { result.push(format!("  {} = {}",  d, x.print_to_string())); }
             Some(Variable{ kind: VarKind::State(None, Some(x)), .. }) => { result.push(format!("  {}' = {}", d, x.print_to_string())); }
             Some(e) => { return Err(format!("Don't know what to do with variable: {:?}", e)); }
-            None => { return Err(format!("No such variable: {}", d)); }
+            None => {
+                // TODO Fix
+                result.push(format!("  {} = ???",  d));
+                //return Err(format!("No such variable: {}", d));
+            }
         }
     }
     Ok(result.join("\n"))
@@ -239,7 +323,7 @@ pub fn to_nmodl(instance: &Instance) -> Result<String> {
             instance.component_type.parameters.push(String::from("weight"));
             instance.parameters.insert(String::from("weight"), Quantity::parse("1")?);
         }
-        "ionChannel" | "ionChannelHH" => {
+        "ionChannel" | "ionChannelHH" | "ionChannelKS" => {
             let ion = instance.attributes.get("species").cloned().unwrap_or_else(String::new);
             let current = format!("g*(v - e{})", ion);
             instance.component_type.variables.push( Variable { name: format!("i{}", ion),
@@ -253,12 +337,14 @@ pub fn to_nmodl(instance: &Instance) -> Result<String> {
 
     let coll = Collapsed::from_instance(&instance)?.simplify();
     let result = vec![nmodl_neuron_block(&coll)?,
+                      nmodl_const_block(&coll)?,
                       nmodl_param_block(&coll)?,
                       nmodl_state_block(&coll)?,
                       nmodl_init_block(&coll)?,
                       nmodl_deriv_block(&coll)?,
                       nmodl_break_block(&coll)?,
-                      nmodl_recv_block(&coll)?,];
+                      nmodl_recv_block(&coll)?,
+                      nmodl_kinetic_block(&coll)?,];
     Ok(result.join(""))
 }
 

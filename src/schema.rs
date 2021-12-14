@@ -369,7 +369,7 @@ fn emit_src(state: &Schema) -> Result<String> {
         nd.push(format!("impl XML for {} {{", t.name));
         nd.push(String::from("  fn from_node(node: &Node) -> Self {"));
 
-        ty.push("#[derive(Debug, Clone)]".to_string());
+        ty.push("#[derive(Debug, Clone, PartialEq)]".to_string());
         ty.push(format!("pub struct {} {{", t.name));
 
         let mut bd = Vec::new();
@@ -403,7 +403,7 @@ fn emit_src(state: &Schema) -> Result<String> {
                                   String::from("      if child.is_comment() || child.is_text() { continue; }"),
                                   String::from("      match child.tag_name().name() {")];
 
-                bd.push("#[derive(Debug, Clone)]".to_string());
+                bd.push("#[derive(Debug, Clone, PartialEq)]".to_string());
                 bd.push(format!("pub enum {}Body {{", t.name));
 
                 for x in xs {

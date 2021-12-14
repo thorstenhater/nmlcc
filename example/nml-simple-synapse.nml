@@ -2,6 +2,5 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
     id="simple-synapse">
-
     <expOneSynapse id="sy1" gbase="0.5nS" erev="0mV" tauDecay="3ms" />
 </neuroml>

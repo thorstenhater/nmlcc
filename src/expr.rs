@@ -1,5 +1,3 @@
-use std::collections::HashMap as Map;
-
 use super::Result;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -131,7 +129,7 @@ pub enum Path {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub struct Match(Vec<Path>);
+pub struct Match(pub Vec<Path>);
 
 impl Match {
     pub fn parse(input: &str) -> Result<Self> {
@@ -149,9 +147,9 @@ impl Match {
                 .collect())
     }
 
-    pub fn on_path(&self, exposures: &Map<String, String>) -> Vec<String> {
+    pub fn on_path(&self, exposures: &[String]) -> Vec<String> {
         let mut ms = Vec::new();
-        for ex in exposures.keys() {
+        for ex in exposures {
             let mut es = ex.split('_');
             let mut ok = true;
             for p in &self.0 {

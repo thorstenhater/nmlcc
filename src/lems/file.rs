@@ -27,7 +27,7 @@ fn normalise_quantity(quantity: &Quantity,
                                                                  w.power - v.power))?;
                 let f = (w.scale/v.scale)*f64::powi(10.0, e);
                 if f != 1.0 { info!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f); }
-                Ok(Quantity { value: quantity.value*f, unit: Some(w.symbol.to_string()) })
+                Ok(Quantity { value: quantity.value/f, unit: Some(w.symbol.to_string()) })
             } else {
                 Err(format!("Failed to find a blessed unit for dimension {}", v.dimension))
             }
@@ -57,7 +57,7 @@ pub struct LemsFile {
 
 impl LemsFile {
     /// Pull LEMS from file
-    pub fn from(dn: &str, file: &str) -> Result<Self> { Self::from_raw(&Lems::from_file(dn, file)?) }
+    pub fn from(dn: &[String], file: &[String]) -> Result<Self> { Self::from_raw(&Lems::from_file(dn, file)?) }
 
     /// Ingest raw LEMS and munge into a digestible form
     fn from_raw(raw: &Lems) -> Result<Self> {
@@ -87,25 +87,29 @@ impl LemsFile {
         let blessed_units = blessed.iter()
                                    .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).unwrap().clone()))
                                    .collect();
-
-        let mut types = Map::new();
-        let mut base_of = Map::new();
+        let types = Map::new();
+        let base_of = Map::new();
+        let mut result = Self { base_of, types, units, dimensions, blessed_units };
         for ct in &raw.component_types {
-            if let Some(base) = &ct.extends { base_of.insert(ct.name.to_string(), base.to_string()); }
-            let mut ctype = ComponentType::from_lems(ct)?;
-            ctype.constants = ctype.constants.iter()
-                                             .map(|(s, c)| (s.to_string(),
-                                                            normalise_quantity(c, &units, &blessed_units).unwrap()))
-                                             .collect();
-            types.insert(ct.name.to_string(), ctype);
+            result.add_component_type(ct)?;
         }
-        Ok(Self { base_of, types, units, dimensions, blessed_units })
+        Ok(result)
+    }
+
+    pub fn add_component_type(&mut self, ct: &super::raw::ComponentType) -> Result<()> {
+        if let Some(base) = &ct.extends { self.base_of.insert(ct.name.to_string(), base.to_string()); }
+        let mut ctype = ComponentType::from_lems(ct)?;
+        ctype.constants = ctype.constants.iter()
+                                         .map(|(s, c)| (s.to_string(),
+                                                        normalise_quantity(c, &self.units, &self.blessed_units).unwrap()))
+                                         .collect();
+        self.types.insert(ct.name.to_string(), ctype);
+        Ok(())
     }
 
     pub fn normalise_quantity(&self, quantity: &Quantity) -> Result<Quantity> {
         normalise_quantity(quantity, &self.units, &self.blessed_units)
     }
-
 
     /// Check if type `d` derives from type `b`.
     pub fn derived_from(&self, d: &str, b: &str) -> bool {

@@ -2,7 +2,20 @@
 
 * Introduction
 
-Compile NML2 definitions to Arbor NMODL.
+Compile NML2 definitions to Arbor NMODL. The ~nmlcc~ tool will consume a list of
+LEMS files containing NML2 conformant ~ComponentType~ definitions and a NeuroML2
+file (~.nml~). By default the following definitions are used
+- NML  :: ~v2-dev~ + XSD ~v2.2~
+- LEMS :: XSD ~v0.7.6~
+
+** Current Limitations
+
+- only export to NMODL (in Arbor's dialect) is supported via the ~nmodl~ sub-command.
+- ~ComponentType~ s cannot -- currently added in a ~.nml~ file, they must be
+  supplied in a separate LEMS file
+- units will not be treated completly, rather upon seeing a quantity, it will be
+  converted to a 'blessed' unit for that dimension, eg ~1 m~ will become ~100
+  cm~ internally. This can have some consequences for accuracy.
 
 * Setup
 
@@ -14,12 +27,20 @@ Compile NML2 definitions to Arbor NMODL.
   #+end_src
 - Now try an example
   #+begin_src shell
-  cargo run --bin lems -- -t ionChannelHH --output test.mod example/nml-simple-ion-channels.xml
+  cargo run -- nmodl --type ionChannelHH example/nml-simple-ion-channels.xml
   #+end_src
+  Here, this should generate ~NaConductance.mod~
 - Get help
   #+begin_src shell
-  cargo run --bin lems -- -h
+  cargo run -- -h
   #+end_src
+
+* Usage
+- ~nmlcc nmodl~ generates NMODL files that can be compiled into Arbor catalogues
+  - ~--type=T~ :: (required) will choose a ~ComponentType~ from which the ~.mod~ files will be built
+  - ~--parameter=p,q,..~ :: will choose parameters to retain as tweakable
+    - *implementation missing*
+    - if not given, all will be retained
 
 * Patches
 ** NML2

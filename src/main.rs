@@ -1,7 +1,6 @@
-use std::fs::write;
-
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use tracing_subscriber;
+use std::fs::write;
 
 mod nmodl;
 mod xml;
@@ -12,27 +11,33 @@ mod instance;
 
 type Result<T> = std::result::Result<T, String>;
 
-
 #[derive(Parser)]
+#[clap(name = "nmlcc")]
 #[clap(version="0.0.1", author="t.hater@fz-juelich.de")]
-struct Options {
+struct Cli {
     /// Path to NMLCoreTypes
     #[clap(short, long, default_value="ext/NeuroML2/NeuroML2CoreTypes")]
-    include_dir: String,
+    include_dir: Vec<String>,
     /// Toplevel CoreType definition file
     #[clap(short, long, default_value="NeuroML2CoreTypes.xml")]
-    core: String,
-    /// A NeuroML2 compliant XML file
-    nml: String,
-    /// Base class to extract
-    #[clap(short, long, default_value="ionChannelHH")]
-    r#type: String,
-    /// Output file
-    #[clap(short, long)]
-    output: Option<String>,
-    /// Parameters to be retained as settable NIY
-    #[clap(short, long)]
-    parameters: Vec<String>,
+    core: Vec<String>,
+    #[clap(subcommand)]
+    cmd: Cmd
+}
+
+#[derive(Subcommand)]
+enum Cmd {
+    /// Export to NMODL
+    NMODL {
+        /// A NeuroML2 compliant XML file
+        nml: String,
+        /// Base class to extract
+        #[clap(short, long)]
+        r#type: String,
+        /// Parameters to be retained as settable NIY
+        #[clap(short, long)]
+        parameters: Vec<String>,
+    }
 }
 
 fn main() -> Result<()> {
@@ -41,22 +46,30 @@ fn main() -> Result<()> {
         .with_target(false)
         .compact()
         .finish();
-    tracing::subscriber::set_global_default(collector);
+    let _guard = tracing::subscriber::set_global_default(collector);
 
-    let opts = Options::parse();
+    let opts = Cli::parse();
     let lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
-    let xml  = std::fs::read_to_string(&opts.nml).map_err(|_| format!("File not found: {}", &opts.nml))?;
-    let tree = roxmltree::Document::parse(&xml).map_err(|_| format!("Could not parse input : {}", &opts.nml))?;
-    let node = tree.descendants()
-                   .find(|n| n.tag_name().name() == opts.r#type)
-                   .ok_or(format!("Doc does not contain instances of {}", &opts.r#type))?;
-    let instance = instance::Instance::new(&lems, &node)?;
-
-    let nmodl = nmodl::to_nmodl(&instance)?;
-    if let Some(file) = opts.output {
-        write(&file, nmodl).map_err(|_| "Error writing output to NMODL.")?;
-    } else {
-        print!("{}", nmodl);
-    };
+    match opts.cmd {
+        Cmd::NMODL { nml, r#type, parameters } => {
+            let xml  = std::fs::read_to_string(&nml).map_err(|_| format!("File not found: {}", &nml))?;
+            let tree = roxmltree::Document::parse(&xml).map_err(|_| format!("Could not parse input : {}", &nml))?;
+            let mut lems = lems.clone();
+            for node in tree.descendants() {
+                if node.tag_name().name() == "ComponentType" {
+                    let ct: lems::raw::ComponentType = xml::XML::from_node(&node);
+                    lems.add_component_type(&ct)?;
+                }
+            }
+            for node in tree.descendants() {
+                if node.tag_name().name() == r#type {
+                    let instance = instance::Instance::new(&lems, &node)?;
+                    let nmodl = nmodl::to_nmodl(&instance)?;
+                    let file = format!("{}.mod", instance.id.as_deref().unwrap_or("out"));
+                    write(&file, nmodl).map_err(|_| "Error writing output to NMODL.")?;
+                }
+            }
+        }
+    }
     Ok(())
 }
