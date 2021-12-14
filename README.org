@@ -11,8 +11,6 @@ file (~.nml~). By default the following definitions are used
 ** Current Limitations
 
 - only export to NMODL (in Arbor's dialect) is supported via the ~nmodl~ sub-command.
-- ~ComponentType~ s cannot -- currently added in a ~.nml~ file, they must be
-  supplied in a separate LEMS file
 - units will not be treated completly, rather upon seeing a quantity, it will be
   converted to a 'blessed' unit for that dimension, eg ~1 m~ will become ~100
   cm~ internally. This can have some consequences for accuracy.
