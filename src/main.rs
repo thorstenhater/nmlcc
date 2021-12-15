@@ -33,9 +33,14 @@ enum Cmd {
         /// Base class to extract
         #[clap(short, long)]
         r#type: String,
-        /// Parameters to be retained as settable NIY
-        #[clap(short, long)]
-        parameters: Vec<String>,
+        /// Parameters to be retained/removed from NMODL; prefix with `-` to
+        /// remove or `+` to retain, `*` matches all suffices, cannot be given
+        /// as infix/prefix; eg --parameter='-*,+foo_*,-foo_bar_*' will retain
+        /// only those starting with `foo_`, unless followed by `bar_`. NOTE:
+        /// Must be given in order of specificity and follow our internal naming
+        /// scheme (sorry, but this is for fine-tuning).
+        #[clap(short, long, default_value="+*")]
+        parameter: String,
     }
 }
 
@@ -50,8 +55,8 @@ fn main() -> Result<()> {
     let opts = Cli::parse();
     let mut lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
     match opts.cmd {
-        Cmd::Nmodl { nml, r#type, parameters } => {
-            let xml  = std::fs::read_to_string(&nml).map_err(|_| format!("File not found: {}", &nml))?;
+        Cmd::Nmodl { nml, r#type, parameter } => {
+             let xml  = std::fs::read_to_string(&nml).map_err(|_| format!("File not found: {}", &nml))?;
             let tree = roxmltree::Document::parse(&xml).map_err(|_| format!("Could not parse input : {}", &nml))?;
             for node in tree.descendants() {
                 if node.tag_name().name() == "ComponentType" {
@@ -62,7 +67,7 @@ fn main() -> Result<()> {
             for node in tree.descendants() {
                 if node.tag_name().name() == r#type {
                     let instance = instance::Instance::new(&lems, &node)?;
-                    let nmodl = nmodl::to_nmodl(&instance)?;
+                    let nmodl = nmodl::to_nmodl(&instance, &parameter)?;
                     let file = format!("{}.mod", instance.id.as_deref().unwrap_or("out"));
                     write(&file, nmodl).map_err(|_| "Error writing output to NMODL.")?;
                 }

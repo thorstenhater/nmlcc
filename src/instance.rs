@@ -1,4 +1,5 @@
 use std::collections::HashMap as Map;
+use std::collections::HashSet as Set;
 
 use tracing::info;
 use roxmltree::Node;
@@ -276,22 +277,57 @@ impl Collapsed {
         Ok(())
     }
 
-    pub fn simplify(&self) -> Self {
+    pub fn simplify(&self, filter: &str) -> Self {
+        let mut retain = Set::new();
+        for f in filter.split(',') {
+            if f.starts_with('+') {
+                if f.ends_with('*') {
+                    let keep = self.parameters.keys()
+                                              .filter(|p| p.starts_with(&f[1..f.len()-1]))
+                                              .map(|p| p.to_string())
+                                              .collect::<Set<_>>();
+                    retain.union(&keep);
+                } else {
+                    retain.insert(f[1..].to_string());
+                }
+            } else if f.starts_with('-') {
+                if f.ends_with('*') {
+                    let keep = self.parameters.keys()
+                                              .filter(|p| p.starts_with(&f[1..f.len()-1]))
+                                              .map(|p| p.to_string())
+                                              .collect::<Set<_>>();
+                    retain.difference(&keep);
+                } else {
+                    retain.remove(&f[1..].to_string());
+                }
+            } else {
+                panic!("Unknown filter kind: {}", f);
+            }
+        }
+
+        retain = retain.into_iter().filter(|r| self.parameters.get(r).is_none()).collect();
+
+
         let mut prv = self.clone();
-        for _ in 0..5 {
+        loop {
             let mut table: Map<String, Expr> = Map::new();
 
-            // NOTE(TH): this seems overly aggressive
-            // for (p, v) in &self.parameters {
-                // if let Some(Quantity{ value, ..}) = v {
-                    // table.insert(p, value);
-                // }
-            // }
+            for (p, v) in &self.parameters {
+                if !retain.contains(p) {
+                    if let Some(Quantity{ value, ..}) = v {
+                        table.insert(p.to_string(), Expr::F64(*value));
+                    }
+                }
+            }
+
+            for (p, Quantity{ value, ..}) in &self.constants {
+                table.insert(p.to_string(), Expr::F64(*value));
+            }
 
             for v in &prv.variables {
                 if let VarKind::Derived(cs, Some(k)) = &v.kind {
                     if cs.is_empty() && matches!(k, Expr::F64(_) | Expr::Var(_)) {
-                            table.insert(v.name.to_string(), k.clone());
+                        table.insert(v.name.to_string(), k.clone());
                     }
                 }
             }
@@ -324,6 +360,8 @@ impl Collapsed {
             if cur == prv { break; }
             prv = cur;
         }
+        prv.constants.clear();
+        prv.parameters = prv.parameters.into_iter().filter(|p| retain.contains(&p.0)).collect();
         prv
     }
 

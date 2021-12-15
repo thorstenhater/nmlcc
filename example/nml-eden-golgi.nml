@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta4.xsd" id="Golgi_KA_CML">
+
+    <ionChannel id="Golgi_KA_CML" conductance="10pS" type="ionChannelHH" species="k">
+        <gate id="m" type="gateHHtauInf" instances="3">
+            <q10Settings type="q10ExpTemp" q10Factor="1" experimentalTemp="17.350264793 degC"/>
+            <timeCourse type="Golgi_KA_CML_m_tau_tau"/>
+            <steadyState type="HHSigmoidVariable" rate="1" scale="0.0198V" midpoint="-0.0467V"/>
+        </gate>
+        <gate id="h" type="gateHHtauInf" instances="1">
+            <q10Settings type="q10ExpTemp" q10Factor="1" experimentalTemp="17.350264793 degC"/>
+            <timeCourse type="Golgi_KA_CML_h_tau_tau"/>
+            <steadyState type="HHSigmoidVariable" rate="1" scale="-0.0084V" midpoint="-0.0788V"/>
+        </gate>
+    </ionChannel>
+
+    <ComponentType name="Golgi_KA_CML_m_tau_tau" extends="baseVoltageDepTime">
+        <Constant name="TIME_SCALE" dimension="time" value="1 s"/>
+        <Constant name="VOLT_SCALE" dimension="voltage" value="1 V"/>
+        <Dynamics>
+            <DerivedVariable name="V" dimension="none" value="v / VOLT_SCALE"/>
+            <DerivedVariable name="t" exposure="t" dimension="time" value="(0.410e-3 * ((exp (( ((V) + 0.0435) / (-0.0428))))) + 0.167e-3) * TIME_SCALE"/>
+        </Dynamics>
+    </ComponentType>
+
+    <ComponentType name="Golgi_KA_CML_h_tau_tau" extends="baseVoltageDepTime">
+        <Constant name="TIME_SCALE" dimension="time" value="1 s"/>
+        <Constant name="VOLT_SCALE" dimension="voltage" value="1 V"/>
+        <Dynamics>
+            <DerivedVariable name="V" dimension="none" value="v / VOLT_SCALE"/>
+            <DerivedVariable name="t" exposure="t" dimension="time" value="(0.001 * (10.8 + (30 * V) + (1 / (57.9 * (exp (V * 127)) + (134e-6 * (exp (V * (-59)))))))) * TIME_SCALE"/>
+        </Dynamics>
+    </ComponentType>
+</neuroml>

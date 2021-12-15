@@ -395,7 +395,7 @@ fn simplify_mul(es: &[Expr]) -> Expr {
         }
     }
     if lit == 0.0 { return Expr::F64(0.0); }
-    if lit.abs() > f64::EPSILON { result.push(Expr::F64(lit)); }
+    if (lit - 1.0).abs() > f64::EPSILON { result.push(Expr::F64(lit)); }
     result.sort_by(|a, b| a.partial_cmp(b).unwrap());
     match result.len() {
         0 => Expr::F64(1.0),

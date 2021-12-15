@@ -1,0 +1,29 @@
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
+         id="simple-kinetic">
+
+    <ionChannelKS conductance="10pS" id="k_fwd_rev" species="k">
+        <gateKS id="n" instances="4">
+            <closedState id="c1"/>
+            <forwardTransition from="c1" id="ft" to="o1">
+                <rate midpoint="-55mV" rate="0.1per_ms" scale="10mV" type="HHExpLinearRate"/>
+            </forwardTransition>
+            <reverseTransition from="c1" id="rt" to="o1">
+                <rate midpoint="-65mV" rate="0.125per_ms" scale="-80mV" type="HHExpRate"/>
+            </reverseTransition>
+            <openState id="o1"/>
+        </gateKS>
+        <gateKS id="m" instances="4">
+            <closedState id="c1"/>
+            <forwardTransition from="c1" id="ft" to="o1">
+                <rate midpoint="-55mV" rate="0.1per_ms" scale="10mV" type="HHExpLinearRate"/>
+            </forwardTransition>
+            <reverseTransition from="c1" id="rt" to="o1">
+                <rate midpoint="-65mV" rate="0.125per_ms" scale="-80mV" type="HHExpRate"/>
+            </reverseTransition>
+            <openState id="o1"/>
+        </gateKS>
+    </ionChannelKS>
+
+</neuroml>

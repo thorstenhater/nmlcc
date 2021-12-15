@@ -307,7 +307,7 @@ fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) 
     Ok(result.join("\n"))
 }
 
-pub fn to_nmodl(instance: &Instance) -> Result<String> {
+pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
     let mut instance = instance.clone();
     // do fixes for known types
     match instance.component_type.name.as_ref() {
@@ -334,7 +334,7 @@ pub fn to_nmodl(instance: &Instance) -> Result<String> {
         _ => {}
     }
 
-    let coll = Collapsed::from_instance(&instance)?.simplify();
+    let coll = Collapsed::from_instance(&instance)?.simplify(filter);
     let result = vec![nmodl_neuron_block(&coll)?,
                       nmodl_const_block(&coll)?,
                       nmodl_param_block(&coll)?,
