@@ -36,9 +36,10 @@ file (~.nml~). By default the following definitions are used
 * Usage
 - ~nmlcc nmodl~ generates NMODL files that can be compiled into Arbor catalogues
   - ~--type=T~ :: (required) will choose a ~ComponentType~ from which the ~.mod~ files will be built
-  - ~--parameter=p,q,..~ :: will choose parameters to retain as tweakable
-    - *implementation missing*
-    - if not given, all will be retained
+  - ~--parameter=+p,-q,..~ :: will choose parameters to retain as tweakable
+    - can _end_ on wildcard ~*~ to select all suffixes
+    - must be ordered from least to most specific, ie ~foo_bar_*~ must come _after_ ~foo_*~
+    - if not given, all will be retained (default ~+*~)
 
 * Patches
 ** NML2
