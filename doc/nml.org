@@ -568,6 +568,8 @@ dependencies of the state variables and building the appropriate chains of
 expressions. All intermediates are stored as ~LOCAL~ to minimise memory
 accesses.
 
+The style defined by NML2, especially the
+
 * Kinetic Schemes
 
 Kinetic schemes describe ion channels by a set of discrete states and transition
@@ -707,3 +709,46 @@ and ~edges~ which _must_ be of kind ~children~, otherwise the semantics would
 not work out. Similarly, both must be located directly under the scheme in the
 hierarchy. However, a ~select~ statement would have expressed the same thing
 more idiomatically.
+
+* The Final Building Block
+
+ So far, we have dealt exclusively with channels, but NML2 requires some more levels
+ above this for completely specilying the dynamics
+ - Cell :: defines dynamics of membrane potential in terms of currents (mediated by channels)
+ - BioPhys Properties :: specifies capacitance, resistivities.
+ - Membrane Properties :: initial potential, channels.
+ - Channel Density :: gives the area density of a channel.
+
+ In order to interact with cable models like Arbor or Neuron, we need to pull
+ these layers into the channel descriptions -- partially at least. In the end we
+ would like to automatically compose Arbor simulations from NML2 files, but for
+ now, we have to extract those values manually.
+
+ Working our way up
+ #+begin_src xml
+ <ComponentType name="baseChannelDensity">
+     <ComponentReference name="ionChannel" type="baseIonChannel"/>
+     <Exposure name="iDensity" dimension="currentDensity"/>
+     <Requirement name="v" dimension="voltage"/>
+ </ComponentType>
+
+ <ComponentType name="baseChannelDensityCond" extends="baseChannelDensity">
+     <Parameter name="condDensity" dimension="conductanceDensity"/>
+     <Exposure name="gDensity" dimension="conductanceDensity"/>
+ </ComponentType>
+
+ <ComponentType name="channelDensity" extends="baseChannelDensityCond">
+     <Parameter name="erev" dimension="voltage" description="The reversal potential of the current produced"/>
+     <Constant name="vShift" dimension="voltage" value="0mV"/>
+     <Dynamics>
+         <DerivedVariable name="channelf" dimension="none" select="ionChannel/fopen"/>
+         <DerivedVariable name="gDensity" dimension="conductanceDensity" exposure="gDensity" value="condDensity * channelf"/>
+         <DerivedVariable name="iDensity"  dimension="currentDensity" exposure="iDensity" value="gDensity * (erev - v)"/>
+     </Dynamics>
+ </ComponentType>
+ #+end_src
+
+ As noted under [[NMODL Export]] we compute ~iX = g(E - U)~ where ~g~ is the
+ ~ionChannel~'s conductance, see above ~g = fopen * conductance~. The parameter
+ ~condDensity~ added in ~channelDensityCond~ is identical to ~conductance~.
+ Thus, we need to retain ~conductance~ and set it to the value of ~condDensity~.

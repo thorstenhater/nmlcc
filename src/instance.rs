@@ -286,7 +286,8 @@ impl Collapsed {
                                               .filter(|p| p.starts_with(&f[1..f.len()-1]))
                                               .map(|p| p.to_string())
                                               .collect::<Set<_>>();
-                    retain.union(&keep);
+                    retain = retain.union(&keep).cloned().collect();
+                    info!("Retaining parameters {:?}", retain);
                 } else {
                     retain.insert(f[1..].to_string());
                 }
@@ -296,7 +297,7 @@ impl Collapsed {
                                               .filter(|p| p.starts_with(&f[1..f.len()-1]))
                                               .map(|p| p.to_string())
                                               .collect::<Set<_>>();
-                    retain.difference(&keep);
+                    retain = retain.difference(&keep).cloned().collect();
                 } else {
                     retain.remove(&f[1..].to_string());
                 }
@@ -305,8 +306,9 @@ impl Collapsed {
             }
         }
 
-        retain = retain.into_iter().filter(|r| self.parameters.get(r).is_none()).collect();
-
+        info!("Retaining parameters {:?}", retain);
+        retain.extend(self.parameters.iter().filter(|t| t.1.is_none()).map(|t| t.0.clone()));
+        info!("Retaining parameters {:?}", retain);
 
         let mut prv = self.clone();
         loop {

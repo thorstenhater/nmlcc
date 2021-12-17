@@ -1,0 +1,72 @@
+#+TITLE: Hodgekin Huxley
+
+* Introduction
+
+This tutorial is adapted from [[https://github.com/openworm/hodgkin_huxley_tutorial][here]] and shows how to use Arbor to run existing
+NML2 simulations.
+
+* Setup
+
+#+begin_example
++-- tutorial/ +-- hodgkin_huxley_tutorial/      # NML2 tutorial
+              |
+              +-- nmlcc/                        # nml2mod compiler
+              |
+              +-- cat/{naChan.mod, kChan.mod}   # catalogue
+              |
+              +-- hh-tutorial/                  # python virtual env
+              |
+              +-- arbor.py                      # script to run simulation
+#+end_example
+
+Clone the original tutorial
+#+begin_src bash
+git clone https://github.com/openworm/hodgkin_huxley_tutorial/
+#+end_src
+
+Install nmlcc (keep a rust installation ready)
+#+begin_src bash
+git clone https://github.com/thorstenhater/nmlcc
+cd nmlcc
+cargo run --bin schema
+cargo run -- -h
+cd ..
+#+end_src
+
+Install Arbor via pip into a virtual env
+#+begin_src bash
+python -mvenv hh-tutorial
+source hh-tutorial/bin/activate
+pip install arbor==0.5.2
+#+end_src
+
+* Prepare Channel Models
+
+Compile channel definitions to NMODL using
+#+begin_src bash
+cd nmlcc
+cargo run -- --parameters="-*,+conductance" ../hodgkin_huxley_tutorial/Tutorial/Source/naChan.channel.nml
+cargo run -- --parameters="-*,+conductance" ../hodgkin_huxley_tutorial/Tutorial/Source/kChan.channel.nml
+cd ..
+#+end_src
+
+Move to a directory and build an Arbor catalogue
+#+begin_src bash
+mkdir cat
+mv nmlcc/kChan.mod cat/
+mv nmlcc/naChan.mod cat/
+arbor-build-catalogue hh cat/
+#+end_src
+
+* Compose a Python Script for Simulation
+
+Now we are going to lift the parameters from various NML2 files located under
+~hodgkin_huxley_tutorial/Tutorial/Source/~ into a Python script to run a
+simulation with Arbor
+
+- =LEMS_HH_Simulation.xml= :: (LEMS) duration and time step
+- =hhcell.cell.nml= ::
+  - channel densities, membrane properties, axial resisvity
+  - ion properties
+  - morphology, will be read by Arbor, but note cell's id (=hhcell=)
+- =HHCellNetwork.net.nml= :: stimuli
