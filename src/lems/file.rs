@@ -4,9 +4,14 @@ use tracing::info;
 use super::{Lems,
             raw::{Unit, Dimension}};
 use crate::{Result,
+            error::Error,
             instance::ComponentType,
             expr::Quantity};
 use std::convert::TryInto;
+
+fn nml2_error<T: Into<String>>(what: T) -> Error { Error::Nml { what: what.into() } }
+fn type_error(ty: &str) -> Error { nml2_error(format!("No such type: {}", ty)) }
+fn unit_error<T: Into<String>>(what: T) -> Error { Error::Unit { what: what.into() } }
 
 fn normalise_quantity(quantity: &Quantity,
                       units: &Map<String, Unit>,       // Known units by name
@@ -23,16 +28,17 @@ fn normalise_quantity(quantity: &Quantity,
                 // => f = 10^(w.power - v.power)
                 let e: i32 = (w.power - v.power).try_into()
                                                 .map_err(|_|
-                                                         format!("Couldn't convert {} to i32",
-                                                                 w.power - v.power))?;
+                                                         unit_error(
+                                                             format!("Couldn't convert {} to i32",
+                                                                     w.power - v.power)))?;
                 let f = (w.scale/v.scale)*f64::powi(10.0, e);
                 if (f - 1.0).abs() > f64::EPSILON { info!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f); }
                 Ok(Quantity { value: quantity.value/f, unit: Some(w.symbol.to_string()) })
             } else {
-                Err(format!("Failed to find a blessed unit for dimension {}", v.dimension))
+                Err(unit_error(format!("Failed to find a blessed unit for dimension {}", v.dimension)))
             }
         } else {
-            Err(format!("Failed to find unit {} for quantity {:?}", u, quantity))
+            Err(unit_error(format!("Failed to find unit {} for quantity {:?}", u, quantity)))
         }
     } else {
         // Non-dimensional units get just passed on.
@@ -130,10 +136,10 @@ impl LemsFile {
     /// inheritance chain. The result will be built by appending all members
     /// while later (='more derived') items take precedence.
     pub fn compose_component_type(&self, id: &str) -> Result<ComponentType> {
-        let mut result = self.types.get(id).ok_or(format!("No such type: {}.", id))?.clone();
+        let mut result = self.types.get(id).ok_or(type_error(id))?.clone();
         let mut base = result.base.as_ref();
         while let Some(id) = base {
-            let ty = self.types.get(id).ok_or(format!("No such type: {}.", id))?;
+            let ty = self.types.get(id).ok_or(type_error(id))?;
             for (k,v) in &ty.child {
                 result.child.entry(k.to_string()).or_insert_with(|| v.to_string());
             }

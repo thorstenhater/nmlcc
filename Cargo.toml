@@ -1,7 +1,7 @@
 [package]
 name = "nml2"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 default-run = "nmlcc"
 
 [dependencies]
@@ -10,6 +10,8 @@ roxmltree          = { version = "^0.14.1" }
 clap               = { version = "^3.0.0-beta.5" }
 tracing            = { version = "0.1" }
 tracing-subscriber = { version = "0.2" }
+anyhow             = { version = "^1.0.0", features = ["backtrace"] }
+thiserror          = { version = "^1.0.0" }
 
 [[bin]]
 name = "nmlcc"

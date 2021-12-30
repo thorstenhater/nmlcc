@@ -2,10 +2,11 @@ pub mod raw;
 pub mod file;
 
 use tracing::info;
-
-use crate::xml;
-use crate::Result;
 use roxmltree::Document;
+
+use crate::{xml, error::Error, Result};
+
+fn lems_error<T: Into<String>>(what: T) -> Error { Error::Lems { what: what.into() } }
 
 #[derive(Debug)]
 pub struct Lems {
@@ -23,14 +24,14 @@ impl Lems {
             if done.contains(&name) { continue; }
             let mut ok = false;
             for path in paths {
-                info!("Trying {}/{}", path, name);
+                info!("Trying to read LEMS file {}/{}", path, name);
                 if let Ok(xml) = std::fs::read_to_string(format!("{}/{}", path, name)) {
                     ok = true;
-                    let doc = Document::parse(&xml).map_err(|_| format!(""))?;
+                    let doc = Document::parse(&xml)?;
                     let root = doc.root_element();
                     let raw: raw::Lems = match root.tag_name().name() {
                         "Lems" => Ok(xml::XML::from_node(&doc.root_element())),
-                        t => Err(format!("Unknown doc kind {}", t)),
+                        t => Err(lems_error(format!("Unknown doc kind {}", t))),
                     }?;
                     for item in raw.body {
                         match item {
@@ -46,7 +47,7 @@ impl Lems {
             if ok {
                 done.push(name.to_string());
             } else {
-                return Err(format!("Could not find LEMS file {} in paths {:?}", name, paths));
+                return Err(lems_error(format!("Could not find LEMS file {} in paths {:?}", name, paths)));
             }
         }
         Ok(result)

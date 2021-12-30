@@ -4,10 +4,12 @@ use std::collections::HashSet as Set;
 use tracing::info;
 use roxmltree::Node;
 
-use crate::{Result,
+use crate::{Result, error::Error,
             expr::{Quantity, Expr, Match},
             variable::{Variable, VarKind, SelectBy},
             lems};
+
+fn nml2_error<T: Into<String>>(what: T) -> Error { Error::Nml { what: what.into() } }
 
 /// Kinetic scheme from components
 /// This does not hold any real data, just links and prefixes. The surrounding
@@ -194,8 +196,8 @@ impl Collapsed {
                 let qfx = qfx.join("_");
                 // TODO End of horrible hack
                 let pfx = pfx.join("_");
-                coll.transitions.push((format!("{}_{}_{}", qfx, node.attributes.get("from").as_deref().unwrap(), ks.state),
-                                       format!("{}_{}_{}", qfx, node.attributes.get("to").as_deref().unwrap(), ks.state),
+                coll.transitions.push((format!("{}_{}_{}", qfx, node.attributes.get("from").unwrap(), ks.state),
+                                       format!("{}_{}_{}", qfx, node.attributes.get("to").unwrap(), ks.state),
                                        format!("{}_{}", pfx, ks.rfwd),
                                        format!("{}_{}", pfx, ks.rbwd)));
             }
@@ -253,7 +255,7 @@ impl Collapsed {
                     SelectBy::Get => if let [ref n] = ms[..] {
                         n.clone()
                     } else {
-                        return Err(format!("Required field is not found for {:?} in {:?}", ps, result.exposures));
+                        return Err(nml2_error(format!("Required field is not found for {:?} in {:?}", ps, result.exposures)));
                     },
                     SelectBy::Product => if ms.is_empty() { Expr::F64(1.0) } else { Expr::Mul(ms) },
                     SelectBy::Sum     => if ms.is_empty() { Expr::F64(0.0) } else { Expr::Add(ms) },
@@ -280,26 +282,26 @@ impl Collapsed {
     pub fn simplify(&self, filter: &str) -> Self {
         let mut retain = Set::new();
         for f in filter.split(',') {
-            if f.starts_with('+') {
+            if let Some(f) = f.strip_prefix('+') {
                 if f.ends_with('*') {
                     let keep = self.parameters.keys()
-                                              .filter(|p| p.starts_with(&f[1..f.len()-1]))
+                                              .filter(|p| p.starts_with(&f[..f.len()-1]))
                                               .map(|p| p.to_string())
                                               .collect::<Set<_>>();
                     retain = retain.union(&keep).cloned().collect();
                     info!("Retaining parameters {:?}", retain);
                 } else {
-                    retain.insert(f[1..].to_string());
+                    retain.insert(f.to_string());
                 }
-            } else if f.starts_with('-') {
+            } else if let Some(f) = f.strip_prefix('-') {
                 if f.ends_with('*') {
                     let keep = self.parameters.keys()
-                                              .filter(|p| p.starts_with(&f[1..f.len()-1]))
+                                              .filter(|p| p.starts_with(&f[..f.len()-1]))
                                               .map(|p| p.to_string())
                                               .collect::<Set<_>>();
                     retain = retain.difference(&keep).cloned().collect();
                 } else {
-                    retain.remove(&f[1..].to_string());
+                    retain.remove(&f.to_string());
                 }
             } else {
                 panic!("Unknown filter kind: {}", f);
@@ -507,13 +509,13 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                         Some("add")      => SelectBy::Sum,
                         Some("multiply") => SelectBy::Product,
                         None             => SelectBy::Get,
-                        Some(x)          => return Err(format!("Unknown reduction {}", x)),
+                        Some(x)          => return Err(nml2_error(format!("Unknown reduction {}", x))),
                     };
                     VarKind::Select(by, Match::parse(s)?)
                 } else if let Some(e) = v.value.as_ref() {
                     VarKind::Derived(Vec::new(), Some(Expr::parse(e)?))
                 } else {
-                    return Err("Illegal DerivedVariable".to_string());
+                    return Err(nml2_error(format!("Illegal DerivedVar: {}", v.name)));
                 };
                 variables.push(Variable::new(&v.name, &v.exposure, &v.dimension, &kind));
             }
@@ -539,7 +541,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                     if let Some(Variable { kind: VarKind::State(ref mut i, _), ..}) = it {
                         *i = Some(Expr::parse(&a.value)?);
                     } else {
-                        return Err(format!("Must be a StateVar: {}", a.variable));
+                        return Err(nml2_error(format!("Must be a StateVar: {}", a.variable)));
                     }
                 }
             }
@@ -552,7 +554,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                             if let Some(Variable { kind: VarKind::State(_, _), ..}) = it {
                                 events.push((a.variable.to_string(), Expr::parse(&a.value)?));
                             } else {
-                                return Err(format!("Must be a StateVar: {}", a.variable));
+                                return Err(nml2_error(format!("Must be a StateVar: {}", a.variable)));
                             }
                         }
                         b => info!("Ignoring {:?}", b),
@@ -564,7 +566,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                 if let Some(Variable { kind: VarKind::State(_, ref mut d), ..}) = it {
                     *d = Some(Expr::parse(&v.value)?);
                 } else {
-                    return Err(format!("Must be a StateVar: {}", v.variable));
+                    return Err(nml2_error(format!("Must be a StateVar: {}", v.variable)));
                 }
             }
             KineticScheme(k) => kinetic.push(Kinetic::new(k)?),

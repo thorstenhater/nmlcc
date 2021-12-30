@@ -112,7 +112,7 @@ struct Schema {
 
 fn restriction(node: &Node) -> Result<Kind> {
     node.attribute("base")
-        .map(|s| Kind::from_str(s))
+        .map(Kind::from_str)
         .ok_or_else(|| String::from("Restriction requires attribute 'base'"))
 }
 
@@ -153,7 +153,7 @@ fn attribute(node: &Node) -> Result<Member> {
                    .ok_or_else(|| String::from("Unnamed attribute"))?
                    .to_string();
     let data  = node.attribute("type")
-                    .map(|s| Kind::from_str(s))
+                    .map(Kind::from_str)
                     .ok_or_else(|| format!("Untyped attribute '{}' ({:?})", name, pos_from_node(node)))?;
     let dflt = node.attribute("default").map(|s| s.to_string());
     let count = match node.attribute("use") {

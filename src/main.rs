@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::fs::write;
 
+mod error;
 mod nmodl;
 mod xml;
 mod lems;
@@ -8,7 +9,7 @@ mod expr;
 mod variable;
 mod instance;
 
-type Result<T> = std::result::Result<T, String>;
+use error::Result;
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
@@ -56,8 +57,8 @@ fn main() -> Result<()> {
     let mut lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
     match opts.cmd {
         Cmd::Nmodl { nml, r#type, parameter } => {
-             let xml  = std::fs::read_to_string(&nml).map_err(|_| format!("File not found: {}", &nml))?;
-            let tree = roxmltree::Document::parse(&xml).map_err(|_| format!("Could not parse input : {}", &nml))?;
+            let xml  = std::fs::read_to_string(&nml)?;
+            let tree = roxmltree::Document::parse(&xml)?;
             for node in tree.descendants() {
                 if node.tag_name().name() == "ComponentType" {
                     let ct: lems::raw::ComponentType = xml::XML::from_node(&node);
@@ -69,7 +70,7 @@ fn main() -> Result<()> {
                     let instance = instance::Instance::new(&lems, &node)?;
                     let nmodl = nmodl::to_nmodl(&instance, &parameter)?;
                     let file = format!("{}.mod", instance.id.as_deref().unwrap_or("out"));
-                    write(&file, nmodl).map_err(|_| "Error writing output to NMODL.")?;
+                    write(&file, nmodl)?;
                 }
             }
         }

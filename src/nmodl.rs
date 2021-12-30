@@ -2,9 +2,13 @@ use std::collections::HashSet as Set;
 use std::collections::HashMap as Map;
 
 use crate::{Result,
+            error::Error,
             expr::{Expr, Quantity},
             instance::{Collapsed, Instance},
             variable::{VarKind, Variable}};
+
+fn illegal_select(v: &str) -> Error { nmodl_error(format!("Select variable in {} post flattening stage.", v)) }
+fn nmodl_error<T: Into<String>>(what: T) -> Error { Error::Nmodl { what: what.into() } }
 
 fn automatic_variables(coll: &Collapsed) -> Vec<String> {
     let ion = ion_species(coll);
@@ -31,7 +35,7 @@ fn nmodl_init_block(coll: &Collapsed) -> Result<String> {
                 }
             }
             VarKind::Derived(_, _) => deriv.push(var.clone()),
-            VarKind::Select(_, _) => return Err(format!("Select variable in {} post flattening stage.", var.name)),
+            VarKind::Select(_, _) => return Err(illegal_select(&var.name)),
         }
     }
 
@@ -66,7 +70,7 @@ fn nmodl_deriv_block(coll: &Collapsed) -> Result<String> {
                 }
             }
             VarKind::Derived(_, _) => deriv.push(var.clone()),
-            VarKind::Select(_, _) => return Err(format!("Select variable in {} post flattening stage.", var.name)),
+            VarKind::Select(_, _) => return Err(illegal_select(&var.name)),
         }
     }
 
@@ -106,7 +110,7 @@ fn nmodl_break_block(coll: &Collapsed) -> Result<String> {
                 }
             }
             VarKind::Derived(_, _) => vars.push(var.clone()),
-            VarKind::Select(_, _) => return Err(format!("Select variable in {} post flattening stage.", var.name)),
+            VarKind::Select(_, _) => return Err(illegal_select(&var.name)),
         }
     }
 
@@ -119,9 +123,9 @@ fn nmodl_break_block(coll: &Collapsed) -> Result<String> {
 
     let mut result = vec![String::from("BREAKPOINT {")];
     if !dstate.is_empty() && !coll.transitions.is_empty() {
-        return Err(String::from("Both KINETIC and ODEs given"));
+        return Err(nmodl_error("Both KINETIC and ODEs given"));
     }
-    if !dstate.is_empty()       { result.push(String::from("  SOLVE dstate METHOD cnexp")); }
+    if !dstate.is_empty()           { result.push(String::from("  SOLVE dstate METHOD cnexp")); }
     if !coll.transitions.is_empty() { result.push(String::from("  SOLVE scheme METHOD sparse")); }
     result.push(print_dependencies(&[format!("i{}", ion_species(coll))], &vars, &known)?);
     result.push(String::from("}\n\n"));
@@ -180,7 +184,7 @@ fn nmodl_kinetic_block(coll: &Collapsed) -> Result<String> {
         match &var.kind {
             VarKind::State(_, _)   => {}
             VarKind::Derived(_, _) => vars.push(var.clone()),
-            VarKind::Select(_, _)  => return Err(format!("Select variable in {} post flattening stage.", var.name)),
+            VarKind::Select(_, _)  => return Err(illegal_select(&var.name)),
         }
     }
 
@@ -300,8 +304,8 @@ fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) 
             }
             Some(Variable{ kind: VarKind::State(Some(x), None), .. }) => { result.push(format!("  {} = {}",  d, x.print_to_string())); }
             Some(Variable{ kind: VarKind::State(None, Some(x)), .. }) => { result.push(format!("  {}' = {}", d, x.print_to_string())); }
-            Some(e) => { return Err(format!("Don't know what to do with variable: {:?}", e)); }
-            None =>    { return Err(format!("No such variable: {}", d)); }
+            Some(e) => { return Err(nmodl_error(format!("Don't know what to do with variable: {:?}", e))); }
+            None =>    { return Err(nmodl_error(format!("No such variable: {}", d))); }
         }
     }
     Ok(result.join("\n"))
@@ -403,7 +407,7 @@ fn sorted_dependencies_of(start: &[String], deps: &Map<String, Set<String>>, kno
                 continue 'a;
             }
         }
-        return Err(format!("Could not resolve {:?}: todo={:?} done={:?} table={:?}", start, todo, result, deps));
+        return Err(nmodl_error(format!("Could not resolve variables {:?}", todo)));
     }
 
     Ok(result)
