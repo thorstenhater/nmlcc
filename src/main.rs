@@ -1,3 +1,5 @@
+#![allow(soft_unstable)]
+
 use clap::{Parser, Subcommand};
 use std::fs::write;
 

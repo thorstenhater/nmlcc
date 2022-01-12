@@ -2,23 +2,75 @@
 #![rustfmt::skip]
 #![allow(non_camel_case_types, non_snake_case, unused_variables)]
 #![allow(clippy::many_single_char_names, clippy::large_enum_variant)]
+
 use roxmltree::Node;
 
 use crate::xml::XML;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TimeDerivative {
-    pub variable: String,
-    pub value: String,
+pub struct Child {
+    pub name: String,
+    pub r#type: String,
+    pub description: Option<String>,
 }
 
-impl XML for TimeDerivative {
+impl XML for Child {
     fn from_node(node: &Node) -> Self {
-        let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
-        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
-        TimeDerivative {
-            variable,
-            value,
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        Child {
+            name,
+            r#type,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OnStartBody {
+    StateAssignment(StateAssignment),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OnStart {
+    pub body: Vec<OnStartBody>
+}
+
+impl XML for OnStart {
+    fn from_node(node: &Node) -> Self {
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "StateAssignment" => body.push(OnStartBody::StateAssignment(StateAssignment::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of OnStart.", t)
+            };
+        }
+        OnStart {
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComponentReference {
+    pub name: String,
+    pub r#type: String,
+    pub local: Option<String>,
+}
+
+impl XML for ComponentReference {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
+        let local = node.attribute("local").map(|s| s.to_string());
+        ComponentReference {
+            name,
+            r#type,
+            local,
         }
     }
 }
@@ -38,62 +90,24 @@ impl XML for EventOut {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Run {
-    pub component: String,
-    pub variable: String,
-    pub increment: String,
-    pub total: String,
+pub struct DerivedParameter {
+    pub name: String,
+    pub dimension: String,
+    pub value: String,
+    pub description: Option<String>,
 }
 
-impl XML for Run {
+impl XML for DerivedParameter {
     fn from_node(node: &Node) -> Self {
-        let component = node.attribute("component").map(|s| s.to_string()).unwrap();
-        let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
-        let increment = node.attribute("increment").map(|s| s.to_string()).unwrap();
-        let total = node.attribute("total").map(|s| s.to_string()).unwrap();
-        Run {
-            component,
-            variable,
-            increment,
-            total,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum SimulationBody {
-    DataDisplay(DataDisplay),
-    Record(Record),
-    EventRecord(EventRecord),
-    Run(Run),
-    DataWriter(DataWriter),
-    EventWriter(EventWriter),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Simulation {
-    pub body: Vec<SimulationBody>
-}
-
-impl XML for Simulation {
-    fn from_node(node: &Node) -> Self {
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "DataDisplay" => body.push(SimulationBody::DataDisplay(DataDisplay::from_node(&child))),
-                "Record" => body.push(SimulationBody::Record(Record::from_node(&child))),
-                "EventRecord" => body.push(SimulationBody::EventRecord(EventRecord::from_node(&child))),
-                "Run" => body.push(SimulationBody::Run(Run::from_node(&child))),
-                "DataWriter" => body.push(SimulationBody::DataWriter(DataWriter::from_node(&child))),
-                "EventWriter" => body.push(SimulationBody::EventWriter(EventWriter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Simulation.", t)
-            };
-        }
-        Simulation {
-            body,
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        DerivedParameter {
+            name,
+            dimension,
+            value,
+            description,
         }
     }
 }
@@ -138,418 +152,6 @@ impl XML for Dynamics {
         }
         Dynamics {
             body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum OnStartBody {
-    StateAssignment(StateAssignment),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct OnStart {
-    pub body: Vec<OnStartBody>
-}
-
-impl XML for OnStart {
-    fn from_node(node: &Node) -> Self {
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "StateAssignment" => body.push(OnStartBody::StateAssignment(StateAssignment::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of OnStart.", t)
-            };
-        }
-        OnStart {
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct KineticScheme {
-    pub name: String,
-    pub nodes: String,
-    pub stateVariable: String,
-    pub edges: String,
-    pub edgeSource: String,
-    pub edgeTarget: String,
-    pub forwardRate: String,
-    pub reverseRate: String,
-}
-
-impl XML for KineticScheme {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let nodes = node.attribute("nodes").map(|s| s.to_string()).unwrap();
-        let stateVariable = node.attribute("stateVariable").map(|s| s.to_string()).unwrap();
-        let edges = node.attribute("edges").map(|s| s.to_string()).unwrap();
-        let edgeSource = node.attribute("edgeSource").map(|s| s.to_string()).unwrap();
-        let edgeTarget = node.attribute("edgeTarget").map(|s| s.to_string()).unwrap();
-        let forwardRate = node.attribute("forwardRate").map(|s| s.to_string()).unwrap();
-        let reverseRate = node.attribute("reverseRate").map(|s| s.to_string()).unwrap();
-        KineticScheme {
-            name,
-            nodes,
-            stateVariable,
-            edges,
-            edgeSource,
-            edgeTarget,
-            forwardRate,
-            reverseRate,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct IndexParameter {
-    pub name: String,
-}
-
-impl XML for IndexParameter {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        IndexParameter {
-            name,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ComponentReference {
-    pub name: String,
-    pub r#type: String,
-    pub local: Option<String>,
-}
-
-impl XML for ComponentReference {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
-        let local = node.attribute("local").map(|s| s.to_string());
-        ComponentReference {
-            name,
-            r#type,
-            local,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Fixed {
-    pub parameter: String,
-    pub value: String,
-    pub description: Option<String>,
-}
-
-impl XML for Fixed {
-    fn from_node(node: &Node) -> Self {
-        let parameter = node.attribute("parameter").map(|s| s.to_string()).unwrap();
-        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Fixed {
-            parameter,
-            value,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TunnelBody {
-    Assign(Assign),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Tunnel {
-    pub name: String,
-    pub endA: String,
-    pub endB: String,
-    pub componentA: String,
-    pub componentB: String,
-    pub body: Vec<TunnelBody>
-}
-
-impl XML for Tunnel {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let endA = node.attribute("endA").map(|s| s.to_string()).unwrap();
-        let endB = node.attribute("endB").map(|s| s.to_string()).unwrap();
-        let componentA = node.attribute("componentA").map(|s| s.to_string()).unwrap();
-        let componentB = node.attribute("componentB").map(|s| s.to_string()).unwrap();
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "Assign" => body.push(TunnelBody::Assign(Assign::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Tunnel.", t)
-            };
-        }
-        Tunnel {
-            name,
-            endA,
-            endB,
-            componentA,
-            componentB,
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct DerivedVariable {
-    pub name: String,
-    pub dimension: String,
-    pub exposure: Option<String>,
-    pub description: Option<String>,
-    pub select: Option<String>,
-    pub value: Option<String>,
-    pub reduce: Option<String>,
-    pub required: Option<String>,
-}
-
-impl XML for DerivedVariable {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let exposure = node.attribute("exposure").map(|s| s.to_string());
-        let description = node.attribute("description").map(|s| s.to_string());
-        let select = node.attribute("select").map(|s| s.to_string());
-        let value = node.attribute("value").map(|s| s.to_string());
-        let reduce = node.attribute("reduce").map(|s| s.to_string());
-        let required = node.attribute("required").map(|s| s.to_string());
-        DerivedVariable {
-            name,
-            dimension,
-            exposure,
-            description,
-            select,
-            value,
-            reduce,
-            required,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Transition {
-    pub regime: String,
-}
-
-impl XML for Transition {
-    fn from_node(node: &Node) -> Self {
-        let regime = node.attribute("regime").map(|s| s.to_string()).unwrap();
-        Transition {
-            regime,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum StructureBody {
-    ChildInstance(ChildInstance),
-    MultiInstantiate(MultiInstantiate),
-    ForEach(ForEach),
-    With(With),
-    Tunnel(Tunnel),
-    EventConnection(EventConnection),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Structure {
-    pub body: Vec<StructureBody>
-}
-
-impl XML for Structure {
-    fn from_node(node: &Node) -> Self {
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "ChildInstance" => body.push(StructureBody::ChildInstance(ChildInstance::from_node(&child))),
-                "MultiInstantiate" => body.push(StructureBody::MultiInstantiate(MultiInstantiate::from_node(&child))),
-                "ForEach" => body.push(StructureBody::ForEach(ForEach::from_node(&child))),
-                "With" => body.push(StructureBody::With(With::from_node(&child))),
-                "Tunnel" => body.push(StructureBody::Tunnel(Tunnel::from_node(&child))),
-                "EventConnection" => body.push(StructureBody::EventConnection(EventConnection::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Structure.", t)
-            };
-        }
-        Structure {
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Constant {
-    pub name: String,
-    pub dimension: String,
-    pub value: String,
-    pub description: Option<String>,
-}
-
-impl XML for Constant {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Constant {
-            name,
-            dimension,
-            value,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Target {
-    pub component: String,
-    pub reportFile: Option<String>,
-    pub timesFile: Option<String>,
-}
-
-impl XML for Target {
-    fn from_node(node: &Node) -> Self {
-        let component = node.attribute("component").map(|s| s.to_string()).unwrap();
-        let reportFile = node.attribute("reportFile").map(|s| s.to_string());
-        let timesFile = node.attribute("timesFile").map(|s| s.to_string());
-        Target {
-            component,
-            reportFile,
-            timesFile,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct InstanceRequirement {
-    pub name: String,
-    pub r#type: String,
-}
-
-impl XML for InstanceRequirement {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
-        InstanceRequirement {
-            name,
-            r#type,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Attachments {
-    pub name: String,
-    pub r#type: String,
-    pub description: Option<String>,
-}
-
-impl XML for Attachments {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Attachments {
-            name,
-            r#type,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Requirement {
-    pub name: String,
-    pub dimension: String,
-    pub description: Option<String>,
-}
-
-impl XML for Requirement {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Requirement {
-            name,
-            dimension,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct MultiInstantiate {
-    pub component: String,
-    pub number: String,
-}
-
-impl XML for MultiInstantiate {
-    fn from_node(node: &Node) -> Self {
-        let component = node.attribute("component").map(|s| s.to_string()).unwrap();
-        let number = node.attribute("number").map(|s| s.to_string()).unwrap();
-        MultiInstantiate {
-            component,
-            number,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct StateAssignment {
-    pub variable: String,
-    pub value: String,
-}
-
-impl XML for StateAssignment {
-    fn from_node(node: &Node) -> Self {
-        let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
-        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
-        StateAssignment {
-            variable,
-            value,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct EventRecord {
-    pub quantity: String,
-    pub eventPort: String,
-}
-
-impl XML for EventRecord {
-    fn from_node(node: &Node) -> Self {
-        let quantity = node.attribute("quantity").map(|s| s.to_string()).unwrap();
-        let eventPort = node.attribute("eventPort").map(|s| s.to_string()).unwrap();
-        EventRecord {
-            quantity,
-            eventPort,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Include {
-    pub file: String,
-}
-
-impl XML for Include {
-    fn from_node(node: &Node) -> Self {
-        let file = node.attribute("file").map(|s| s.to_string()).unwrap();
-        Include {
-            file,
         }
     }
 }
@@ -632,200 +234,6 @@ impl XML for ComponentType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum LemsBody {
-    Target(Target),
-    Include(Include),
-    Dimension(Dimension),
-    Unit(Unit),
-    Constant(Constant),
-    ComponentType(ComponentType),
-    Component(Component),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Lems {
-    pub description: Option<String>,
-    pub body: Vec<LemsBody>
-}
-
-impl XML for Lems {
-    fn from_node(node: &Node) -> Self {
-        let description = node.attribute("description").map(|s| s.to_string());
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "Target" => body.push(LemsBody::Target(Target::from_node(&child))),
-                "Include" => body.push(LemsBody::Include(Include::from_node(&child))),
-                "Dimension" => body.push(LemsBody::Dimension(Dimension::from_node(&child))),
-                "Unit" => body.push(LemsBody::Unit(Unit::from_node(&child))),
-                "Constant" => body.push(LemsBody::Constant(Constant::from_node(&child))),
-                "ComponentType" => body.push(LemsBody::ComponentType(ComponentType::from_node(&child))),
-                "Component" => body.push(LemsBody::Component(Component::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Lems.", t)
-            };
-        }
-        Lems {
-            description,
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Children {
-    pub name: String,
-    pub r#type: Option<String>,
-    pub min: Option<i64>,
-    pub max: Option<i64>,
-    pub description: Option<String>,
-}
-
-impl XML for Children {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let r#type = node.attribute("type").map(|s| s.to_string());
-        let min = node.attribute("min").map(|s| s.parse::<i64>().unwrap());
-        let max = node.attribute("max").map(|s| s.parse::<i64>().unwrap());
-        let description = node.attribute("description").map(|s| s.to_string());
-        Children {
-            name,
-            r#type,
-            min,
-            max,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Parameter {
-    pub name: String,
-    pub dimension: String,
-    pub description: Option<String>,
-}
-
-impl XML for Parameter {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Parameter {
-            name,
-            dimension,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ComponentRequirement {
-    pub name: String,
-}
-
-impl XML for ComponentRequirement {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        ComponentRequirement {
-            name,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Assign {
-    pub property: String,
-    pub value: String,
-}
-
-impl XML for Assign {
-    fn from_node(node: &Node) -> Self {
-        let property = node.attribute("property").map(|s| s.to_string()).unwrap();
-        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
-        Assign {
-            property,
-            value,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Child {
-    pub name: String,
-    pub r#type: String,
-    pub description: Option<String>,
-}
-
-impl XML for Child {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Child {
-            name,
-            r#type,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ConditionalDerivedVariableBody {
-    Case(Case),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ConditionalDerivedVariable {
-    pub name: String,
-    pub dimension: String,
-    pub exposure: Option<String>,
-    pub body: Vec<ConditionalDerivedVariableBody>
-}
-
-impl XML for ConditionalDerivedVariable {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let exposure = node.attribute("exposure").map(|s| s.to_string());
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "Case" => body.push(ConditionalDerivedVariableBody::Case(Case::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ConditionalDerivedVariable.", t)
-            };
-        }
-        ConditionalDerivedVariable {
-            name,
-            dimension,
-            exposure,
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Path {
-    pub name: String,
-    pub description: Option<String>,
-}
-
-impl XML for Path {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Path {
-            name,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub struct Case {
     pub condition: Option<String>,
     pub value: String,
@@ -838,243 +246,6 @@ impl XML for Case {
         Case {
             condition,
             value,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Exposure {
-    pub name: String,
-    pub dimension: String,
-    pub description: Option<String>,
-}
-
-impl XML for Exposure {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        Exposure {
-            name,
-            dimension,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct StateVariable {
-    pub name: String,
-    pub dimension: String,
-    pub exposure: Option<String>,
-    pub description: Option<String>,
-}
-
-impl XML for StateVariable {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let exposure = node.attribute("exposure").map(|s| s.to_string());
-        let description = node.attribute("description").map(|s| s.to_string());
-        StateVariable {
-            name,
-            dimension,
-            exposure,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum OnConditionBody {
-    StateAssignment(StateAssignment),
-    EventOut(EventOut),
-    Transition(Transition),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct OnCondition {
-    pub test: String,
-    pub body: Vec<OnConditionBody>
-}
-
-impl XML for OnCondition {
-    fn from_node(node: &Node) -> Self {
-        let test = node.attribute("test").map(|s| s.to_string()).unwrap();
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "StateAssignment" => body.push(OnConditionBody::StateAssignment(StateAssignment::from_node(&child))),
-                "EventOut" => body.push(OnConditionBody::EventOut(EventOut::from_node(&child))),
-                "Transition" => body.push(OnConditionBody::Transition(Transition::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of OnCondition.", t)
-            };
-        }
-        OnCondition {
-            test,
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Record {
-    pub quantity: String,
-    pub timeScale: Option<String>,
-    pub scale: Option<String>,
-    pub color: Option<String>,
-}
-
-impl XML for Record {
-    fn from_node(node: &Node) -> Self {
-        let quantity = node.attribute("quantity").map(|s| s.to_string()).unwrap();
-        let timeScale = node.attribute("timeScale").map(|s| s.to_string());
-        let scale = node.attribute("scale").map(|s| s.to_string());
-        let color = node.attribute("color").map(|s| s.to_string());
-        Record {
-            quantity,
-            timeScale,
-            scale,
-            color,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct NamedDimensionalType {
-    pub name: String,
-    pub dimension: String,
-    pub description: Option<String>,
-}
-
-impl XML for NamedDimensionalType {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
-        let description = node.attribute("description").map(|s| s.to_string());
-        NamedDimensionalType {
-            name,
-            dimension,
-            description,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Component {
-}
-
-impl XML for Component {
-    fn from_node(node: &Node) -> Self {
-        Component {
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum ForEachBody {
-    MultiInstantiate(MultiInstantiate),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ForEach {
-    pub instances: String,
-    pub r#as: String,
-    pub body: Vec<ForEachBody>
-}
-
-impl XML for ForEach {
-    fn from_node(node: &Node) -> Self {
-        let instances = node.attribute("instances").map(|s| s.to_string()).unwrap();
-        let r#as = node.attribute("as").map(|s| s.to_string()).unwrap();
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "MultiInstantiate" => body.push(ForEachBody::MultiInstantiate(MultiInstantiate::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ForEach.", t)
-            };
-        }
-        ForEach {
-            instances,
-            r#as,
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum OnEventBody {
-    StateAssignment(StateAssignment),
-    EventOut(EventOut),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct OnEvent {
-    pub port: String,
-    pub body: Vec<OnEventBody>
-}
-
-impl XML for OnEvent {
-    fn from_node(node: &Node) -> Self {
-        let port = node.attribute("port").map(|s| s.to_string()).unwrap();
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "StateAssignment" => body.push(OnEventBody::StateAssignment(StateAssignment::from_node(&child))),
-                "EventOut" => body.push(OnEventBody::EventOut(EventOut::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of OnEvent.", t)
-            };
-        }
-        OnEvent {
-            port,
-            body,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum RegimeBody {
-    TimeDerivative(TimeDerivative),
-    OnEntry(OnEntry),
-    OnCondition(OnCondition),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Regime {
-    pub name: String,
-    pub initial: Option<String>,
-    pub body: Vec<RegimeBody>
-}
-
-impl XML for Regime {
-    fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let initial = node.attribute("initial").map(|s| s.to_string());
-        let mut body = Vec::new();
-        for child in node.children() {
-            if child.is_comment() || child.is_text() {
-                continue;
-            }
-            match child.tag_name().name() {
-                "TimeDerivative" => body.push(RegimeBody::TimeDerivative(TimeDerivative::from_node(&child))),
-                "OnEntry" => body.push(RegimeBody::OnEntry(OnEntry::from_node(&child))),
-                "OnCondition" => body.push(RegimeBody::OnCondition(OnCondition::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Regime.", t)
-            };
-        }
-        Regime {
-            name,
-            initial,
-            body,
         }
     }
 }
@@ -1129,20 +300,424 @@ impl XML for EventConnection {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct EventPort {
+pub enum LemsBody {
+    Target(Target),
+    Include(Include),
+    Dimension(Dimension),
+    Unit(Unit),
+    Constant(Constant),
+    ComponentType(ComponentType),
+    Component(Component),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Lems {
+    pub description: Option<String>,
+    pub body: Vec<LemsBody>
+}
+
+impl XML for Lems {
+    fn from_node(node: &Node) -> Self {
+        let description = node.attribute("description").map(|s| s.to_string());
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "Target" => body.push(LemsBody::Target(Target::from_node(&child))),
+                "Include" => body.push(LemsBody::Include(Include::from_node(&child))),
+                "Dimension" => body.push(LemsBody::Dimension(Dimension::from_node(&child))),
+                "Unit" => body.push(LemsBody::Unit(Unit::from_node(&child))),
+                "Constant" => body.push(LemsBody::Constant(Constant::from_node(&child))),
+                "ComponentType" => body.push(LemsBody::ComponentType(ComponentType::from_node(&child))),
+                "Component" => body.push(LemsBody::Component(Component::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of Lems.", t)
+            };
+        }
+        Lems {
+            description,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SimulationBody {
+    DataDisplay(DataDisplay),
+    Record(Record),
+    EventRecord(EventRecord),
+    Run(Run),
+    DataWriter(DataWriter),
+    EventWriter(EventWriter),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Simulation {
+    pub body: Vec<SimulationBody>
+}
+
+impl XML for Simulation {
+    fn from_node(node: &Node) -> Self {
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "DataDisplay" => body.push(SimulationBody::DataDisplay(DataDisplay::from_node(&child))),
+                "Record" => body.push(SimulationBody::Record(Record::from_node(&child))),
+                "EventRecord" => body.push(SimulationBody::EventRecord(EventRecord::from_node(&child))),
+                "Run" => body.push(SimulationBody::Run(Run::from_node(&child))),
+                "DataWriter" => body.push(SimulationBody::DataWriter(DataWriter::from_node(&child))),
+                "EventWriter" => body.push(SimulationBody::EventWriter(EventWriter::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of Simulation.", t)
+            };
+        }
+        Simulation {
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OnConditionBody {
+    StateAssignment(StateAssignment),
+    EventOut(EventOut),
+    Transition(Transition),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OnCondition {
+    pub test: String,
+    pub body: Vec<OnConditionBody>
+}
+
+impl XML for OnCondition {
+    fn from_node(node: &Node) -> Self {
+        let test = node.attribute("test").map(|s| s.to_string()).unwrap();
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "StateAssignment" => body.push(OnConditionBody::StateAssignment(StateAssignment::from_node(&child))),
+                "EventOut" => body.push(OnConditionBody::EventOut(EventOut::from_node(&child))),
+                "Transition" => body.push(OnConditionBody::Transition(Transition::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of OnCondition.", t)
+            };
+        }
+        OnCondition {
+            test,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OnEntryBody {
+    StateAssignment(StateAssignment),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OnEntry {
+    pub body: Vec<OnEntryBody>
+}
+
+impl XML for OnEntry {
+    fn from_node(node: &Node) -> Self {
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "StateAssignment" => body.push(OnEntryBody::StateAssignment(StateAssignment::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of OnEntry.", t)
+            };
+        }
+        OnEntry {
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Text {
     pub name: String,
-    pub direction: String,
     pub description: Option<String>,
 }
 
-impl XML for EventPort {
+impl XML for Text {
     fn from_node(node: &Node) -> Self {
         let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let direction = node.attribute("direction").map(|s| s.to_string()).unwrap();
         let description = node.attribute("description").map(|s| s.to_string());
-        EventPort {
+        Text {
             name,
-            direction,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StateVariable {
+    pub name: String,
+    pub dimension: String,
+    pub exposure: Option<String>,
+    pub description: Option<String>,
+}
+
+impl XML for StateVariable {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let exposure = node.attribute("exposure").map(|s| s.to_string());
+        let description = node.attribute("description").map(|s| s.to_string());
+        StateVariable {
+            name,
+            dimension,
+            exposure,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NamedDimensionalType {
+    pub name: String,
+    pub dimension: String,
+    pub description: Option<String>,
+}
+
+impl XML for NamedDimensionalType {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        NamedDimensionalType {
+            name,
+            dimension,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Path {
+    pub name: String,
+    pub description: Option<String>,
+}
+
+impl XML for Path {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        Path {
+            name,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attachments {
+    pub name: String,
+    pub r#type: String,
+    pub description: Option<String>,
+}
+
+impl XML for Attachments {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        Attachments {
+            name,
+            r#type,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum StructureBody {
+    ChildInstance(ChildInstance),
+    MultiInstantiate(MultiInstantiate),
+    ForEach(ForEach),
+    With(With),
+    Tunnel(Tunnel),
+    EventConnection(EventConnection),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Structure {
+    pub body: Vec<StructureBody>
+}
+
+impl XML for Structure {
+    fn from_node(node: &Node) -> Self {
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "ChildInstance" => body.push(StructureBody::ChildInstance(ChildInstance::from_node(&child))),
+                "MultiInstantiate" => body.push(StructureBody::MultiInstantiate(MultiInstantiate::from_node(&child))),
+                "ForEach" => body.push(StructureBody::ForEach(ForEach::from_node(&child))),
+                "With" => body.push(StructureBody::With(With::from_node(&child))),
+                "Tunnel" => body.push(StructureBody::Tunnel(Tunnel::from_node(&child))),
+                "EventConnection" => body.push(StructureBody::EventConnection(EventConnection::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of Structure.", t)
+            };
+        }
+        Structure {
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DataDisplay {
+    pub title: String,
+    pub dataRegion: String,
+}
+
+impl XML for DataDisplay {
+    fn from_node(node: &Node) -> Self {
+        let title = node.attribute("title").map(|s| s.to_string()).unwrap();
+        let dataRegion = node.attribute("dataRegion").map(|s| s.to_string()).unwrap();
+        DataDisplay {
+            title,
+            dataRegion,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConditionalDerivedVariableBody {
+    Case(Case),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConditionalDerivedVariable {
+    pub name: String,
+    pub dimension: String,
+    pub exposure: Option<String>,
+    pub body: Vec<ConditionalDerivedVariableBody>
+}
+
+impl XML for ConditionalDerivedVariable {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let exposure = node.attribute("exposure").map(|s| s.to_string());
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "Case" => body.push(ConditionalDerivedVariableBody::Case(Case::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of ConditionalDerivedVariable.", t)
+            };
+        }
+        ConditionalDerivedVariable {
+            name,
+            dimension,
+            exposure,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct IndexParameter {
+    pub name: String,
+}
+
+impl XML for IndexParameter {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        IndexParameter {
+            name,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ChildInstance {
+    pub component: String,
+}
+
+impl XML for ChildInstance {
+    fn from_node(node: &Node) -> Self {
+        let component = node.attribute("component").map(|s| s.to_string()).unwrap();
+        ChildInstance {
+            component,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TimeDerivative {
+    pub variable: String,
+    pub value: String,
+}
+
+impl XML for TimeDerivative {
+    fn from_node(node: &Node) -> Self {
+        let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
+        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
+        TimeDerivative {
+            variable,
+            value,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Unit {
+    pub symbol: String,
+    pub dimension: String,
+    pub power: i64,
+    pub scale: f64,
+    pub offset: f64,
+}
+
+impl XML for Unit {
+    fn from_node(node: &Node) -> Self {
+        let symbol = node.attribute("symbol").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").map(|s| s.to_string()).unwrap();
+        let power = node.attribute("power").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
+        let scale = node.attribute("scale").or(Some("1")).map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let offset = node.attribute("offset").or(Some("0")).map(|s| s.parse::<f64>().unwrap()).unwrap();
+        Unit {
+            symbol,
+            dimension,
+            power,
+            scale,
+            offset,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Requirement {
+    pub name: String,
+    pub dimension: String,
+    pub description: Option<String>,
+}
+
+impl XML for Requirement {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        Requirement {
+            name,
+            dimension,
             description,
         }
     }
@@ -1169,22 +744,19 @@ impl XML for EventWriter {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DerivedParameter {
-    pub name: String,
-    pub dimension: String,
+pub struct Fixed {
+    pub parameter: String,
     pub value: String,
     pub description: Option<String>,
 }
 
-impl XML for DerivedParameter {
+impl XML for Fixed {
     fn from_node(node: &Node) -> Self {
-        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let parameter = node.attribute("parameter").map(|s| s.to_string()).unwrap();
         let value = node.attribute("value").map(|s| s.to_string()).unwrap();
         let description = node.attribute("description").map(|s| s.to_string());
-        DerivedParameter {
-            name,
-            dimension,
+        Fixed {
+            parameter,
             value,
             description,
         }
@@ -1192,41 +764,90 @@ impl XML for DerivedParameter {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Text {
+pub struct Target {
+    pub component: String,
+    pub reportFile: Option<String>,
+    pub timesFile: Option<String>,
+}
+
+impl XML for Target {
+    fn from_node(node: &Node) -> Self {
+        let component = node.attribute("component").map(|s| s.to_string()).unwrap();
+        let reportFile = node.attribute("reportFile").map(|s| s.to_string());
+        let timesFile = node.attribute("timesFile").map(|s| s.to_string());
+        Target {
+            component,
+            reportFile,
+            timesFile,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Children {
     pub name: String,
+    pub r#type: Option<String>,
+    pub min: Option<i64>,
+    pub max: Option<i64>,
     pub description: Option<String>,
 }
 
-impl XML for Text {
+impl XML for Children {
     fn from_node(node: &Node) -> Self {
         let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let r#type = node.attribute("type").map(|s| s.to_string());
+        let min = node.attribute("min").map(|s| s.parse::<i64>().unwrap());
+        let max = node.attribute("max").map(|s| s.parse::<i64>().unwrap());
         let description = node.attribute("description").map(|s| s.to_string());
-        Text {
+        Children {
             name,
+            r#type,
+            min,
+            max,
             description,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct With {
-    pub instance: Option<String>,
-    pub list: Option<String>,
-    pub index: Option<String>,
-    pub r#as: String,
+pub struct Property {
+    pub name: String,
+    pub dimension: String,
+    pub description: Option<String>,
+    pub defaultValue: Option<f64>,
 }
 
-impl XML for With {
+impl XML for Property {
     fn from_node(node: &Node) -> Self {
-        let instance = node.attribute("instance").map(|s| s.to_string());
-        let list = node.attribute("list").map(|s| s.to_string());
-        let index = node.attribute("index").map(|s| s.to_string());
-        let r#as = node.attribute("as").map(|s| s.to_string()).unwrap();
-        With {
-            instance,
-            list,
-            index,
-            r#as,
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        let defaultValue = node.attribute("defaultValue").map(|s| s.parse::<f64>().unwrap());
+        Property {
+            name,
+            dimension,
+            description,
+            defaultValue,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Parameter {
+    pub name: String,
+    pub dimension: String,
+    pub description: Option<String>,
+}
+
+impl XML for Parameter {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        Parameter {
+            name,
+            dimension,
+            description,
         }
     }
 }
@@ -1264,55 +885,234 @@ impl XML for Dimension {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Unit {
-    pub symbol: String,
-    pub dimension: String,
-    pub power: i64,
-    pub scale: f64,
-    pub offset: f64,
+pub struct KineticScheme {
+    pub name: String,
+    pub nodes: String,
+    pub stateVariable: String,
+    pub edges: String,
+    pub edgeSource: String,
+    pub edgeTarget: String,
+    pub forwardRate: String,
+    pub reverseRate: String,
 }
 
-impl XML for Unit {
+impl XML for KineticScheme {
     fn from_node(node: &Node) -> Self {
-        let symbol = node.attribute("symbol").map(|s| s.to_string()).unwrap();
-        let dimension = node.attribute("dimension").map(|s| s.to_string()).unwrap();
-        let power = node.attribute("power").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
-        let scale = node.attribute("scale").or(Some("1")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let offset = node.attribute("offset").or(Some("0")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        Unit {
-            symbol,
-            dimension,
-            power,
-            scale,
-            offset,
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let nodes = node.attribute("nodes").map(|s| s.to_string()).unwrap();
+        let stateVariable = node.attribute("stateVariable").map(|s| s.to_string()).unwrap();
+        let edges = node.attribute("edges").map(|s| s.to_string()).unwrap();
+        let edgeSource = node.attribute("edgeSource").map(|s| s.to_string()).unwrap();
+        let edgeTarget = node.attribute("edgeTarget").map(|s| s.to_string()).unwrap();
+        let forwardRate = node.attribute("forwardRate").map(|s| s.to_string()).unwrap();
+        let reverseRate = node.attribute("reverseRate").map(|s| s.to_string()).unwrap();
+        KineticScheme {
+            name,
+            nodes,
+            stateVariable,
+            edges,
+            edgeSource,
+            edgeTarget,
+            forwardRate,
+            reverseRate,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum OnEntryBody {
+pub enum OnEventBody {
     StateAssignment(StateAssignment),
+    EventOut(EventOut),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct OnEntry {
-    pub body: Vec<OnEntryBody>
+pub struct OnEvent {
+    pub port: String,
+    pub body: Vec<OnEventBody>
 }
 
-impl XML for OnEntry {
+impl XML for OnEvent {
     fn from_node(node: &Node) -> Self {
+        let port = node.attribute("port").map(|s| s.to_string()).unwrap();
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
                 continue;
             }
             match child.tag_name().name() {
-                "StateAssignment" => body.push(OnEntryBody::StateAssignment(StateAssignment::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of OnEntry.", t)
+                "StateAssignment" => body.push(OnEventBody::StateAssignment(StateAssignment::from_node(&child))),
+                "EventOut" => body.push(OnEventBody::EventOut(EventOut::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of OnEvent.", t)
             };
         }
-        OnEntry {
+        OnEvent {
+            port,
             body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Assign {
+    pub property: String,
+    pub value: String,
+}
+
+impl XML for Assign {
+    fn from_node(node: &Node) -> Self {
+        let property = node.attribute("property").map(|s| s.to_string()).unwrap();
+        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
+        Assign {
+            property,
+            value,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Transition {
+    pub regime: String,
+}
+
+impl XML for Transition {
+    fn from_node(node: &Node) -> Self {
+        let regime = node.attribute("regime").map(|s| s.to_string()).unwrap();
+        Transition {
+            regime,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DataWriter {
+    pub path: String,
+    pub fileName: String,
+}
+
+impl XML for DataWriter {
+    fn from_node(node: &Node) -> Self {
+        let path = node.attribute("path").map(|s| s.to_string()).unwrap();
+        let fileName = node.attribute("fileName").map(|s| s.to_string()).unwrap();
+        DataWriter {
+            path,
+            fileName,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InstanceRequirement {
+    pub name: String,
+    pub r#type: String,
+}
+
+impl XML for InstanceRequirement {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
+        InstanceRequirement {
+            name,
+            r#type,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EventPort {
+    pub name: String,
+    pub direction: String,
+    pub description: Option<String>,
+}
+
+impl XML for EventPort {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let direction = node.attribute("direction").map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        EventPort {
+            name,
+            direction,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Component {
+}
+
+impl XML for Component {
+    fn from_node(node: &Node) -> Self {
+        Component {
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StateAssignment {
+    pub variable: String,
+    pub value: String,
+}
+
+impl XML for StateAssignment {
+    fn from_node(node: &Node) -> Self {
+        let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
+        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
+        StateAssignment {
+            variable,
+            value,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DerivedVariable {
+    pub name: String,
+    pub dimension: String,
+    pub exposure: Option<String>,
+    pub description: Option<String>,
+    pub select: Option<String>,
+    pub value: Option<String>,
+    pub reduce: Option<String>,
+    pub required: Option<String>,
+}
+
+impl XML for DerivedVariable {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let exposure = node.attribute("exposure").map(|s| s.to_string());
+        let description = node.attribute("description").map(|s| s.to_string());
+        let select = node.attribute("select").map(|s| s.to_string());
+        let value = node.attribute("value").map(|s| s.to_string());
+        let reduce = node.attribute("reduce").map(|s| s.to_string());
+        let required = node.attribute("required").map(|s| s.to_string());
+        DerivedVariable {
+            name,
+            dimension,
+            exposure,
+            description,
+            select,
+            value,
+            reduce,
+            required,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MultiInstantiate {
+    pub component: String,
+    pub number: String,
+}
+
+impl XML for MultiInstantiate {
+    fn from_node(node: &Node) -> Self {
+        let component = node.attribute("component").map(|s| s.to_string()).unwrap();
+        let number = node.attribute("number").map(|s| s.to_string()).unwrap();
+        MultiInstantiate {
+            component,
+            number,
         }
     }
 }
@@ -1338,72 +1138,273 @@ impl XML for Link {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DataDisplay {
-    pub title: String,
-    pub dataRegion: String,
+pub struct With {
+    pub instance: Option<String>,
+    pub list: Option<String>,
+    pub index: Option<String>,
+    pub r#as: String,
 }
 
-impl XML for DataDisplay {
+impl XML for With {
     fn from_node(node: &Node) -> Self {
-        let title = node.attribute("title").map(|s| s.to_string()).unwrap();
-        let dataRegion = node.attribute("dataRegion").map(|s| s.to_string()).unwrap();
-        DataDisplay {
-            title,
-            dataRegion,
+        let instance = node.attribute("instance").map(|s| s.to_string());
+        let list = node.attribute("list").map(|s| s.to_string());
+        let index = node.attribute("index").map(|s| s.to_string());
+        let r#as = node.attribute("as").map(|s| s.to_string()).unwrap();
+        With {
+            instance,
+            list,
+            index,
+            r#as,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DataWriter {
-    pub path: String,
-    pub fileName: String,
+pub struct Record {
+    pub quantity: String,
+    pub timeScale: Option<String>,
+    pub scale: Option<String>,
+    pub color: Option<String>,
 }
 
-impl XML for DataWriter {
+impl XML for Record {
     fn from_node(node: &Node) -> Self {
-        let path = node.attribute("path").map(|s| s.to_string()).unwrap();
-        let fileName = node.attribute("fileName").map(|s| s.to_string()).unwrap();
-        DataWriter {
-            path,
-            fileName,
+        let quantity = node.attribute("quantity").map(|s| s.to_string()).unwrap();
+        let timeScale = node.attribute("timeScale").map(|s| s.to_string());
+        let scale = node.attribute("scale").map(|s| s.to_string());
+        let color = node.attribute("color").map(|s| s.to_string());
+        Record {
+            quantity,
+            timeScale,
+            scale,
+            color,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Property {
+pub enum TunnelBody {
+    Assign(Assign),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tunnel {
+    pub name: String,
+    pub endA: String,
+    pub endB: String,
+    pub componentA: String,
+    pub componentB: String,
+    pub body: Vec<TunnelBody>
+}
+
+impl XML for Tunnel {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let endA = node.attribute("endA").map(|s| s.to_string()).unwrap();
+        let endB = node.attribute("endB").map(|s| s.to_string()).unwrap();
+        let componentA = node.attribute("componentA").map(|s| s.to_string()).unwrap();
+        let componentB = node.attribute("componentB").map(|s| s.to_string()).unwrap();
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "Assign" => body.push(TunnelBody::Assign(Assign::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of Tunnel.", t)
+            };
+        }
+        Tunnel {
+            name,
+            endA,
+            endB,
+            componentA,
+            componentB,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Include {
+    pub file: String,
+}
+
+impl XML for Include {
+    fn from_node(node: &Node) -> Self {
+        let file = node.attribute("file").map(|s| s.to_string()).unwrap();
+        Include {
+            file,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Constant {
+    pub name: String,
+    pub dimension: String,
+    pub value: String,
+    pub description: Option<String>,
+}
+
+impl XML for Constant {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
+        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        Constant {
+            name,
+            dimension,
+            value,
+            description,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EventRecord {
+    pub quantity: String,
+    pub eventPort: String,
+}
+
+impl XML for EventRecord {
+    fn from_node(node: &Node) -> Self {
+        let quantity = node.attribute("quantity").map(|s| s.to_string()).unwrap();
+        let eventPort = node.attribute("eventPort").map(|s| s.to_string()).unwrap();
+        EventRecord {
+            quantity,
+            eventPort,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegimeBody {
+    TimeDerivative(TimeDerivative),
+    OnEntry(OnEntry),
+    OnCondition(OnCondition),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Regime {
+    pub name: String,
+    pub initial: Option<String>,
+    pub body: Vec<RegimeBody>
+}
+
+impl XML for Regime {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let initial = node.attribute("initial").map(|s| s.to_string());
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "TimeDerivative" => body.push(RegimeBody::TimeDerivative(TimeDerivative::from_node(&child))),
+                "OnEntry" => body.push(RegimeBody::OnEntry(OnEntry::from_node(&child))),
+                "OnCondition" => body.push(RegimeBody::OnCondition(OnCondition::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of Regime.", t)
+            };
+        }
+        Regime {
+            name,
+            initial,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ForEachBody {
+    MultiInstantiate(MultiInstantiate),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForEach {
+    pub instances: String,
+    pub r#as: String,
+    pub body: Vec<ForEachBody>
+}
+
+impl XML for ForEach {
+    fn from_node(node: &Node) -> Self {
+        let instances = node.attribute("instances").map(|s| s.to_string()).unwrap();
+        let r#as = node.attribute("as").map(|s| s.to_string()).unwrap();
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "MultiInstantiate" => body.push(ForEachBody::MultiInstantiate(MultiInstantiate::from_node(&child))),
+                t => panic!("Unexpected tag {} in body of ForEach.", t)
+            };
+        }
+        ForEach {
+            instances,
+            r#as,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Exposure {
     pub name: String,
     pub dimension: String,
     pub description: Option<String>,
-    pub defaultValue: Option<f64>,
 }
 
-impl XML for Property {
+impl XML for Exposure {
     fn from_node(node: &Node) -> Self {
         let name = node.attribute("name").map(|s| s.to_string()).unwrap();
         let dimension = node.attribute("dimension").or(Some("none")).map(|s| s.to_string()).unwrap();
         let description = node.attribute("description").map(|s| s.to_string());
-        let defaultValue = node.attribute("defaultValue").map(|s| s.parse::<f64>().unwrap());
-        Property {
+        Exposure {
             name,
             dimension,
             description,
-            defaultValue,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ChildInstance {
+pub struct Run {
     pub component: String,
+    pub variable: String,
+    pub increment: String,
+    pub total: String,
 }
 
-impl XML for ChildInstance {
+impl XML for Run {
     fn from_node(node: &Node) -> Self {
         let component = node.attribute("component").map(|s| s.to_string()).unwrap();
-        ChildInstance {
+        let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
+        let increment = node.attribute("increment").map(|s| s.to_string()).unwrap();
+        let total = node.attribute("total").map(|s| s.to_string()).unwrap();
+        Run {
             component,
+            variable,
+            increment,
+            total,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ComponentRequirement {
+    pub name: String,
+}
+
+impl XML for ComponentRequirement {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        ComponentRequirement {
+            name,
         }
     }
 }

@@ -39,7 +39,13 @@ file (~.nml~). By default the following definitions are used
 
 * Bootstraping the Compiler
 
-
+This project comes with a pre-built data model in =src/lems/raw.rs= and
+=src/neuroml/raw.rs=. If you change the underlying LEMS/NML2 definitions or edit
+=src/schema.rs= you'll need to rebuild the data model by running this command
+#+begin_src shell
+cargo run --bin schema
+#+end_src
+The default state is produced by this script
 #+begin_src shell
 bash bootstrap.sh
 #+end_src
