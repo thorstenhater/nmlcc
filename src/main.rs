@@ -2,27 +2,27 @@ use clap::{Parser, Subcommand};
 use std::fs::write;
 
 mod error;
-mod nmodl;
-mod xml;
-mod lems;
 mod expr;
-mod variable;
 mod instance;
+mod lems;
+mod nmodl;
+mod variable;
+mod xml;
 
 use error::Result;
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
-#[clap(version="0.0.1", author="t.hater@fz-juelich.de")]
+#[clap(version = "0.0.1", author = "t.hater@fz-juelich.de")]
 struct Cli {
     /// Path to NMLCoreTypes
-    #[clap(short, long, default_value="ext/NeuroML2/NeuroML2CoreTypes")]
+    #[clap(short, long, default_value = "ext/NeuroML2/NeuroML2CoreTypes")]
     include_dir: Vec<String>,
     /// Toplevel CoreType definition file
-    #[clap(short, long, default_value="NeuroML2CoreTypes.xml")]
+    #[clap(short, long, default_value = "NeuroML2CoreTypes.xml")]
     core: Vec<String>,
     #[clap(subcommand)]
-    cmd: Cmd
+    cmd: Cmd,
 }
 
 #[derive(Subcommand)]
@@ -40,9 +40,9 @@ enum Cmd {
         /// only those starting with `foo_`, unless followed by `bar_`. NOTE:
         /// Must be given in order of specificity and follow our internal naming
         /// scheme (sorry, but this is for fine-tuning).
-        #[clap(short, long, default_value="+*")]
+        #[clap(short, long, default_value = "+*")]
         parameter: String,
-    }
+    },
 }
 
 fn main() -> Result<()> {
@@ -56,8 +56,12 @@ fn main() -> Result<()> {
     let opts = Cli::parse();
     let mut lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
     match opts.cmd {
-        Cmd::Nmodl { nml, r#type, parameter } => {
-            let xml  = std::fs::read_to_string(&nml)?;
+        Cmd::Nmodl {
+            nml,
+            r#type,
+            parameter,
+        } => {
+            let xml = std::fs::read_to_string(&nml)?;
             let tree = roxmltree::Document::parse(&xml)?;
             for node in tree.descendants() {
                 if node.tag_name().name() == "ComponentType" {

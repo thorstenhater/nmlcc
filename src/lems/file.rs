@@ -1,22 +1,28 @@
 use std::collections::HashMap as Map;
 use tracing::info;
 
-use super::{Lems,
-            raw::{Unit, Dimension}};
-use crate::{Result,
-            error::Error,
-            instance::ComponentType,
-            expr::Quantity};
+use super::{
+    raw::{Dimension, Unit},
+    Lems,
+};
+use crate::{error::Error, expr::Quantity, instance::ComponentType, Result};
 use std::convert::TryInto;
 
-fn nml2_error<T: Into<String>>(what: T) -> Error { Error::Nml { what: what.into() } }
-fn type_error(ty: &str) -> Error { nml2_error(format!("No such type: {}", ty)) }
-fn unit_error<T: Into<String>>(what: T) -> Error { Error::Unit { what: what.into() } }
+fn nml2_error<T: Into<String>>(what: T) -> Error {
+    Error::Nml { what: what.into() }
+}
+fn type_error(ty: &str) -> Error {
+    nml2_error(format!("No such type: {}", ty))
+}
+fn unit_error<T: Into<String>>(what: T) -> Error {
+    Error::Unit { what: what.into() }
+}
 
-fn normalise_quantity(quantity: &Quantity,
-                      units: &Map<String, Unit>,       // Known units by name
-                      blessed: &Map<String, Unit>)     // Blessed units by dimension
-                      -> Result<Quantity> {
+fn normalise_quantity(
+    quantity: &Quantity,
+    units: &Map<String, Unit>, // Known units by name
+    blessed: &Map<String, Unit>,
+) -> Result<Quantity> {
     if let Some(u) = quantity.unit.as_deref() {
         if let Some(v) = units.get(u) {
             if let Some(w) = blessed.get(&v.dimension) {
@@ -26,19 +32,28 @@ fn normalise_quantity(quantity: &Quantity,
                 // Compute conversion
                 // f v.scale 10^v.power = w.scale 10^w.power
                 // => f = 10^(w.power - v.power)
-                let e: i32 = (w.power - v.power).try_into()
-                                                .map_err(|_|
-                                                         unit_error(
-                                                             format!("Couldn't convert {} to i32",
-                                                                     w.power - v.power)))?;
-                let f = (w.scale/v.scale)*f64::powi(10.0, e);
-                if (f - 1.0).abs() > f64::EPSILON { info!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f); }
-                Ok(Quantity { value: quantity.value/f, unit: Some(w.symbol.to_string()) })
+                let e: i32 = (w.power - v.power).try_into().map_err(|_| {
+                    unit_error(format!("Couldn't convert {} to i32", w.power - v.power))
+                })?;
+                let f = (w.scale / v.scale) * f64::powi(10.0, e);
+                if (f - 1.0).abs() > f64::EPSILON {
+                    info!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f);
+                }
+                Ok(Quantity {
+                    value: quantity.value / f,
+                    unit: Some(w.symbol.to_string()),
+                })
             } else {
-                Err(unit_error(format!("Failed to find a blessed unit for dimension {}", v.dimension)))
+                Err(unit_error(format!(
+                    "Failed to find a blessed unit for dimension {}",
+                    v.dimension
+                )))
             }
         } else {
-            Err(unit_error(format!("Failed to find unit {} for quantity {:?}", u, quantity)))
+            Err(unit_error(format!(
+                "Failed to find unit {} for quantity {:?}",
+                u, quantity
+            )))
         }
     } else {
         // Non-dimensional units get just passed on.
@@ -63,39 +78,58 @@ pub struct LemsFile {
 
 impl LemsFile {
     /// Pull LEMS from file
-    pub fn from(dn: &[String], file: &[String]) -> Result<Self> { Self::from_raw(&Lems::from_file(dn, file)?) }
+    pub fn from(dn: &[String], file: &[String]) -> Result<Self> {
+        Self::from_raw(&Lems::from_file(dn, file)?)
+    }
 
     /// Ingest raw LEMS and munge into a digestible form
     fn from_raw(raw: &Lems) -> Result<Self> {
         // Chosen from physiological/NRN/ARB units
-        let blessed = [("mV",              "voltage"),
-                       ("kohm",            "resistance"),
-                       ("mS",              "conductance"),
-                       ("cm",              "length"),
-                       ("cm2",             "area"),
-                       ("cm3",             "volume"),
-                       ("ms",              "time"),
-                       ("per_ms",          "per_time"),
-                       ("mS_per_cm2",      "conductanceDensity"),
-                       ("uF",              "capacitance"),
-                       ("uF_per_cm2",      "specificCapacitance"),
-                       ("kohm_cm",         "resistivity"),
-                       ("nA_ms_per_amol",  "charge_per_mole"),
-                       ("uA",              "current"),
-                       ("uA_per_cm2",      "currentDensity"),
-                       ("mol_per_cm3",     "concentration"),
-                       ("K",               "temperature"),
-                       ("J_per_K_per_mol", "idealGasConstantDims"),
-                       ("nS_per_mV",       "conductance_per_voltage"),];
+        let blessed = [
+            ("mV", "voltage"),
+            ("kohm", "resistance"),
+            ("mS", "conductance"),
+            ("cm", "length"),
+            ("cm2", "area"),
+            ("cm3", "volume"),
+            ("ms", "time"),
+            ("per_ms", "per_time"),
+            ("mS_per_cm2", "conductanceDensity"),
+            ("uF", "capacitance"),
+            ("uF_per_cm2", "specificCapacitance"),
+            ("kohm_cm", "resistivity"),
+            ("nA_ms_per_amol", "charge_per_mole"),
+            ("uA", "current"),
+            ("uA_per_cm2", "currentDensity"),
+            ("mol_per_cm3", "concentration"),
+            ("K", "temperature"),
+            ("J_per_K_per_mol", "idealGasConstantDims"),
+            ("nS_per_mV", "conductance_per_voltage"),
+        ];
 
-        let dimensions = raw.dimensions.iter().map(|d| (d.name.to_string(), d.clone())).collect();
-        let units: Map<_, _> = raw.units.iter().map(|d| (d.symbol.to_string(), d.clone())).collect();
-        let blessed_units = blessed.iter()
-                                   .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).unwrap().clone()))
-                                   .collect();
+        let dimensions = raw
+            .dimensions
+            .iter()
+            .map(|d| (d.name.to_string(), d.clone()))
+            .collect();
+        let units: Map<_, _> = raw
+            .units
+            .iter()
+            .map(|d| (d.symbol.to_string(), d.clone()))
+            .collect();
+        let blessed_units = blessed
+            .iter()
+            .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).unwrap().clone()))
+            .collect();
         let types = Map::new();
         let base_of = Map::new();
-        let mut result = Self { base_of, types, units, dimensions, blessed_units };
+        let mut result = Self {
+            base_of,
+            types,
+            units,
+            dimensions,
+            blessed_units,
+        };
         for ct in &raw.component_types {
             result.add_component_type(ct)?;
         }
@@ -103,12 +137,20 @@ impl LemsFile {
     }
 
     pub fn add_component_type(&mut self, ct: &super::raw::ComponentType) -> Result<()> {
-        if let Some(base) = &ct.extends { self.base_of.insert(ct.name.to_string(), base.to_string()); }
+        if let Some(base) = &ct.extends {
+            self.base_of.insert(ct.name.to_string(), base.to_string());
+        }
         let mut ctype = ComponentType::from_lems(ct)?;
-        ctype.constants = ctype.constants.iter()
-                                         .map(|(s, c)| (s.to_string(),
-                                                        normalise_quantity(c, &self.units, &self.blessed_units).unwrap()))
-                                         .collect();
+        ctype.constants = ctype
+            .constants
+            .iter()
+            .map(|(s, c)| {
+                (
+                    s.to_string(),
+                    normalise_quantity(c, &self.units, &self.blessed_units).unwrap(),
+                )
+            })
+            .collect();
         self.types.insert(ct.name.to_string(), ctype);
         Ok(())
     }
@@ -121,7 +163,9 @@ impl LemsFile {
     pub fn derived_from(&self, d: &str, b: &str) -> bool {
         let mut d = d;
         loop {
-            if d == b { return true; }
+            if d == b {
+                return true;
+            }
             if let Some(k) = self.base_of.get(d) {
                 d = k;
                 continue;
@@ -140,20 +184,32 @@ impl LemsFile {
         let mut base = result.base.as_ref();
         while let Some(id) = base {
             let ty = self.types.get(id).ok_or(type_error(id))?;
-            for (k,v) in &ty.child {
-                result.child.entry(k.to_string()).or_insert_with(|| v.to_string());
+            for (k, v) in &ty.child {
+                result
+                    .child
+                    .entry(k.to_string())
+                    .or_insert_with(|| v.to_string());
             }
-            for (k,v) in &ty.children {
-                result.children.entry(k.to_string()).or_insert_with(|| v.to_string());
+            for (k, v) in &ty.children {
+                result
+                    .children
+                    .entry(k.to_string())
+                    .or_insert_with(|| v.to_string());
             }
             for (e, d) in &ty.exposures {
-                if !result.exposures.contains_key(e) { result.exposures.insert(e.clone(), d.clone()); }
+                if !result.exposures.contains_key(e) {
+                    result.exposures.insert(e.clone(), d.clone());
+                }
             }
             for p in &ty.parameters {
-                if !result.parameters.contains(p) { result.parameters.push(p.clone()); }
+                if !result.parameters.contains(p) {
+                    result.parameters.push(p.clone());
+                }
             }
             for p in &ty.variables {
-                if !result.variables.contains(p) { result.variables.push(p.clone()); }
+                if !result.variables.contains(p) {
+                    result.variables.push(p.clone());
+                }
             }
             base = ty.base.as_ref();
         }

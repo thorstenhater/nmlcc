@@ -1,7 +1,11 @@
-use crate::expr::{Expr, Match, Boolean};
+use crate::expr::{Boolean, Expr, Match};
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum SelectBy { Get, Sum, Product, }
+pub enum SelectBy {
+    Get,
+    Sum,
+    Product,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum VarKind {
@@ -26,6 +30,11 @@ pub struct Variable {
 
 impl Variable {
     pub fn new(n: &str, e: &Option<String>, d: &str, k: &VarKind) -> Self {
-        Variable { name: n.to_string(), exposure: e.clone(), dimension: d.to_string(), kind: k.clone() }
+        Variable {
+            name: n.to_string(),
+            exposure: e.clone(),
+            dimension: d.to_string(),
+            kind: k.clone(),
+        }
     }
 }

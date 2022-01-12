@@ -1,12 +1,14 @@
-pub mod raw;
 pub mod file;
+pub mod raw;
 
-use tracing::info;
 use roxmltree::Document;
+use tracing::info;
 
-use crate::{xml, error::Error, Result};
+use crate::{error::Error, xml, Result};
 
-fn lems_error<T: Into<String>>(what: T) -> Error { Error::Lems { what: what.into() } }
+fn lems_error<T: Into<String>>(what: T) -> Error {
+    Error::Lems { what: what.into() }
+}
 
 #[derive(Debug)]
 pub struct Lems {
@@ -17,11 +19,17 @@ pub struct Lems {
 
 impl Lems {
     pub fn from_file(paths: &[String], names: &[String]) -> Result<Self> {
-        let mut result = Lems { component_types: Vec::new(), units: Vec::new(), dimensions: Vec::new() };
+        let mut result = Lems {
+            component_types: Vec::new(),
+            units: Vec::new(),
+            dimensions: Vec::new(),
+        };
         let mut todo = names.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         let mut done = vec![];
         while let Some(name) = todo.pop() {
-            if done.contains(&name) { continue; }
+            if done.contains(&name) {
+                continue;
+            }
             let mut ok = false;
             for path in paths {
                 info!("Trying to read LEMS file {}/{}", path, name);
@@ -35,11 +43,11 @@ impl Lems {
                     }?;
                     for item in raw.body {
                         match item {
-                            raw::LemsBody::Include(inc)      => todo.push(inc.file.to_string()),
+                            raw::LemsBody::Include(inc) => todo.push(inc.file.to_string()),
                             raw::LemsBody::ComponentType(ct) => result.component_types.push(ct),
-                            raw::LemsBody::Unit(un)          => result.units.push(un),
-                            raw::LemsBody::Dimension(dm)    => result.dimensions.push(dm),
-                            _ => {},
+                            raw::LemsBody::Unit(un) => result.units.push(un),
+                            raw::LemsBody::Dimension(dm) => result.dimensions.push(dm),
+                            _ => {}
                         }
                     }
                 }
@@ -47,7 +55,10 @@ impl Lems {
             if ok {
                 done.push(name.to_string());
             } else {
-                return Err(lems_error(format!("Could not find LEMS file {} in paths {:?}", name, paths)));
+                return Err(lems_error(format!(
+                    "Could not find LEMS file {} in paths {:?}",
+                    name, paths
+                )));
             }
         }
         Ok(result)
