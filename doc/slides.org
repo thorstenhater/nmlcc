@@ -1,0 +1,225 @@
+#+TITLE: NeuroML2 and Arbor
+#+AUTHOR: T. Hater
+#+EMAIL: t.hater@fz-juelich.de
+
+* What is NeuroML2?
+  #+begin_quote
+  XML based format for the description of neuro-scientific models
+  #+end_quote
+- Versions
+  - v1 :: not used anymore, conductance models only
+  - v2 :: built on top of LEMS, only relevant version as of now
+  - v3 :: upcoming, iterates on v2 and prepares for ModeCI
+- Coverage
+  - Cell/Ion channel dynamics
+  - Morphology and parametrisations
+  - Connectivity
+  - Units and quantities
+- LEMS adds
+  - Simulation
+  - Visualisation/Data extraction
+
+* Example
+#+begin_src xml
+<cell id="pas-cell">
+  <morphology ="morphology" />
+    <segment id="0" name="root">
+      <proximal x="0" y="0" z="0" diameter="17.841242"/> <!-- A=1000 um^2 -->
+      <distal   x="0" y="0" z="0" diameter="17.841242"/>
+    </segment>
+
+    <segmentGroup id="soma">
+        <member segment="0"/>
+    </segmentGroup>
+  </morphology>
+
+  <biophysicalProperties id="properties">
+    <membraneProperties>
+      <channelDensity id="leak" ionChannel="pas" g="0.3mS_per_cm2" e="-54.387mV" ion="none"/>
+      <specificCapacitance value="1.0 uF_per_cm2"/>
+      <initMembPotential   value="-65mV"/>
+    </membraneProperties>
+  </biophysicalProperties>
+</cell>
+#+end_src
+
+* NeuroML2 and Arbor
+#+begin_quote
+It's the worst system we have, except all others, which are even worse.
+#+end_quote
+- Status
+  - _done (SY)_ load morphologies from =.nml= files.
+  - _in progress_ compiling the dynamics specification to our native format.
+  - _planned_: Reading networks and parametrisations.
+- Why?
+  - only decently portable format (we know of)
+  - also somewhat modular
+  - interesting eco-system: OSB, NML-DB, ...
+  - supported by multiple simulators, aiding comparisons
+  - allows us to target a new demographic of scientists
+  - part of the ModeCI initiative
+
+* Ion Channel Dynamics in Arbor
+
+- Arbor ingests =NMODL= files per default
+  - Actually, we compile =NMODL= to a set of =C= callbacks (the ABI)
+  - Decoupling Arbor from the mechanisms was one of my projects in '21
+- =NMODL= is *not* anyones favourite language, not by quite some margin.
+  - ...but, it _is_ kind of the default for MC neurons
+  - We are working on an alternative called =ArbLang=, also via the ABI
+- Status Quo: =NML2= channels in Arbor
+  1. Install =jnml=
+  2. Run =jnml -neuron my_channel.nml=
+  3. Edit the resulting =.mod=
+     a. Hard to read, way to verbose
+     b. Need to conform with Arbor's dialect
+     c. Performance is ~x10~ worse than it should be
+  4. Goto 2. if =.nml= changes
+- We can at least try to change =3.a-c= for the better
+
+
+* Example
+#+begin_src xml
+<?xml version="1.0" encoding="UTF-8"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
+         id="NML2_SimpleIonChannel">
+
+    <ionChannelHH id="NaConductance" conductance="10pS" species="na">
+        <gateHHrates id="m" instances="3">
+            <forwardRate type="HHExpRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
+            <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
+        </gateHHrates>
+    </ionChannelHH>
+</neuroml>
+#+end_src
+
+* Bringing =NML2= Channels to Arbor
+
+- Need to AOT compile channels to Arbor's ABI
+  - Possibly via =NMODL= and =modcc=
+  - In the future we might consider runtime JIT compilation
+- Why compilation?
+  - Each =.nml= file may define new kinds of mechanisms.
+  - Adding a single line in NML2 may change dynamics substantially
+  - Channels might be deeply nested, so optimisation is crucial
+- But, what do we actually compile?
+  - NML2 is really a library of LEMS definitions
+  - So, we compile LEMS =<Dynamics>= specifications
+  - Here, the output is usually a conductance or a current
+  - Types like =<cell>= then define ODEs ~U'(t) = g I(t)~
+
+* =nmlcc:= a Compiler for NML2
+
+- Written in Rust, because Rust is great for the job
+  - pattern matching and ADTs _alone_ are amazing for compilers
+  - good libraries: XML, parsing, ...
+  - artifacts are easy to produce for consumers (=cargo run=)
+- It's actually two compilers, because we need more of them
+  1. Data model: LEMS schema =.xsd= to Rust =struct= and =enum=
+  2. LEMS/NML2: XML to abstract syntax tree (AST)
+- From the AST we can extract and export
+  - NMODL    :: implemented, being tested
+  - Cell     :: next step
+  - Networks :: planned, somewhere in the future
+- Find us here [[https://github.com/thorstenhater/nmlcc]]
+  - =sloc= reports ~~9k~ lines of Rust, thereof ~~6k~ auto-generated
+  - test-suite and CI enabled
+
+* Unpacking NML2
+
+- Consider an excerpt from our example before
+  #+begin_src xml
+  <gateHHrates id="m" instances="3">
+    <forwardRate type="HHExpRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
+    <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
+  </gateHHrates>
+  #+end_src
+- Opening the lid on =HHExpRate=
+  #+begin_src xml
+  <ComponentType name="baseVoltageDepRate">
+    <Exposure name="r" dimension="per_time"/>
+    <Requirement name="v" dimension="voltage"/>
+  </ComponentType>
+
+  <ComponentType name="baseHHRate" extends="baseVoltageDepRate">
+    <Parameter name="rate" dimension="per_time"/>
+    <Parameter name="midpoint" dimension="voltage"/>
+    <Parameter name="scale" dimension="voltage"/>
+  </ComponentType>
+
+  <ComponentType name="HHExpRate" extends="baseHHRate">
+    <Dynamics>
+      <DerivedVariable name="r" exposure="r" value="rate * exp((v - midpoint)/scale)" dimension="per_time"/>
+    </Dynamics>
+  </ComponentType>
+  #+end_src
+- So, =ComponentType= is essentially a _class_ with single inheritance.
+  - Then, =forwardRate= is an _instance_ (in form of a member variable)
+  - =gateHHrates= declares =forwardRate= to be of type =baseHHRate=
+  - =HHExpRate= can fill that slot since it inherits =baseHHRate=
+- =Dynamics= defines the time evolution of an instance
+  - =Variables=, =DerivedVariable=
+  - ODEs via =StateVariable=
+  - =KineticScheme= for reactions
+
+* Example
+#+begin_src bash
+$> cat example/nml-minimal-channel.xml
+[... example before ...]
+$> # Build data model
+$> cargo run --bin schema
+[... download & compile dependencies ...]
+[... compile ...]
+   Compiling nml2 v0.1.0 (/Users/hater/src/nml2)
+    Finished dev [unoptimized + debuginfo] target(s) in 1.51s
+     Running `target/debug/schema`
+$> # Compile nml to NMODL
+$> cargo run -- nmodl --type ionChannelHH --parameter='-*' example/nml-minimal-channel.xml
+[... download & compile dependencies ...]
+[... compile ...]
+    Finished dev [unoptimized + debuginfo] target(s) in 0.17s
+     Running `target/debug/nmlcc nmodl --type ionChannelHH '--parameter=-*' example/nml-minimal-channel.xml`
+[... logging ...]
+$> # Show output
+$> cat NaConductance.mod
+#+end_src
+
+* Output, Compressed to Fit
+#+begin_src
+NEURON {
+  SUFFIX NaConductance
+  USEION na READ ena WRITE ina
+}
+STATE { gates_m_q }
+INITIAL { ... }
+DERIVATIVE dstate {
+  LOCAL gates_m_forwardRate_r, gates_m_reverseRate_r, gates_m_tau, gates_m_inf
+  gates_m_forwardRate_r = exp(0.1 * (40 + v))
+  gates_m_reverseRate_r = 4 * exp(-0.05555555555555555 * (65 + v))
+  gates_m_tau = (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
+  gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
+  gates_m_q' = (gates_m_inf + -1 * gates_m_q) * gates_m_tau^-1
+}
+BREAKPOINT {
+  SOLVE dstate METHOD cnexp
+  LOCAL gates_m_fcond, g
+  g = 0.00000001 * gates_m_q^3
+  ina = g * (v + -1 * ena)
+}
+#+end_src
+
+* Recap
+
+- Enabling a workflow to bring NML2 projects to Arbor.
+  - final goal: codegen for a full simulation from NML2
+- What's new?
+  - direct conversion of NML2 dynamics into Arbor NMODL
+  - a path towards extraction of
+    - bio-physical parameters / assignments
+    - networks
+- What's missing?
+  - optimisations: CSE, some algebraic passes, ...
+  - a more principled IR (which will enable the above)
+

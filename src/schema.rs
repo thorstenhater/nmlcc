@@ -152,9 +152,9 @@ fn attribute(node: &Node) -> Result<Member> {
     let name = node.attribute("name")
                    .ok_or_else(|| String::from("Unnamed attribute"))?
                    .to_string();
-    let data  = node.attribute("type")
-                    .map(Kind::from_str)
-                    .ok_or_else(|| format!("Untyped attribute '{}' ({:?})", name, pos_from_node(node)))?;
+    let data = node.attribute("type")
+                   .map(Kind::from_str)
+                   .ok_or_else(|| format!("Untyped attribute '{}' ({:?})", name, pos_from_node(node)))?;
     let dflt = node.attribute("default").map(|s| s.to_string());
     let count = match node.attribute("use") {
         Some("required") => Count::One,

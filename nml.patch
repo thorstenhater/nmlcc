@@ -1,0 +1,22 @@
+diff --git a/Schemas/NeuroML2/NeuroML_v2.2.xsd b/Schemas/NeuroML2/NeuroML_v2.2.xsd
+index 85d7be9..4dc4e47 100644
+--- a/Schemas/NeuroML2/NeuroML_v2.2.xsd
++++ b/Schemas/NeuroML2/NeuroML_v2.2.xsd
+@@ -2149,17 +2149,6 @@
+ 
+ 
+ 
+-    <!-- TODO: remove -->
+-    <xs:complexType name="ConcentrationModel_D">
+-
+-        <xs:complexContent>
+-            <xs:extension base="DecayingPoolConcentrationModel">
+-
+-                <xs:attribute name="type" use="required" fixed="decayingPoolConcentrationModel"/>
+-
+-            </xs:extension>
+-        </xs:complexContent>
+-    </xs:complexType>
+ 
+     <xs:complexType name="IntracellularProperties">
+ 

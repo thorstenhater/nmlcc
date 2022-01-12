@@ -19,9 +19,6 @@ impl Quantity {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub enum BoolOp { AD, OR, EQ, NE, GE, LE, LT, GT, }
-
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Expr {
     // Simple Types
     F64(f64),
@@ -32,8 +29,6 @@ pub enum Expr {
     Pow(Vec<Expr>),
     // Builtin Functions
     Exp(Box<Expr>),
-    // Boolean
-    Bol(BoolOp, Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
@@ -43,7 +38,6 @@ impl Expr {
             Expr::Mul(vs)      => Expr::Mul(vs.iter().map(|v| v.map(f)).collect()),
             Expr::Pow(vs)      => Expr::Pow(vs.iter().map(|v| v.map(f)).collect()),
             Expr::Exp(b)       => Expr::Exp(Box::new(b.map(f))),
-            Expr::Bol(o, a, b) => Expr::Bol(o.clone(), Box::new(a.map(f)), Box::new(b.map(f))),
             e => f(e),
         }
     }
@@ -54,21 +48,12 @@ impl Expr {
             Expr::Mul(vs)      => vs.iter().for_each(|v| v.fold(acc, f)),
             Expr::Pow(vs)      => vs.iter().for_each(|v| v.fold(acc, f)),
             Expr::Exp(b)       => b.fold(acc, f),
-            Expr::Bol(_, a, b) => { a.fold(acc, f); b.fold(acc, f); }
             e => f(e, acc),
         }
     }
 
     pub fn parse(input: &str) -> Result<Self> {
-        if let Ok((_, result)) = parse::add(input) {
-            Ok(result.simplify())
-        } else {
-            Err(parse_error(format!("Could not parse {}", input)))
-        }
-    }
-
-    pub fn parse_bool(input: &str) -> Result<Expr> {
-        if let Ok((_, result)) = parse::boolean(input) {
+        if let Ok((_, result)) = parse::expr(input) {
             Ok(result.simplify())
         } else {
             Err(parse_error(format!("Could not parse {}", input)))
@@ -77,21 +62,8 @@ impl Expr {
 
     pub fn print_to_string(&self) -> String {
         match &self {
-            Expr::F64(x) => format!("{}", x),
-            Expr::Var(x) => x.to_string(),
-            Expr::Bol(o, l, r) => {
-                let op = match o {
-                    BoolOp::AD => "&&",
-                    BoolOp::OR => "||",
-                    BoolOp::EQ => "==",
-                    BoolOp::NE => "!=",
-                    BoolOp::GE => ">=",
-                    BoolOp::LE => "<=",
-                    BoolOp::GT => ">",
-                    BoolOp::LT => "<",
-                };
-                format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
-            }
+            Expr::F64(x)  => format!("{}", x),
+            Expr::Var(x)  => x.to_string(),
             Expr::Exp(x)  => format!("exp({})", x.print_to_string()),
             Expr::Add(xs) => xs.iter().map(|x| x.print_to_string()).collect::<Vec<_>>().join(" + "),
             Expr::Mul(xs) => xs.iter().map(|x|
@@ -113,17 +85,78 @@ impl Expr {
         let mut old = self.clone();
         while !done {
             let new = match &old {
-                Expr::Pow(vs)      => simplify_pow(vs),
-                Expr::Add(vs)      => simplify_add(vs),
-                Expr::Mul(vs)      => simplify_mul(vs),
-                Expr::Exp(vs)      => simplify_exp(vs),
-                Expr::Bol(o, a, b) => Expr::Bol(o.clone(), Box::new(a.simplify()), Box::new(b.simplify())),
+                Expr::Pow(vs) => simplify_pow(vs),
+                Expr::Add(vs) => simplify_add(vs),
+                Expr::Mul(vs) => simplify_mul(vs),
+                Expr::Exp(vs) => simplify_exp(vs),
                 e => e.clone(),
             };
             done = old == new;
             old = new
         }
         old
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub enum Op { And, Or }
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub enum Cmp { Eq, Ne, Le, Ge, Lt, Gt }
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub enum Boolean {
+    Op(Op,   Box<Boolean>, Box<Boolean>),
+    Cmp(Cmp, Box<Expr>,    Box<Expr>),
+}
+
+impl Boolean {
+    pub fn print_to_string(&self) -> String {
+        match &self {
+            Boolean::Cmp(o, l, r) => {
+                let op = match o {
+                    Cmp::Eq => "==",
+                    Cmp::Ne => "!=",
+                    Cmp::Ge => ">=",
+                    Cmp::Le => "<=",
+                    Cmp::Gt => ">",
+                    Cmp::Lt => "<",
+                };
+                format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
+            },
+            Boolean::Op(o, l, r) => {
+                let op = match o {
+                    Op::And => "&&",
+                    Op::Or  => "||",
+                };
+                format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
+            },
+        }
+    }
+
+    pub fn parse(input: &str) -> Result<Self> {
+        if let Ok((_, result)) = parse::boolean(input) {
+            Ok(result.simplify())
+        } else {
+            Err(parse_error(format!("Could not parse {}", input)))
+        }
+    }
+
+    pub fn simplify(&self) -> Self {
+        self.clone()
+    }
+
+    pub fn map(&self, f: &impl Fn(&Expr) -> Expr) -> Boolean {
+        match self {
+            Boolean::Cmp(o, l, r) => Boolean::Cmp(o.clone(), Box::new(l.map(f)), Box::new(r.map(f))),
+            Boolean::Op(o, l, r)  => Boolean::Op(o.clone(),  Box::new(l.map(f)), Box::new(r.map(f))),
+        }
+    }
+
+    pub fn fold<T>(&self, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
+        match self {
+            Boolean::Cmp(_, l, r) => { l.fold(acc, f); r.fold(acc, f); }
+            Boolean::Op(_, l, r)  => { l.fold(acc, f); r.fold(acc, f); }
+        }
     }
 }
 
@@ -188,12 +221,15 @@ mod parse {
               multi::{fold_many0, separated_list1},
               number::complete::{float},};
 
-    use super::{Quantity, Path, Expr, BoolOp};
+    use super::{Quantity, Path, Expr, Boolean, Cmp, Op};
 
     fn fixed(input: &str) -> IResult<&str, Path> {
         let (input, v) = take_while(|c| is_alphanumeric(c as u8) || '_' == c)(input)?;
         Ok((input, Path::Fixed(v.to_string())))
     }
+
+    fn lpar(input: &str) -> IResult<&str, &str> { delimited(space0, tag("("), space0)(input) }
+    fn rpar(input: &str) -> IResult<&str, &str> { delimited(space0, tag(")"), space0)(input) }
 
     fn when(input: &str) -> IResult<&str, Path> {
         let (input, v) = take_while(|c| is_alphanumeric(c as u8) || '_' == c)(input)?;
@@ -215,7 +251,7 @@ mod parse {
 
     pub fn expr(input: &str) -> IResult<&str, Expr> { add(input) }
 
-    pub fn lit(input: &str) -> IResult<&str, Expr> {
+    fn lit(input: &str) -> IResult<&str, Expr> {
         // Exclude some values that are not allowed in NML
         if input.starts_with("inf") || input.starts_with("nan") || input.starts_with('+') {
             fail::<_,&str,_>(input)?;
@@ -229,11 +265,7 @@ mod parse {
         Ok((input, Expr::Var(v.to_string())))
     }
 
-    fn parenthised(input: &str) -> IResult<&str, Expr> {
-        delimited(delimited(space0, tag("("), space0),
-                  expr,
-                  delimited(space0, tag(")"), space0))(input)
-    }
+    fn parenthised(input: &str) -> IResult<&str, Expr> { delimited(lpar, expr, rpar)(input) }
 
     fn exp(input: &str) -> IResult<&str, Expr> {
         let (input, e) = preceded(tag("exp"), parenthised)(input)?;
@@ -243,10 +275,8 @@ mod parse {
     fn atom(input: &str) -> IResult<&str, Expr> {
         let (input, sign) = opt(delimited(space0, tag("-"), space0))(input)?;
         let (input, result) = delimited(space0,
-                                        alt((parenthised,
-                                             exp,
-                                             lit,
-                                             var,)), space0)(input)?;
+                                        alt((parenthised, exp, lit, var)),
+                                        space0)(input)?;
         if sign.is_some() {
             Ok((input, Expr::Mul(vec![Expr::F64(-1.0), result])))
         } else {
@@ -254,7 +284,7 @@ mod parse {
         }
     }
 
-    pub fn pow(input: &str) -> IResult<&str, Expr> {
+    fn pow(input: &str) -> IResult<&str, Expr> {
         let (input, sum) = separated_list1(delimited(space0,
                                                      tag("^"),
                                                      space0),
@@ -266,7 +296,7 @@ mod parse {
         }
     }
 
-    pub fn mul(input: &str) -> IResult<&str, Expr> {
+    fn mul(input: &str) -> IResult<&str, Expr> {
         let (input, init) = pow(input)?;
         let (input, sum) = fold_many0(pair(delimited(space0,
                                                      one_of("*/"),
@@ -288,7 +318,7 @@ mod parse {
         }
     }
 
-    pub fn add(input: &str) -> IResult<&str, Expr> {
+    fn add(input: &str) -> IResult<&str, Expr> {
         let (input, init) = mul(input)?;
         let (input, sum) = fold_many0(pair(delimited(space0,
                                                      one_of("+-"),
@@ -310,40 +340,32 @@ mod parse {
         }
     }
 
-    pub fn boolean(input: &str) -> IResult<&str, Expr> {
-        let (input, (l, o, r)) = tuple((alt((delimited(delimited(space0,
-                                                                 tag("("),
-                                                                 space0),
-                                                       boolean,
-                                                       delimited(space0,
-                                                                 tag(")"),
-                                                                 space0)),
-                                             add)),
-                                        delimited(space0,
-                                                  delimited(tag("."),
-                                                            alpha1,
-                                                            tag(".")),
-                                                  space0),
-                                        alt((delimited(delimited(space0,
-                                                                 tag("("),
-                                                                 space0),
-                                                       boolean,
-                                                       delimited(space0,
-                                                                 tag(")"),
-                                                                 space0)),
-                                             add))))(input)?;
+    fn op(input: &str) -> IResult<&str, Boolean> {
+        let (input, (_, l, _, _, o, _, _, r, _)) = tuple((lpar, boolean, rpar, tag("."), alpha1, tag("."), lpar, boolean, rpar))(input)?;
         let op = match o {
-            "neq" => BoolOp::NE,
-            "eq"  => BoolOp::EQ,
-            "lt"  => BoolOp::LT,
-            "gt"  => BoolOp::GT,
-            "leq" => BoolOp::LE,
-            "geq" => BoolOp::GE,
-            "and" => BoolOp::AD,
-            "or"  => BoolOp::OR,
+            "and" => Op::And,
+            "or"  => Op::Or,
             x     => panic!("Unknown boolean op: {}", x),
         };
-        Ok((input, Expr::Bol(op, Box::new(l), Box::new(r))))
+        Ok((input, Boolean::Op(op, Box::new(l), Box::new(r))))
+    }
+
+    fn cmp(input: &str) -> IResult<&str, Boolean> {
+        let (input, (l, _, _, o, _, _, r)) = tuple((expr, space0, tag("."), alpha1, tag("."), space0, expr))(input)?;
+        let op = match o {
+            "neq" => Cmp::Ne,
+            "eq"  => Cmp::Eq,
+            "lt"  => Cmp::Lt,
+            "gt"  => Cmp::Gt,
+            "leq" => Cmp::Le,
+            "geq" => Cmp::Ge,
+            x     => panic!("Unknown compare operator: {}", x),
+        };
+        Ok((input, Boolean::Cmp(op, Box::new(l), Box::new(r))))
+    }
+
+    pub fn boolean(input: &str) -> IResult<&str, Boolean> {
+        alt((cmp, op))(input)
     }
 }
 
@@ -385,7 +407,7 @@ fn simplify_pow(es: &[Expr]) -> Expr {
             res.push(Expr::F64(x.powf(*y)));
             Expr::Pow(res)
         }
-        es => Expr::Pow(es.to_vec()),
+        _ => Expr::Pow(result),
     }
 }
 
@@ -403,9 +425,9 @@ fn simplify_mul(es: &[Expr]) -> Expr {
     if lit == 0.0 { return Expr::F64(0.0); }
     if (lit - 1.0).abs() > f64::EPSILON { result.push(Expr::F64(lit)); }
     result.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    match result.len() {
-        0 => Expr::F64(1.0),
-        1 => result.last().unwrap().clone(),
+    match &result[..] {
+        [] => Expr::F64(1.0),
+        [x] => x.clone(),
         _ => Expr::Mul(result),
     }
 }
@@ -422,39 +444,46 @@ fn simplify_add(es: &[Expr]) -> Expr {
         }
     }
     if lit != 0.0 { result.push(Expr::F64(lit)); }
-    'a: loop {
-        for ix in 0..result.len() {
-            if let Expr::Mul(xs) = &result[ix] {
-                let (x, rs) = if let Some(Expr::F64(x)) = xs.first() {
-                    (*x, &xs[1..])
+    result.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let mut ix = 0;
+    while ix < result.len() {
+        let (mut f, mut ps) = match &result[ix] {
+            v @ Expr::Var(_) => (1.0, vec![v.clone()]),
+            Expr::Mul(ps) => {
+                if let Expr::F64(f) = ps[0] {
+                    (f, ps[1..].to_vec())
                 } else {
-                    (1.0, &xs[..])
-                };
-                for iy in ix+1..result.len() {
-                    if let Expr::Mul(ys) = &result[iy] {
-                        let (y, ts) = if let Some(Expr::F64(y)) = ys.first() {
-                            (*y, &ys[1..])
-                        } else {
-                            (1.0, &ys[..])
-                        };
-                        if rs == ts {
-                            let mut ks = ts.to_vec();
-                            ks.insert(0, Expr::F64(x + y));
-                            result.remove(iy);
-                            result.remove(ix);
-                            result.insert(0, Expr::Mul(ks));
-                            continue 'a;
-                        }
-                    }
+                    (1.0, ps.clone())
                 }
             }
+            _ => { ix +=1; continue },
+        };
+        let mut rem = Vec::new();
+        for iy in ix+1..result.len() {
+            let (g, qs) = match &result[iy] {
+                v @ Expr::Var(_) => (1.0, vec![v.clone()]),
+                Expr::Mul(ps) => {
+                    if let Expr::F64(f) = ps[0] {
+                        (f, ps[1..].to_vec())
+                    } else {
+                        (1.0, ps.clone())
+                    }
+                }
+                _ => continue,
+            };
+            if ps == qs {
+                f += g;
+                rem.push(iy);
+            }
         }
-        break;
+        for iy in &rem { result.remove(*iy); }
+        ps.insert(0, Expr::F64(f));
+        result[ix] = simplify_mul(&ps);
+        ix += 1;
     }
-    result.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    match result.len() {
-        0 => Expr::F64(0.0),
-        1 => result.last().unwrap().clone(),
+    match &result[..] {
+        []  => Expr::F64(0.0),
+        [x] => x.clone(),
         _ => Expr::Add(result),
     }
 }
@@ -474,69 +503,69 @@ mod test {
 
     #[test]
     fn test_parse() {
-        assert_eq!(Expr::parse(" 1.0  "), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("  1+2 + 3 +3  *4 "), Ok(Expr::F64(18.0)));
+        assert_eq!(Expr::parse(" 1.0  ").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("  1+2 + 3 +3  *4 ").unwrap(), Expr::F64(18.0));
     }
 
     #[test]
     fn test_add() {
-        assert_eq!(Expr::parse("5*x - (2+3)*x"), Ok(Expr::F64(0.0)));
-        assert_eq!(Expr::parse("2*x -x"), Ok(Expr::Var(String::from("x"))));
-        assert_eq!(Expr::parse("x -2*x"), Ok(Expr::Mul(vec![Expr::F64(-1.0), Expr::Var(String::from("x"))])));
-        assert_eq!(Expr::parse("x -x"), Ok(Expr::F64(0.0)));
-        assert_eq!(Expr::parse("x + y -x"), Ok(Expr::Var(String::from("y"))));
+        assert_eq!(Expr::parse("5*x - (2+3)*x").unwrap(), Expr::F64(0.0));
+        assert_eq!(Expr::parse("2*x -x").unwrap(), Expr::Var(String::from("x")));
+        assert_eq!(Expr::parse("3*x -2*x").unwrap(), Expr::Var(String::from("x")));
+        assert_eq!(Expr::parse("x -x").unwrap(), Expr::F64(0.0));
+        assert_eq!(Expr::parse("x + y -x").unwrap(), Expr::Var(String::from("y")));
     }
 
     #[test]
     fn test_mul() {
-        assert_eq!(Expr::parse("1 * -1"), Ok(Expr::F64(-1.0)));
-        assert_eq!(Expr::parse("1 * -  1"), Ok(Expr::F64(-1.0)));
-        assert_eq!(Expr::parse("- 1 * -  1"), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("2.0 * x"), Ok(Expr::Mul(vec![Expr::F64(2.0), Expr::Var("x".to_string())])));
-        assert_eq!(Expr::parse("1.0 * x"), Ok(Expr::Var("x".to_string())));
-        assert_eq!(Expr::parse("z*y"), Ok(Expr::Mul(vec![Expr::Var(String::from("y")),
-                                                         Expr::Var(String::from("z")),])));
+        assert_eq!(Expr::parse("1 * -1").unwrap(), Expr::F64(-1.0));
+        assert_eq!(Expr::parse("1 * -  1").unwrap(), Expr::F64(-1.0));
+        assert_eq!(Expr::parse("- 1 * -  1").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("2.0 * x").unwrap(), Expr::Mul(vec![Expr::F64(2.0), Expr::Var("x".to_string())]));
+        assert_eq!(Expr::parse("1.0 * x").unwrap(), Expr::Var("x".to_string()));
+        assert_eq!(Expr::parse("z*y").unwrap(), Expr::Mul(vec![Expr::Var(String::from("y")),
+                                                               Expr::Var(String::from("z")),]));
     }
 
     #[test]
     fn test_pow() {
-        assert_eq!(Expr::parse("2^3^4"), Ok(Expr::F64(2417851639229258349412352.0)));
-        assert_eq!(Expr::parse("(2^3)^4"), Ok(Expr::F64(4096.0)));
-        assert_eq!(Expr::parse("1^2^3"), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("1^2^3"), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("42^2^0^23"), Ok(Expr::F64(42.0)));
-        assert_eq!(Expr::parse("42^2^0^23"), Ok(Expr::F64(42.0)));
-        assert_eq!(Expr::parse("4^2^1^23"), Ok(Expr::F64(16.0)));
-        assert_eq!(Expr::parse("x^2.5"), Ok(Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(2.5)])));
-        assert_eq!(Expr::parse("x^2^5"), Ok(Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(32.0)])));
-        assert_eq!(Expr::parse("1/x"), Ok(Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(-1.0)])));
+        assert_eq!(Expr::parse("2^3^4").unwrap(), Expr::F64(2417851639229258349412352.0));
+        assert_eq!(Expr::parse("(2^3)^4").unwrap(), Expr::F64(4096.0));
+        assert_eq!(Expr::parse("1^2^3").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("1^2^3").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("42^2^0^23").unwrap(), Expr::F64(42.0));
+        assert_eq!(Expr::parse("42^2^0^23").unwrap(), Expr::F64(42.0));
+        assert_eq!(Expr::parse("4^2^1^23").unwrap(), Expr::F64(16.0));
+        assert_eq!(Expr::parse("x^2.5").unwrap(), Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(2.5)]));
+        assert_eq!(Expr::parse("x^2^5").unwrap(), Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(32.0)]));
+        assert_eq!(Expr::parse("1/x").unwrap(), Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(-1.0)]));
         // TODO See above, we would like to do this, but need the basis to be a simple expression
-        // assert_eq!(Expr::parse("x^2.0"), Ok(Expr::Mul(vec![Expr::Var("x".to_string()), Expr::Var("x".to_string())])));
+        // assert_eq!(Expr::parse("x^2.0"), Expr::Mul(vec![Expr::Var("x".to_string()), Expr::Var("x".to_string())]));
     }
 
     #[test]
     fn test_exp() {
-        assert_eq!(Expr::parse("exp (0   )"), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("  exp (  0   )  "), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("exp(0)"), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("exp(0*x)"), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("exp(0 + 0*x)"), Ok(Expr::F64(1.0)));
-        assert_eq!(Expr::parse("exp(1 - 1)"), Ok(Expr::F64(1.0)));
+        assert_eq!(Expr::parse("exp (0   )").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("  exp (  0   )  ").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("exp(0)").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("exp(0*x)").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("exp(0 + 0*x)").unwrap(), Expr::F64(1.0));
+        assert_eq!(Expr::parse("exp(1 - 1)").unwrap(), Expr::F64(1.0));
     }
 
     #[test]
     fn test_path() {
         use Path::*;
-        let m = Match::parse("a/b/c[*]");
+        let m = Match::parse("a/b/c[*]").unwrap();
         assert_eq!(m,
-                   Ok(Match(vec![Fixed(String::from("a")), Fixed(String::from("b")), When(String::from("c"), String::from("*"))])));
+                   Match(vec![Fixed(String::from("a")), Fixed(String::from("b")), When(String::from("c"), String::from("*"))]));
 
         let ex = vec![String::from("a_b_c_foo"),
                       String::from("a_b_c_bar"),
                       String::from(""),
                       String::from("a__b"),
                       String::from("foo"), ];
-        let m = m.unwrap();
+
         assert_eq!(m.on_path(&ex), vec![String::from("a_b_c_foo"),
                                         String::from("a_b_c_bar"),]);
     }

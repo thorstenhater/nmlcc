@@ -1,4 +1,4 @@
-use crate::expr::{Expr, Match};
+use crate::expr::{Expr, Match, Boolean};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum SelectBy { Get, Sum, Product, }
@@ -8,7 +8,7 @@ pub enum VarKind {
     /// State variable defined by 1st order ODE X(t=0), X'(t)
     State(Option<Expr>, Option<Expr>),
     /// cases=[condition => expression] default=expression
-    Derived(Vec<(Expr, Expr)>, Option<Expr>),
+    Derived(Vec<(Boolean, Expr)>, Option<Expr>),
     /// Select one or more fields from children. NOTE will be gone after collapsing
     Select(SelectBy, Match),
 }

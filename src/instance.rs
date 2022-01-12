@@ -5,7 +5,7 @@ use tracing::info;
 use roxmltree::Node;
 
 use crate::{Result, error::Error,
-            expr::{Quantity, Expr, Match},
+            expr::{Quantity, Expr, Match, Boolean},
             variable::{Variable, VarKind, SelectBy},
             lems};
 
@@ -280,6 +280,7 @@ impl Collapsed {
     }
 
     pub fn simplify(&self, filter: &str) -> Self {
+        // Remove parameters we do not need
         let mut retain = Set::new();
         for f in filter.split(',') {
             if let Some(f) = f.strip_prefix('+') {
@@ -289,7 +290,6 @@ impl Collapsed {
                                               .map(|p| p.to_string())
                                               .collect::<Set<_>>();
                     retain = retain.union(&keep).cloned().collect();
-                    info!("Retaining parameters {:?}", retain);
                 } else {
                     retain.insert(f.to_string());
                 }
@@ -308,10 +308,10 @@ impl Collapsed {
             }
         }
 
-        info!("Retaining parameters {:?}", retain);
         retain.extend(self.parameters.iter().filter(|t| t.1.is_none()).map(|t| t.0.clone()));
         info!("Retaining parameters {:?}", retain);
 
+        // Constant propagation
         let mut prv = self.clone();
         loop {
             let mut table: Map<String, Expr> = Map::new();
@@ -368,7 +368,6 @@ impl Collapsed {
         prv.parameters = prv.parameters.into_iter().filter(|p| retain.contains(&p.0)).collect();
         prv
     }
-
 }
 
 /// Stacked contexts of local symbols
@@ -408,13 +407,21 @@ impl Context {
         })
     }
 
+    fn rename_bool(&self, v: &Boolean) -> Boolean {
+        v.map(&|e| if let Expr::Var(s) = e {
+            Expr::Var(self.rename(s))
+        } else {
+            e.clone()
+        })
+    }
+
     fn rename_kind(&self, kind: &VarKind) -> VarKind {
         let pfx = self.keys();
         match kind {
             VarKind::Select(b, ps) => VarKind::Select(b.clone(), ps.add_prefix(&pfx)),
             VarKind::Derived(cs, df) =>
                 VarKind::Derived(cs.iter()
-                                   .map(|(c, e)| (self.rename_expr(c), self.rename_expr(e)))
+                                   .map(|(c, e)| (self.rename_bool(c), self.rename_expr(e)))
                                    .collect(),
                                  df.as_ref().map(|x| self.rename_expr(x))),
             VarKind::State(i, d) => VarKind::State(i.as_ref().map(|x| self.rename_expr(x)),
@@ -527,7 +534,7 @@ fn lems_dynamics(dynamics: &lems::raw::Dynamics,
                 for Case(c) in &v.body {
                     let e = Expr::parse(&c.value)?;
                     if let Some(b) = c.condition.as_ref() {
-                        cs.push((Expr::parse_bool(b)?, e));
+                        cs.push((Boolean::parse(b)?, e));
                     } else {
                         df = Some(e);
                     }
