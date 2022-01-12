@@ -34,6 +34,7 @@ file (~.nml~). By default the following definitions are used
   - ~--type=T~ :: (required) will choose a ~ComponentType~ from which the ~.mod~ files will be built
   - ~--parameter=+p,-q,..~ :: will choose parameters to retain as tweakable
     - can _end_ on wildcard ~*~ to select all suffixes
+      - a wildcard anywhere else will be considered a literal ~*~ character
     - must be ordered from least to most specific, ie ~foo_bar_*~ must come _after_ ~foo_*~
     - if not given, all will be retained (default ~+*~)
 
@@ -45,11 +46,14 @@ This project comes with a pre-built data model in =src/lems/raw.rs= and
 #+begin_src shell
 cargo run --bin schema
 #+end_src
+This will allow for tweaking the versions of the NML2/LEMS schemata or adjusting
+them by hand.
+
 The default state is produced by this script
 #+begin_src shell
 bash bootstrap.sh
 #+end_src
-this will
+which will
 - bring in the LEMS and NML2 schemata
 - (and *remove them* if present)
 - slightly modify both of them
