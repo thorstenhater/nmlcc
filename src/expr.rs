@@ -546,8 +546,8 @@ fn simplify_add(es: &[Expr]) -> Expr {
             }
         };
         let mut rem = Vec::new();
-        for iy in ix + 1..result.len() {
-            let (g, qs) = match &result[iy] {
+        for (iy, item) in result.iter().enumerate().skip(ix + 1) {
+            let (g, qs) = match item {
                 v @ Expr::Var(_) => (1.0, vec![v.clone()]),
                 Expr::Mul(ps) => {
                     if let Expr::F64(f) = ps[0] {

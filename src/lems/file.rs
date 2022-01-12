@@ -180,10 +180,10 @@ impl LemsFile {
     /// inheritance chain. The result will be built by appending all members
     /// while later (='more derived') items take precedence.
     pub fn compose_component_type(&self, id: &str) -> Result<ComponentType> {
-        let mut result = self.types.get(id).ok_or(type_error(id))?.clone();
+        let mut result = self.types.get(id).ok_or_else(|| type_error(id))?.clone();
         let mut base = result.base.as_ref();
         while let Some(id) = base {
-            let ty = self.types.get(id).ok_or(type_error(id))?;
+            let ty = self.types.get(id).ok_or_else(|| type_error(id))?;
             for (k, v) in &ty.child {
                 result
                     .child
