@@ -106,9 +106,8 @@ fn main() -> Result<()> {
                             }
                             let prop: neuroml::raw::BiophysicalProperties =
                                 xml::XML::from_node(&bpp);
-                            let acc = acc::acc(&prop)?;
-                            eprintln!("{}", acc);
-                            // write(&file, acc)?;
+                            let acc = acc::acc(&prop, &lems)?;
+                            write(&file, acc)?;
                         }
                     }
                 }
