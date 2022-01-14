@@ -10,7 +10,6 @@ file (~.nml~). By default the following definitions are used
 
 ** Current Limitations
 
-- only export to NMODL (in Arbor's dialect) is supported via the ~nmodl~ sub-command.
 - units will not be treated completly, rather upon seeing a quantity, it will be
   converted to a 'blessed' unit for that dimension, eg ~1 m~ will become ~100
   cm~ internally. This can have some consequences for accuracy.
@@ -30,13 +29,25 @@ file (~.nml~). By default the following definitions are used
 
 * Usage
 
-- ~nmlcc nmodl~ generates NMODL files that can be compiled into Arbor catalogues
-  - ~--type=T~ :: (required) will choose a ~ComponentType~ from which the ~.mod~ files will be built
-  - ~--parameter=+p,-q,..~ :: will choose parameters to retain as tweakable
-    - can _end_ on wildcard ~*~ to select all suffixes
-      - a wildcard anywhere else will be considered a literal ~*~ character
-    - must be ordered from least to most specific, ie ~foo_bar_*~ must come _after_ ~foo_*~
-    - if not given, all will be retained (default ~+*~)
+- =nmlcc nmodl <input.nml>= generates NMODL files that can be compiled into Arbor catalogues
+  - =--type=<ct>= :: (required) will choose a =ComponentType= named =ct= from
+    which the =.mod= files will be built
+  - =--parameter=+p,-q,..= :: will choose parameters to retain as tweakable
+    - can _end_ on wildcard =*= to select all suffixes
+      - a wildcard anywhere else will be considered a literal =*= character
+    - must be ordered from least to most specific, ie =foo_bar_*= must come _after_ =foo_*=
+    - if not given, all will be retained (default =+*=)
+  - example :: Export a simple exponential synapse
+    #+begin_src shell
+    nmlcc nmodl --type=expOneSynapes --parameter='-*,+erev,+gbase' example/nml-simple-synapse.xml
+    #+end_src
+- =nmlcc acc <input.nml>= extracts a Arbor Cable Cell description based on the
+  =biophysicalProperties=
+  - =--cell=<id>= :: (required) selects a cell for export
+  - example :: Fetch parameter assignment from a simple cell model
+    #+begin_src shell
+    nmlcc acc --cell --parameter='+erev,+gbase' example/nml-hh-cell.nml
+    #+end_src
 
 * Bootstraping the Compiler
 
