@@ -519,7 +519,7 @@ fn emit_src(state: &Schema) -> Result<String> {
         ty.push(String::from("}"));
         lines.append(&mut bd);
         lines.append(&mut ty);
-        lines.push(format!(""));
+        lines.push(String::from(""));
         lines.append(&mut nd);
     }
 

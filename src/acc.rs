@@ -1,4 +1,5 @@
 use crate::{
+    error::Error,
     expr::Quantity,
     lems::file::LemsFile,
     neuroml::raw::{
@@ -8,14 +9,15 @@ use crate::{
         Species, SpecificCapacitance,
     },
     Result,
-    error::Error,
 };
 
 use std::collections::HashMap as Map;
 use tracing::info;
 
 fn acc_unimplemented(f: &str) -> Error {
-    Error::Acc { what: format!("Feature '{}' not implemented for ACC export.", f) }
+    Error::Acc {
+        what: format!("Feature '{}' not implemented for ACC export.", f),
+    }
 }
 
 trait Sexp {
@@ -240,7 +242,9 @@ fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
             | channelDensityGHK2(_)
             | channelDensityNonUniform(_)
             | channelDensityNonUniformNernst(_)
-            | channelDensityNonUniformGHK(_) => return Err(acc_unimplemented("Complex channel type")),
+            | channelDensityNonUniformGHK(_) => {
+                return Err(acc_unimplemented("Complex channel type"))
+            }
         }
     }
     Ok(result)
