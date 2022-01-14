@@ -14,8 +14,10 @@ pub enum Error {
         #[from]
         source: roxmltree::Error,
     },
-    #[error("NMOL exporter error: {}", .what)]
+    #[error("NMODL exporter error: {}", .what)]
     Nmodl { what: String },
+    #[error("ACC exporter error: {}", .what)]
+    Acc { what: String },
     #[error("Unit error: {}", .what)]
     Unit { what: String },
     #[error("NML2 error: {}", .what)]

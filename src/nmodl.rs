@@ -34,14 +34,13 @@ fn nmodl_init_block(coll: &Collapsed) -> Result<String> {
 
     for var in &coll.variables {
         match &var.kind {
-            VarKind::State(i, _) => {
-                if i.is_some() {
-                    let mut v = var.clone();
-                    v.kind = VarKind::State(i.clone(), None);
-                    state.push(v.clone());
-                    deriv.push(v);
-                }
+            VarKind::State(i, _) if i.is_some() => {
+                let mut v = var.clone();
+                v.kind = VarKind::State(i.clone(), None);
+                state.push(v.clone());
+                deriv.push(v);
             }
+            VarKind::State(_, _) => {}
             VarKind::Derived(_, _) => deriv.push(var.clone()),
             VarKind::Select(_, _) => return Err(illegal_select(&var.name)),
         }
@@ -80,14 +79,13 @@ fn nmodl_deriv_block(coll: &Collapsed) -> Result<String> {
 
     for var in &coll.variables {
         match &var.kind {
-            VarKind::State(_, d) => {
-                if d.is_some() {
-                    let mut v = var.clone();
-                    v.kind = VarKind::State(None, d.clone());
-                    state.push(v.clone());
-                    deriv.push(v);
-                }
+            VarKind::State(_, d) if d.is_some() => {
+                let mut v = var.clone();
+                v.kind = VarKind::State(None, d.clone());
+                state.push(v.clone());
+                deriv.push(v);
             }
+            VarKind::State(_, _) => {}
             VarKind::Derived(_, _) => deriv.push(var.clone()),
             VarKind::Select(_, _) => return Err(illegal_select(&var.name)),
         }
@@ -107,7 +105,7 @@ fn nmodl_deriv_block(coll: &Collapsed) -> Result<String> {
         .chain(automatic_variables(coll).iter().cloned())
         .collect::<Set<_>>();
 
-    let init = state.iter().map(|v| v.name.to_string()).collect::<Vec<_>>();
+    let init: Vec<_> = state.iter().map(|v| v.name.to_string()).collect();
     let deps = deriv
         .iter()
         .chain(state.iter())

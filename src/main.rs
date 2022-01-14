@@ -3,10 +3,12 @@
 use clap::{Parser, Subcommand};
 use std::fs::write;
 
+mod acc;
 mod error;
 mod expr;
 mod instance;
 mod lems;
+mod neuroml;
 mod nmodl;
 mod variable;
 mod xml;
@@ -31,7 +33,7 @@ struct Cli {
 enum Cmd {
     /// Export to NMODL
     Nmodl {
-        /// A NeuroML2 compliant XML file
+        /// NeuroML2 compliant XML file
         nml: String,
         /// Base class to extract
         #[clap(short, long)]
@@ -44,6 +46,14 @@ enum Cmd {
         /// scheme (sorry, but this is for fine-tuning).
         #[clap(short, long, default_value = "+*")]
         parameter: String,
+    },
+    /// Export to Arbor Cable Cell format (.acc)
+    Acc {
+        /// NeuroML2 compliant XML file
+        nml: String,
+        /// Cell id to extract
+        #[clap(short, long)]
+        cell: String,
     },
 }
 
@@ -77,6 +87,30 @@ fn main() -> Result<()> {
                     let nmodl = nmodl::to_nmodl(&instance, &parameter)?;
                     let file = format!("{}.mod", instance.id.as_deref().unwrap_or("out"));
                     write(&file, nmodl)?;
+                }
+            }
+        }
+        Cmd::Acc { nml, cell } => {
+            let xml = std::fs::read_to_string(&nml)?;
+            let tree = roxmltree::Document::parse(&xml)?;
+            for node in tree.descendants() {
+                if node.tag_name().name() != "cell" {
+                    continue;
+                }
+                if let Some(id) = node.attribute("id") {
+                    if id == cell {
+                        let file = format!("{}.acc", cell);
+                        for bpp in node.descendants() {
+                            if bpp.tag_name().name() != "biophysicalProperties" {
+                                continue;
+                            }
+                            let prop: neuroml::raw::BiophysicalProperties =
+                                xml::XML::from_node(&bpp);
+                            let acc = acc::acc(&prop)?;
+                            eprintln!("{}", acc);
+                            // write(&file, acc)?;
+                        }
+                    }
                 }
             }
         }

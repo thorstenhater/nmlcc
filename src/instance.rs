@@ -93,12 +93,17 @@ impl Instance {
         for attr in xml.attributes() {
             let key = attr.name().to_string();
             let val = attr.value();
+            eprintln!("{:?} => {:?}", key, val);
             if component_type.parameters.contains(&key) {
+                eprintln!("Insert PARM: {:?} => {:?}", key, val);
                 parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
             } else if component_type.attributes.contains(&key)
                 || component_type.links.contains_key(&key)
             {
+                eprintln!("Insert ATTR: {:?} => {:?}", key, val);
                 attributes.insert(key, val.to_string());
+            } else {
+                eprintln!("Uknown key/value pair: {:?} => {:?}", key, val);
             }
         }
 
@@ -270,7 +275,12 @@ impl Collapsed {
         let ct = &inst.component_type;
         let mut ctx = ctx.clone();
         let nm = if add_name {
-            inst.id.as_deref().or_else(|| name.as_deref()).unwrap()
+            if let Some(n) = inst.id.as_deref().or_else(|| name.as_deref()) {
+                n
+            } else {
+                info!("Found node without id, setting to 'Unknown'");
+                "Unknown"
+            }
         } else {
             ""
         };
