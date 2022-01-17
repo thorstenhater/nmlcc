@@ -29,65 +29,80 @@ file (~.nml~). By default the following definitions are used
 
 * Usage
 
-- Note that we use =nmlcc= as if calling the tool directly, when going via
-  =cargo=, use =cargo run -- [args]= instead.
-- =nmlcc nmodl <input.nml>= generates NMODL files that can be compiled into Arbor catalogues
-  - =--type=<ct>= :: (required) will choose a =ComponentType= named =ct= from
-    which the =.mod= files will be built
-  - =--parameter=+p,-q,..= :: will choose parameters to retain as tweakable
-    - =-q= excludes parameter =q= from the final list, unless overridden
-    - =+p= similarly, will add =p=
-    - a selector can _end_ on wildcard =*= to select all suffixes
-      - a wildcard anywhere else will be considered a literal =*= character
-      - wildcards must be ordered from least to most specific, ie =foo_bar_*=
-        must come _after_ =foo_*= to have effect
-    - if not given, all will be retained (default =+*=)
-    - when compiling channels derived from the following base types, we will
-      alter the parameter list slightly in order to play nicely with export to
-      ACC
-      - =baseIonChannel= :: =+conductance=, if non-specific currents are used =+conductance,+e=
-      - =baseVoltageDepSynapse= :: =+gbase,+erev=
-      - =gapJunction= :: =+weight,+conductance=
-  - output :: files will be written to =<id>.mod= in the current directory where
-    =<id>= is the nml2 component id
-  - example :: Export a simple exponential synapse
-    #+begin_src shell
-    $> nmlcc nmodl --type=gapJunction --parameter='-*' example/nml-gap-junction.xml
-    $> cat gj1.mod
-    NEURON {
-      SUFFIX gj1
-      NONSPECIFIC_CURRENT i
-      RANGE weight, conductance
-    }
+*Note* we use =nmlcc= as if calling the tool directly, when using =cargo=,
+  replace =nmlcc= with =cargo run -- [args]= instead.
 
-    PARAMETER {
-      weight = 1
-      conductance = 0.00000001 (mS)
-    }
+** Generate =NMODL= from NeuroML2 Dynamics
 
-    BREAKPOINT {
-      i = conductance * weight * (v_peer + -1 * v)
-    }
-    #+end_src
-- =nmlcc acc <input.nml>= extracts a Arbor Cable Cell description based on the
+=nmlcc nmodl <options> <input.nml>= generates NMODL files that can be compiled
+into Arbor catalogues. Files will be written to =<id>.mod= in the current
+directory where =<id>= is the nml2 component id.
+
+*** Options
+- =--type=<ct>= :: (required) will choose a =ComponentType= named =ct= from
+  which the =.mod= files will be built. If multiple instances are found, one
+  NMODL file is written per instance.
+- =--parameter=+p,-q,..= :: will choose parameters to retain as tweakable
+  - =-q= excludes parameter =q= from the final list, unless overridden
+  - =+p= similarly, will add =p=
+  - a selector can _end_ on wildcard =*= to select all suffixes
+    - a wildcard anywhere else will be considered a literal =*= character
+    - wildcards must be ordered from least to most specific, ie =foo_bar_*= must
+      come _after_ =foo_*= to have effect
+  - if not given, all will be retained (default =+*=)
+  - when compiling channels derived from the following base types, we will alter
+    the parameter list slightly in order to play nicely with export to ACC
+    - =baseIonChannel= :: =+conductance=, if non-specific currents are used
+      =+conductance,+e=
+    - =baseVoltageDepSynapse= :: =+gbase,+erev=
+    - =gapJunction= :: =+weight,+conductance=
+
+*** Example: Export a Simple Exponential Synapse
+
+#+begin_src shell
+$> nmlcc nmodl --type=gapJunction --parameter='-*' example/nml-gap-junction.xml
+$> cat gj1.mod
+NEURON {
+  SUFFIX gj1
+  NONSPECIFIC_CURRENT i
+  RANGE weight, conductance
+}
+
+PARAMETER {
+  weight = 1
+  conductance = 0.00000001 (mS)
+}
+
+BREAKPOINT {
+  i = conductance * weight * (v_peer + -1 * v)
+}
+#+end_src
+
+** Exporting Cells to Arbor Cable Cell Format (=ACC=)
+
+=nmlcc acc <options> <input.nml>= extracts a Arbor Cable Cell description based on the
   =biophysicalProperties=
-  - =--cell=<id>= :: (required) selects a cell for export
-  - example :: Fetch parameter assignment from a simple cell model
-    #+begin_src shell
-    $> nmlcc acc --cell=hhcell example/nml-hh-cell.nml
-    $> cat hhcell.acc
-    (arbor-component
-      (meta-data (version "0.1-dev"))
-      (decor
-        (paint (region "all") (density (mechanism "passiveChan" ("el" -54.387001037597656) ("conductance" 0.30000001192092896))))
-        (default (ion-reversal-potential "na" 50))
-        (paint (region "all") (density (mechanism "naChan" ("conductance" 120))))
-        (default (ion-reversal-potential "k" -77))
-        (paint (region "all") (density (mechanism "kChan" ("conductance" 36))))
-        (default (membrane-capacitance 1))
-        (default (membrane-potential -65.4000015258789))
-        (default (axial-resistivity 0.029999999329447746))))
-    #+end_src
+
+*** Options
+- =--cell=<id>= :: (required) selects a cell for export
+
+*** Example: Fetch Parameter Assignments from a Simple Cell Model
+
+#+begin_src shell
+$> nmlcc acc --cell=hhcell example/nml-hh-cell.nml
+$> cat hhcell.acc
+(arbor-component
+  (meta-data (version "0.1-dev"))
+  (decor
+    (paint (region "all") (density (mechanism "passiveChan" ("e" -54.387001037597656) ("conductance" 0.30000001192092896))))
+    (default (ion-reversal-potential "na" 50))
+    (paint (region "all") (density (mechanism "naChan" ("conductance" 120))))
+    (default (ion-reversal-potential "k" -77))
+    (paint (region "all") (density (mechanism "kChan" ("conductance" 36))))
+    (default (membrane-capacitance 1))
+    (default (membrane-potential -65.4000015258789))
+    (default (axial-resistivity 0.029999999329447746))))
+#+end_src
 
 * Bootstraping the Compiler
 
