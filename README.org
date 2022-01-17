@@ -5,27 +5,23 @@
 Compile NML2 definitions to Arbor NMODL. The ~nmlcc~ tool will consume a list of
 LEMS files containing NML2 conformant ~ComponentType~ definitions and a NeuroML2
 file (~.nml~). By default the following definitions are used
-- NML2 :: ~v2-dev~ + XSD ~v2.2~
-- LEMS :: XSD ~v0.7.6~
+- NML2 :: =development= branch; XSD ~v2.2~
+- LEMS :: =development= branch; XSD ~v0.7.6~
 
-** Current Limitations
+* Getting Started
 
-- units will not be treated completly, rather upon seeing a quantity, it will be
-  converted to a 'blessed' unit for that dimension, eg ~1 m~ will become ~100
-  cm~ internally. This can have some consequences for accuracy.
+Install a recent version of the Rust language, using =rustup= or your favourite
+package manager.
 
-* Setup
-
-- Clone this repo
-- Now try an example
-  #+begin_src shell
-  cargo run -- nmodl --type ionChannelHH example/nml-simple-ion-channels.xml
-  #+end_src
-  Here, this should generate ~NaConductance.mod~
-- Get help
-  #+begin_src shell
-  cargo run -- -h
-  #+end_src
+Clone this repo and try an example
+#+begin_src shell
+git clone git@github.com:thorstenhater/nmlcc.git
+cd nmlcc
+cargo run -- nmodl --type ionChannelHH example/nml-simple-ion-channels.xml
+#+end_src
+This will build the =nmlcc= compiler and all its dependencies, which can take
+a bit. The final output should be a file ~NaConductance.mod~ in the current
+directory.
 
 * Usage
 
@@ -103,6 +99,12 @@ $> cat hhcell.acc
     (default (membrane-potential -65.4000015258789))
     (default (axial-resistivity 0.029999999329447746))))
 #+end_src
+
+* Current Limitations
+- units will not be treated completly, rather upon seeing a quantity, it will be
+  converted to a 'blessed' unit for that dimension, eg ~1 m~ will become ~100
+  cm~ internally. This can have some consequences for accuracy.
+- ACC export is only valid for Arbor =0.6=
 
 * Bootstraping the Compiler
 
