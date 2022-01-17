@@ -124,3 +124,6 @@ which will
 - (and *remove them* if present)
 - slightly modify both of them
 - build the data model from the schemata
+
+Afterwards, you will need to re-compile the =nmlcc= binary (=cargo build= or
+=cargo run=).
