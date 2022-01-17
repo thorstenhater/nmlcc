@@ -363,7 +363,7 @@ fn ion_species(coll: &Collapsed) -> String {
         .get("species")
         .cloned()
         .flatten()
-        .unwrap_or_else(String::new)
+        .unwrap_or_default()
 }
 
 fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) -> Result<String> {
@@ -433,6 +433,7 @@ fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) 
 }
 
 pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
+    let mut filter = filter.to_string();
     let mut instance = instance.clone();
     // do fixes for known types
     match instance.component_type.name.as_ref() {
@@ -448,6 +449,10 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 dimension: String::from("voltage"),
                 kind: VarKind::Derived(Vec::new(), Some(Expr::parse("v_peer")?)),
             });
+            if !filter.is_empty() {
+                filter.push(',');
+            }
+            filter.push_str("+weight,+conductance");
             instance
                 .component_type
                 .parameters
@@ -456,12 +461,22 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 .parameters
                 .insert(String::from("weight"), Quantity::parse("1")?);
         }
-        "ionChannel" | "ionChannelHH" | "ionChannelKS" => {
+        "ionChannel" | "ionChannelHH" | "ionChannelKS" | "ionChannelPassive" => {
             let ion = instance
                 .attributes
                 .get("species")
                 .cloned()
-                .unwrap_or_else(String::new);
+                .unwrap_or_default();
+
+            if !filter.is_empty() {
+                filter.push(',');
+            }
+            filter.push_str("+conductance");
+
+            if ion.is_empty() {
+                filter.push_str(",+e");
+            }
+
             let current = format!("g*(v - e{})", ion);
             instance.component_type.variables.push(Variable {
                 name: format!("i{}", ion),
@@ -473,7 +488,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
         _ => {}
     }
 
-    let coll = Collapsed::from_instance(&instance)?.simplify(filter);
+    let coll = Collapsed::from_instance(&instance)?.simplify(&filter);
     let result = vec![
         nmodl_neuron_block(&coll)?,
         nmodl_const_block(&coll)?,

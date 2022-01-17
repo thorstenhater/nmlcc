@@ -93,22 +93,21 @@ impl Instance {
         for attr in xml.attributes() {
             let key = attr.name().to_string();
             let val = attr.value();
-            eprintln!("{:?} => {:?}", key, val);
             if component_type.parameters.contains(&key) {
-                eprintln!("Insert PARM: {:?} => {:?}", key, val);
                 parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
             } else if component_type.attributes.contains(&key)
                 || component_type.links.contains_key(&key)
             {
-                eprintln!("Insert ATTR: {:?} => {:?}", key, val);
                 attributes.insert(key, val.to_string());
+            } else if "id" == key || "type" == key {
             } else {
-                eprintln!("Uknown key/value pair: {:?} => {:?}", key, val);
+                return Err(nml2_error(format!(
+                    "Uknown key/value pair in Instance: {:?} => {:?}",
+                    key, val
+                )));
             }
         }
-
         let id = xml.attribute("id").map(|s| s.to_string());
-
         let mut children = Map::new();
         let mut child = Map::new();
         for node in xml.children() {
@@ -275,7 +274,7 @@ impl Collapsed {
         let ct = &inst.component_type;
         let mut ctx = ctx.clone();
         let nm = if add_name {
-            if let Some(n) = inst.id.as_deref().or_else(|| name.as_deref()) {
+            if let Some(n) = inst.id.as_deref().or(name.as_deref()) {
                 n
             } else {
                 info!("Found node without id, setting to 'Unknown'");
