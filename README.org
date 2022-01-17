@@ -79,13 +79,13 @@ file (~.nml~). By default the following definitions are used
     (arbor-component
       (meta-data (version "0.1-dev"))
       (decor
-        (paint (region "all") (mechanism "passiveChan" ("conductance" 0.30000001192092896) ("el" -54.387001037597656)))
-        (default (ion-reversal-potential "na" 50000))
-        (paint (region "all") (mechanism "naChan" ("conductance" 120)))
+        (paint (region "all") (density (mechanism "passiveChan" ("el" -54.387001037597656) ("conductance" 0.30000001192092896))))
+        (default (ion-reversal-potential "na" 50))
+        (paint (region "all") (density (mechanism "naChan" ("conductance" 120))))
         (default (ion-reversal-potential "k" -77))
-        (paint (region "all") (mechanism "kChan" ("conductance" 36)))
+        (paint (region "all") (density (mechanism "kChan" ("conductance" 36))))
         (default (membrane-capacitance 1))
-        (default (init-membrane-potential -65.4000015258789))
+        (default (membrane-potential -65.4000015258789))
         (default (axial-resistivity 0.029999999329447746))))
     #+end_src
 

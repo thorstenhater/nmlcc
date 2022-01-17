@@ -73,14 +73,15 @@ impl Sexp for Paintable {
                 i, v, i
             ),
             Paintable::Ra(v) => format!("(axial-resistivity {})", v),
-            Paintable::Vm(v) => format!("(init-membrane-potential {})", v),
+            Paintable::Vm(v) => format!("(membrane-potential {})", v),
             Paintable::Cm(v) => format!("(membrane-capacitance {})", v),
             Paintable::Mech(m, gs) => {
-                let mut result = format!("(mechanism \"{}\"", m);
+                let mut result = format!("(density (mechanism \"{}\"", m);
                 for (k, v) in gs.iter() {
                     let x = format!(" (\"{}\" {})", k, v);
                     result.push_str(&x);
                 }
+                result.push(')');
                 result.push(')');
                 result
             }
@@ -185,7 +186,7 @@ fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
                         false,
                     ));
                 } else {
-                    gs.insert(String::from("el"), erev.to_string());
+                    gs.insert(String::from("e"), erev.to_string());
                 }
                 result.push(Decor::new(
                     segmentGroup,
