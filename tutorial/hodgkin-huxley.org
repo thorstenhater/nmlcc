@@ -1,0 +1,80 @@
+#+TITLE: Hodgekin Huxley
+
+* Introduction
+This tutorial is adapted from [[https://github.com/openworm/hodgkin_huxley_tutorial][here]] and shows how to use Arbor to run existing
+NML2 simulations.
+
+* Setup
+We are going to set up a directory structure that contains all the tools we need
+#+begin_example
++-- tutorial/
+ \
+  +-- hodgkin_huxley_tutorial/                     # NML2 tutorial
+  +-- nmlcc/                                       # nml2mod compiler
+  +-- cat/{naChan.mod, kChan.mod, passiveChan.mod} # catalogue
+  +-- hh-tutorial/                                 # python virtual env
+  +-- hh-cell.py                                   # script to run simulation
+#+end_example
+First, setup and enter the top-level directory that you want to use; here, we
+assume =tutorial=. First, install Arbor via pip into a virtual env
+#+begin_src bash
+python -mvenv hh-tutorial
+source hh-tutorial/bin/activate
+pip install arbor==0.6
+#+end_src
+Clone the original tutorial
+#+begin_src bash
+git clone https://github.com/openworm/hodgkin_huxley_tutorial/
+#+end_src
+Obtain nmlcc (keep a rust installation ready)
+#+begin_src bash
+git clone https://github.com/thorstenhater/nmlcc
+#+end_src
+
+* Prepare Channel Models
+
+Compile channel definitions to NMODL leaving only the required parameters, using
+#+begin_src bash
+$> cd nmlcc
+$> cargo run -- nmodl --parameter="-*" --catalogue="../cat" --type=ionChannelHH ../hodgkin_huxley_tutorial/Tutorial/Source/hhcell.cell.nml
+$> ls ../cat
+ kChan.mod
+ naChan.mod
+ passiveChan.mod
+#+end_src
+This should produce three files with a =.mod= suffix like shown above.
+
+Then, we extract the parameter and mechanism assignments like this
+#+begin_src bash
+$> cargo run -- ../hodgkin_huxley_tutorial/Tutorial/Source/hhcell.cell.nml
+$> ls *.acc
+hhcell.acc
+#+end_src
+
+Now we compile the provided mechanism files into a catalogue
+#+begin_src bash
+$> cd ..
+$> arbor-build-catalogue hh cat/
+[...]
+Catalogue has been built and copied to hh-catalogue.so
+#+end_src
+
+* Compose a Python Script for Simulation
+
+Now we are going to lift the parameters from various NML2 files located under
+~hodgkin_huxley_tutorial/Tutorial/Source/~ into a Python script to run a
+simulation with Arbor. For reference, the file =hh-cell.py= is provided here.
+
+There some data objects we still need to copy by hand
+- =LEMS_HH_Simulation.xml= :: (LEMS) duration and time step
+- =HHCellNetwork.net.nml=  :: stimuli
+
+Then we can make an Arbor script as outlined in the Arbor tutorial section. A few
+things bear further explanation
+
+- NML2 morphologies can be standalone our attached to a cell, Arbor treats these
+  cases differently. Here we use =cell_morphology=.
+- loading a morphology from NML2 brings in a set of labels that we attach to a
+  =label_dict=.
+- The catalogue we made earlier needs to be imported on top of the default
+  catalogue and placed into the single cell model.
