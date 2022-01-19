@@ -2,7 +2,7 @@ use std::collections::HashMap as Map;
 use std::collections::HashSet as Set;
 
 use roxmltree::Node;
-use tracing::info;
+use tracing::{info, trace};
 
 use crate::{
     error::Error,
@@ -444,7 +444,7 @@ impl Collapsed {
                 .filter(|t| t.1.is_none())
                 .map(|t| t.0.clone()),
         );
-        info!("Retaining parameters {:?}", retain);
+        trace!("Retaining parameters {:?}", retain);
 
         // Constant propagation
         let mut prv = self.clone();
@@ -553,7 +553,7 @@ impl Context {
             }
         }
         if !it {
-            info!("Could not find {} in context.", name);
+            trace!("Could not find {} in context.", name);
         }
         pfx = pfx
             .iter()
@@ -681,7 +681,7 @@ impl ComponentType {
                 Link(t) => {
                     links.insert(t.name.to_string(), t.r#type.to_string());
                 }
-                _ => {}
+                b => trace!("Ignoring {:?}", b),
             }
         }
         Ok(Self {
@@ -786,7 +786,7 @@ fn lems_dynamics(
                                 )));
                             }
                         }
-                        b => info!("Ignoring {:?}", b),
+                        b => trace!("Ignoring {:?}", b),
                     }
                 }
             }
@@ -803,7 +803,7 @@ fn lems_dynamics(
                 }
             }
             KineticScheme(k) => kinetic.push(Kinetic::new(k)?),
-            _ => {}
+            b => trace!("Ignoring {:?}", b),
         }
     }
     Ok(())

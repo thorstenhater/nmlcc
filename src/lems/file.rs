@@ -1,5 +1,5 @@
 use std::collections::HashMap as Map;
-use tracing::info;
+use tracing::trace;
 
 use super::{
     raw::{Dimension, Unit},
@@ -37,7 +37,7 @@ fn normalise_quantity(
                 })?;
                 let f = (w.scale / v.scale) * f64::powi(10.0, e);
                 if (f - 1.0).abs() > f64::EPSILON {
-                    info!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f);
+                    trace!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f);
                 }
                 Ok(Quantity {
                     value: quantity.value / f,

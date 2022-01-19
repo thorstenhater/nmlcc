@@ -2,7 +2,7 @@ pub mod file;
 pub mod raw;
 
 use roxmltree::Document;
-use tracing::info;
+use tracing::trace;
 
 use crate::{error::Error, xml, Result};
 
@@ -32,7 +32,7 @@ impl Lems {
             }
             let mut ok = false;
             for path in paths {
-                info!("Trying to read LEMS file {}/{}", path, name);
+                trace!("Reading LEMS file {}/{}", path, name);
                 if let Ok(xml) = std::fs::read_to_string(format!("{}/{}", path, name)) {
                     ok = true;
                     let doc = Document::parse(&xml)?;

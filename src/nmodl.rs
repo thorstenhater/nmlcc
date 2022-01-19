@@ -472,8 +472,11 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 filter.push(',');
             }
             filter.push_str("+conductance");
-
             if ion.is_empty() {
+                instance
+                    .parameters
+                    .insert(String::from("e"), Quantity::parse("0 mV")?);
+                instance.component_type.parameters.push(String::from("e"));
                 filter.push_str(",+e");
             }
 

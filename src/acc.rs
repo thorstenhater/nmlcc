@@ -20,11 +20,11 @@ fn acc_unimplemented(f: &str) -> Error {
     }
 }
 
-trait Sexp {
+pub trait Sexp {
     fn to_sexp(&self) -> String;
 }
 
-enum Paintable {
+pub enum Paintable {
     Xi(String, String),
     Xo(String, String),
     Ra(String),
@@ -89,7 +89,7 @@ impl Sexp for Paintable {
     }
 }
 
-enum Decor {
+pub enum Decor {
     Default(Paintable),
     Paint(String, Paintable),
 }
@@ -141,7 +141,7 @@ impl Sexp for Vec<Decor> {
     }
 }
 
-pub fn acc(prop: &BiophysicalProperties, lems: &LemsFile) -> Result<String> {
+pub fn acc(prop: &BiophysicalProperties, lems: &LemsFile) -> Result<Vec<Decor>> {
     use BiophysicalPropertiesBody::*;
     let mut decor = Vec::new();
     for item in &prop.body {
@@ -155,7 +155,7 @@ pub fn acc(prop: &BiophysicalProperties, lems: &LemsFile) -> Result<String> {
     for it in decor.iter_mut() {
         *it = it.normalise(lems)?;
     }
-    Ok(decor.to_sexp())
+    Ok(decor)
 }
 
 fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
