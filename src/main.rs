@@ -55,8 +55,8 @@ enum Cmd {
         #[clap(short, long, default_value = "+*")]
         parameter: String,
         /// Write mechanisms under this prefix
-        #[clap(short, long, default_value = "cat")]
-        catalogue: String,
+        #[clap(short, long, default_value = ".")]
+        dir: String,
     },
     /// Export to Arbor Cable Cell format (.acc)
     Acc {
@@ -65,6 +65,7 @@ enum Cmd {
         /// Cell id to extract, if not given will visit _all_ cells.
         #[clap(short, long)]
         cell: Option<String>,
+        /// Write ouput under this prefix
         #[clap(short, long, default_value = ".")]
         dir: String,
     },
@@ -257,7 +258,7 @@ sim.catalogue = mk_cat()
 # Add probes here
 
 # Now run the simulation
-sim.run(0, 0) # FIXME
+sim.run(1, 0) # FIXME
 ",
             )?;
         }

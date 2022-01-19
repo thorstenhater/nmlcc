@@ -4,6 +4,9 @@
 This tutorial is adapted from [[https://github.com/openworm/hodgkin_huxley_tutorial][here]] and shows how to use Arbor to run existing
 NML2 simulations.
 
+*Note* This tutorial in part made redundant by =nmlcc bundle=, but it show how
+=bundle= works and how to achieve fine-grained control over the output.
+
 * Setup
 We are going to set up a directory structure that contains all the tools we need
 #+begin_example

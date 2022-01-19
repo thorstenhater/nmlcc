@@ -25,7 +25,7 @@ directory.
 * Usage
 
 *Note* we use =nmlcc= as if calling the tool directly, when using =cargo=,
-  replace =nmlcc= with =cargo run -- [args]= instead.
+replace =nmlcc= with =cargo run -- [args]= instead.
 
 ** Generate =NMODL= from NeuroML2 Dynamics
 
@@ -37,6 +37,7 @@ directory where =<id>= is the nml2 component id.
 - =--type=<ct>= :: (required) will choose a =ComponentType= named =ct= from
   which the =.mod= files will be built. If multiple instances are found, one
   NMODL file is written per instance.
+- =--dir=<dir>= :: store ouput under this directory, defaults to current directory.
 - =--parameter=+p,-q,..= :: will choose parameters to retain as tweakable,
   defaults to =+*= keeping all
   - =-q= excludes parameter =q= from the final list, unless overridden
@@ -77,11 +78,14 @@ BREAKPOINT {
 
 ** Exporting Cells to Arbor Cable Cell Format (=ACC=)
 
-=nmlcc acc <options> <input.nml>= extracts a Arbor Cable Cell description based on the
-  =biophysicalProperties=
+=nmlcc acc <options> <input.nml>= extracts a Arbor Cable Cell description based
+on the =biophysicalProperties=. Output will be stored as =<id>.acc= with =id=
+being the NML2 id.
 
 *** Options
-- =--cell=<id>= :: (required) selects a cell for export
+- =--cell=<id>= :: selects a cell for export by NML2 id, if not given all cells
+  will be processed
+- =--dir=<dir>= :: store ouput under this directory, defaults to current directory.
 
 *** Example: Fetch Parameter Assignments from a Simple Cell Model
 
@@ -101,11 +105,28 @@ $> cat hhcell.acc
     (default (axial-resistivity 0.029999999329447746))))
 #+end_src
 
+** Producing a Ready-to-Run Bundle from NML2
+
+=nmlcc bundle <input.nml> <output>= combines the last two commands into a
+convenient package. It generates a directory =<output>= and fills it like
+follows
+- =acc= :: ACC files, one per cell id found in =<input.nml>=, named =<id>.acc=.
+- =cat= :: NMODL files, one per ~ComponentType~ derived from either
+  =baseIonChannel= or =baseSynapse=, with parameter filters set to =-*=.
+- =morph.nml= :: a copy the original =<input.nml>=, hopefully containing all
+  relevant morphologies. This will likely change in the future to a
+  concatenation of the morphologies.
+- =main.tmp.py= :: template python script to
+  1. Build and install the catalogue from the NMODL file.
+  2. Load the morphologies, parameter assignments, and labels.
+  3. Construct and execute simulation
+
 * Current Limitations
 - units will not be treated completly, rather upon seeing a quantity, it will be
   converted to a 'blessed' unit for that dimension, eg ~1 m~ will become ~100
   cm~ internally. This can have some consequences for accuracy.
 - ACC export is only valid for Arbor =0.6=
+- No support for networks.
 
 * Bootstraping the Compiler
 
