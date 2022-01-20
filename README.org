@@ -4,8 +4,8 @@
 
 Compile NML2 definitions to Arbor NMODL. The ~nmlcc~ tool will consume a list of
 LEMS files containing NML2 conformant ~ComponentType~ definitions and a NeuroML2
-file (~.nml~). From there, a series of exporters can be used to produce an
-almost ready-to-run Arbor simulation.
+file (~.nml~). From there, a series of exporters can be used to produce a
+templated Arbor simulation that can be customised to your needs.
 
 * Getting Started
 
@@ -111,14 +111,13 @@ $> cat hhcell.acc
 ** Producing a Ready-to-Run Bundle from NML2
 
 =nmlcc bundle <input.nml> <output>= combines the last two commands into a
-convenient package. It generates a directory =<output>= and fills it like
-follows
+convenient package. The NML2 file =<input.nml>= must contain all morphologies
+needed for the relevant cells. It generates a directory =<output>= and fills it
+like follows
 - =acc= :: ACC files, one per cell id found in =<input.nml>=, named =<id>.acc=.
 - =cat= :: NMODL files, one per ~ComponentType~ derived from either
   =baseIonChannel= or =baseSynapse=, with parameter filters set to =-*=.
-- =morph.nml= :: a copy the original =<input.nml>=, hopefully containing all
-  relevant morphologies. This will likely change in the future to a
-  concatenation of the morphologies.
+- =morph.nml= :: a copy the original =<input.nml>=.
 - =main.tmp.py= :: template python script to
   1. Build and install the catalogue from the NMODL file.
   2. Load the morphologies, parameter assignments, and labels.
@@ -128,10 +127,11 @@ follows
 - units will not be treated completly, rather upon seeing a quantity, it will be
   converted to a 'blessed' unit for that dimension, eg ~1 m~ will become ~100
   cm~ internally. This can have some consequences for accuracy.
-- ACC export is only valid for Arbor =0.6=
+- ACC export is only valid for Arbor =0.6=.
 - No support for networks.
+- =bundle= does not concatenate morphologies.
 
-* Bootstraping the Compiler
+* Bootstrapping the Compiler
 
 This project comes with a pre-built data model in =src/lems/raw.rs= and
 =src/neuroml/raw.rs=. If you change the underlying LEMS/NML2 definitions or edit
