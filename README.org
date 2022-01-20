@@ -2,7 +2,7 @@
 
 * Introduction
 
-Compile NML2 definitions to Arbor NMODL. The ~nmlcc~ tool will consume a list of
+Compile NML2 definitions to data compatible with Arbor. The ~nmlcc~ tool will consume a list of
 LEMS files containing NML2 conformant ~ComponentType~ definitions and a NeuroML2
 file (~.nml~). From there, a series of exporters can be used to produce a
 templated Arbor simulation that can be customised to your needs.
@@ -23,7 +23,8 @@ a bit. The final output should be a file ~NaConductance.mod~ in the current
 directory.
 
 For an introduction on how to run an example in Arbor, see the tutorial in the
-=docs= directory.
+=docs= directory. If you want an quick and easy way to convert NML2 cells to an
+Arbor single cell model, take a look at the =bundle= exporter [[Bundle][here]].
 
 * Usage
 
@@ -108,7 +109,7 @@ $> cat hhcell.acc
     (default (axial-resistivity 0.029999999329447746))))
 #+end_src
 
-** Producing a Ready-to-Run Bundle from NML2
+** Producing a Ready-to-Run Bundle from NML2 <<Bundle>>
 
 =nmlcc bundle <input.nml> <output>= combines the last two commands into a
 convenient package. The NML2 file =<input.nml>= must contain all morphologies
