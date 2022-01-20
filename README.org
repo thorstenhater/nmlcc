@@ -22,6 +22,9 @@ This will build the =nmlcc= compiler and all its dependencies, which can take
 a bit. The final output should be a file ~NaConductance.mod~ in the current
 directory.
 
+For an introduction on how to run an example in Arbor, see the tutorial in the
+=docs= directory.
+
 * Usage
 
 *Note* we use =nmlcc= as if calling the tool directly, when using =cargo=,
