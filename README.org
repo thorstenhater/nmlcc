@@ -38,8 +38,8 @@ into Arbor catalogues. Files will be written to =<id>.mod= in the current
 directory where =<id>= is the nml2 component id.
 
 *** Options
-- =--type=<ct>= :: (required) will choose a =ComponentType= named =ct= from
-  which the =.mod= files will be built. If multiple instances are found, one
+- =--type=<ct>= :: Gives a base =ComponentType= named =ct= from which the =.mod=
+  files will be built. If multiple instances deriving from =ct= are found, one
   NMODL file is written per instance.
 - =--dir=<dir>= :: store ouput under this directory, defaults to current directory.
 - =--parameter=+p,-q,..= :: will choose parameters to retain as tweakable,
