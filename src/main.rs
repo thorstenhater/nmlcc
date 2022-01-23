@@ -200,10 +200,10 @@ fn main() -> Result<()> {
             nml,
             r#type,
             parameter,
-            catalogue,
+            dir,
         } => {
             get_runtime_types(&mut lems, &nml)?;
-            export_nmodl(&lems, &nml, &r#type.as_deref(), &parameter, &catalogue)?;
+            export_nmodl(&lems, &nml, &r#type.as_deref(), &parameter, &dir)?;
         }
         Cmd::Acc { nml, cell, dir } => export_acc(&lems, &nml, &cell.as_deref(), &dir)?,
         Cmd::Bundle { nml, bundle } => {

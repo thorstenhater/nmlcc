@@ -88,18 +88,18 @@ impl LemsFile {
         let blessed = [
             ("mV", "voltage"),
             ("kohm", "resistance"),
-            ("mS", "conductance"),
-            ("cm", "length"),
-            ("cm2", "area"),
-            ("cm3", "volume"),
+            ("uS", "conductance"),
+            ("um", "length"),
+            ("um2", "area"),
+            ("um3", "volume"),
             ("ms", "time"),
             ("per_ms", "per_time"),
-            ("mS_per_cm2", "conductanceDensity"),
+            ("S_per_cm2", "conductanceDensity"),
             ("uF", "capacitance"),
-            ("uF_per_cm2", "specificCapacitance"),
-            ("kohm_cm", "resistivity"),
+            ("F_per_m2", "specificCapacitance"),
+            ("ohm_cm", "resistivity"),
             ("nA_ms_per_amol", "charge_per_mole"),
-            ("uA", "current"),
+            ("nA", "current"),
             ("uA_per_cm2", "currentDensity"),
             ("mol_per_cm3", "concentration"),
             ("K", "temperature"),
@@ -119,7 +119,7 @@ impl LemsFile {
             .collect();
         let blessed_units = blessed
             .iter()
-            .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).unwrap().clone()))
+            .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).expect(&format!("No blessed unit '{}'", s)).clone()))
             .collect();
         let types = Map::new();
         let base_of = Map::new();
