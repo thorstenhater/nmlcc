@@ -9,13 +9,12 @@ use crate::{
         IntracellularPropertiesBody, MembraneProperties, MembranePropertiesBody, Resistivity,
         Species, SpecificCapacitance,
     },
-    xml,
-    Result,
+    xml, Result,
 };
 
+use std::collections::HashMap as Map;
 use std::fs::write;
 use std::path::PathBuf;
-use std::collections::HashMap as Map;
 use tracing::info;
 
 pub fn export(lems: &LemsFile, nml: &str, cell: &Option<&str>, pfx: &str) -> Result<()> {

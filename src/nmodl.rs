@@ -1,15 +1,15 @@
 use std::collections::HashMap as Map;
 use std::collections::HashSet as Set;
-use tracing::{info, trace};
 use std::fs::write;
 use std::path::PathBuf;
+use tracing::{info, trace};
 
 use crate::{
     error::Error,
     expr::{Expr, Quantity},
-    neuroml::process_files,
-    lems::file::LemsFile,
     instance::{Collapsed, Instance},
+    lems::file::LemsFile,
+    neuroml::process_files,
     variable::{VarKind, Variable},
     Result,
 };

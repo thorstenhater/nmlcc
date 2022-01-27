@@ -1,9 +1,9 @@
-use std::collections::HashSet;
-use tracing::trace;
 use roxmltree::Node;
+use std::collections::HashSet;
 use std::path::PathBuf;
+use tracing::trace;
 
-use crate::error::{Result, Error};
+use crate::error::{Error, Result};
 
 pub mod raw;
 
