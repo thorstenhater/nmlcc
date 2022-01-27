@@ -1,5 +1,4 @@
 use std::fs::{create_dir_all, write};
-use std::collections::HashMap as Map;
 
 use crate::{
     acc,
