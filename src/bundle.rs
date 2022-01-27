@@ -16,7 +16,6 @@ pub fn export(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
 
     let mut ics = Vec::new();
     let mut ids = Vec::new();
-    let mut map = Map::new();
     process_files(&[nml], |_, node| {
         // TODO This is clunky.
         if node.tag_name().name() == "pulseGenerator" {
@@ -78,19 +77,19 @@ from pathlib import Path
 here = Path(__file__).parent
 
 def nml_load_cell():
-    nml = A.neuroml(str(here / 'mrf' / '{id}.nml')).cell_morphology(\"{id}\", allow_spherical_root=True)
+    nml = A.neuroml(here / 'mrf' / '{id}.nml').cell_morphology(\"{id}\", allow_spherical_root=True)
     lbl = A.label_dict()
     lbl.append(nml.segments())
     lbl.append(nml.named_segments())
     lbl.append(nml.groups())
     lbl['all'] = '(all)'
-    dec = A.load_component(str(here / 'acc' / '{id}.acc')).component
+    dec = A.load_component(here / 'acc' / '{id}.acc').component
     return nml.morphology, lbl, dec
 
 def mk_cat():
     sp.run('arbor-build-catalogue local cat', shell=True, check=True)
     res = A.default_catalogue()
-    cat = A.load_catalogue(str(here / 'local-catalogue.so'))
+    cat = A.load_catalogue(here / 'local-catalogue.so')
     res.extend(cat, '')
     return res
 
@@ -102,7 +101,7 @@ morph, labels, decor = nml_load_cell()
 cell = A.cable_cell(morph, labels, decor)
 sim  = A.single_cell_model(cell)
 
-sim.catalogue = mk_cat()
+sim.properties.catalogue = mk_cat()
 
 # Add probes here
 
