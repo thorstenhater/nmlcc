@@ -2,10 +2,32 @@
 
 * Introduction
 
-Compile NML2 definitions to data compatible with Arbor. The ~nmlcc~ tool will consume a list of
-LEMS files containing NML2 conformant ~ComponentType~ definitions and a NeuroML2
-file (~.nml~). From there, a series of exporters can be used to produce a
-templated Arbor simulation that can be customised to your needs.
+Compile NML2 definitions to data compatible with Arbor
+https://github.com/arbor-sim/arbor. The ~nmlcc~ tool will consume a list of LEMS
+files containing NML2 conformant ~ComponentType~ definitions and a NeuroML2 file
+(~.nml~). From there, a series of exporters can be used to produce a templated
+Arbor simulation that can be customised to your needs.
+
+** Why Should I Use This Instead of =JNML=?
+
+1. If you are using Arbor anyway, this project produces output directly aimed at
+   Arbor.
+   - No editing of NMODL files.
+   - No manual assigments of ion channels and parameters.
+   - Basic support for stimuli.
+   - Can emit a full simulation at once
+2. The performance of =nmlcc='s NMODL channels is far superior. Measured
+   end-to-end simulation in Arbor (includes model construction) gives at least a
+   2x improvement. This is the result of automating lots of manual
+   transformations we have learned while porting models to Arbor.
+3. If you are not using Arbor, you might still be able to profit from NMODL
+   output. However this is not tested, use at your own risk.
+
+** Why Shouldn't I Use This?
+
+1. This project is quite early in its lifecycle, so expect bugs and missing features.
+2. If you are not using Arbor.
+3. If you are reliant on other features of =jnml= and/or =jlems=.
 
 * Getting Started
 
