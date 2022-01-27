@@ -125,7 +125,11 @@ component)
   1. Build and install the catalogue from the NMODL file.
   2. Load the morphologies, parameter assignments, and labels.
   3. Construct and execute simulation
-  You will need to fill in a few bits, marked ~<FIXME>~.
+  You will need to fill in a few bits, marked ~<FIXME>~, namely
+  - Locations for all stimuli (currently =PulseGenerator= only)
+  - Probes to measure observables, an example is provided
+  - Extraction of measurement traces
+  - Tweak simulation time =t= and =dt=
 
 * Current Limitations
 - units will not be treated completly, rather upon seeing a quantity, it will be
