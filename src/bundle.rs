@@ -3,11 +3,12 @@ use std::fs::{create_dir_all, write};
 use crate::{
     acc,
     error::{self, Result},
-    lems::file::LemsFile,
     expr::Quantity,
+    lems::file::LemsFile,
     neuroml::process_files,
     neuroml::raw::PulseGenerator,
-    nmodl, xml::XML,
+    nmodl,
+    xml::XML,
 };
 
 pub fn export(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
@@ -17,9 +18,9 @@ pub fn export(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
     let mut ics = Vec::new();
     let mut ids = Vec::new();
     process_files(&[nml], |_, node| {
-        // TODO This is clunky.
+        // TODO This is clunky and too restrictive
         if node.tag_name().name() == "pulseGenerator" {
-            let ic: PulseGenerator = XML::from_node(&node);
+            let ic: PulseGenerator = XML::from_node(node);
             ics.push(ic);
         }
 
@@ -45,7 +46,10 @@ pub fn export(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
     acc::export(lems, nml, &None, &format!("{}/{}", bundle, "acc"))?;
 
     for id in &ids {
-        write(&format!("{}/main.{}.py", bundle, id), mk_main_py(lems, id, &ics)?)?;
+        write(
+            &format!("{}/main.{}.py", bundle, id),
+            mk_main_py(lems, id, &ics)?,
+        )?;
     }
     Ok(())
 }
@@ -57,16 +61,22 @@ fn mk_main_py(lems: &LemsFile, id: &str, stim: &[PulseGenerator]) -> Result<Stri
         Ok(format!("{}", u.value))
     };
 
-    let ics = stim.iter()
-                  .map(|p| Ok(format!("decor.place('<FIXME>', A.iclamp({}, {}, {}), '{}')",
-                                   norm(&p.delay)?,
-                                   norm(&p.duration)?,
-                                   norm(&p.amplitude)?,
-                                   p.id)))
-                  .collect::<Result<Vec<_>>>()?
-                  .join("\n");
+    let ics = stim
+        .iter()
+        .map(|p| {
+            Ok(format!(
+                "# decor.place('<FIXME>', A.iclamp({}, {}, {}), '{}')",
+                norm(&p.delay)?,
+                norm(&p.duration)?,
+                norm(&p.amplitude)?,
+                p.id
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .join("\n");
 
-    Ok(format!("#!/usr/bin/env python3
+    Ok(format!(
+        "#!/usr/bin/env python3
 import arbor as A
 
 import subprocess as sp
@@ -95,7 +105,7 @@ def mk_cat():
 
 morph, labels, decor = nml_load_cell()
 
-# Place your stimuli here
+# Place your stimuli here (add a locset and uncomment)
 {ics}
 
 cell = A.cable_cell(morph, labels, decor)
@@ -103,11 +113,15 @@ sim  = A.single_cell_model(cell)
 
 sim.properties.catalogue = mk_cat()
 
-# Add probes here
+# Add probes here (example below)
+# sim.probe('voltage', '<FIXME>', frequency=10)
 
 # Now run the simulation
 sim.run(100, 0.0025)
-", id=id, ics=ics))
+",
+        id = id,
+        ics = ics
+    ))
 }
 
 fn mk_mrf(id: &str, mrf: &str) -> String {
