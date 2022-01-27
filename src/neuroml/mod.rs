@@ -30,7 +30,7 @@ where
             });
         }
         for node in tree.descendants() {
-            f(&nml.to_str().unwrap(), &node)?;
+            f(nml.to_str().unwrap(), &node)?;
             if node.tag_name().name() == "include" {
                 if let Some(fd) = node.attribute("href") {
                     let mut nml = nml.parent().unwrap().to_path_buf();

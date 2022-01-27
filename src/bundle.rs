@@ -31,8 +31,8 @@ pub fn export(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
         Ok(())
     })?;
 
-    nmodl::export(&lems, &nml, &None, "-*", &format!("{}/{}", bundle, "cat"))?;
-    acc::export(&lems, &nml, &None, &format!("{}/{}", bundle, "acc"))?;
+    nmodl::export(lems, nml, &None, "-*", &format!("{}/{}", bundle, "cat"))?;
+    acc::export(lems, nml, &None, &format!("{}/{}", bundle, "acc"))?;
 
     write(&format!("{}/{}", bundle, "main.tmp.py"), mk_main_py())?;
     Ok(())
