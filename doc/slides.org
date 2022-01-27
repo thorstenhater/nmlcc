@@ -64,10 +64,10 @@ It's the worst system we have, except all others, which are even worse.
 - Why?
   - only decently portable and somewhat modular format
   - interesting eco-system: OSB, NML-DB, ...
-  - supported by multiple simulators
-  - allows us to target a new demographic of scientists
-  - large repository of existing models
+  - target a new demographic of scientists with existing models
+  - =Arborio= inferior olive models in NML2
   - reference implementation has quite poor performance
+  - personal feud with EDEN
 
 * Ion Channel Dynamics in Arbor
 
@@ -273,20 +273,19 @@ BREAKPOINT {
 
 * NML2, Prêt-à-simuler
 #+begin_src bash
-$> rm -rf hhcell                                 # no cheating
-$> nmlcc bundle openworm/hhcell.cell.nml hhcell  # all-in-one exporter
+$> rm -rf hhcell                                       # no cheating
+$> nmlcc bundle openworm/HHCellNetwork.net.nml hhcell  # all-in-one exporter
 $> ls hhcell
 Permissions Size User  Date Modified Name
-drwxr-xr-x     - hater 19 Jan 14:01  acc         # cell model and region assignments
-drwxr-xr-x     - hater 23 Jan 19:13  cat         # NMODL dynamics
-drwxr-xr-x     - hater 14 Jan 16:16  mrf         # morphology files
-.rw-r--r--  1.1k hater 23 Jan 19:16  main.tmp.py # template simulation
+drwxr-xr-x     - hater 19 Jan 14:01  acc               # cell model and region assignments
+drwxr-xr-x     - hater 23 Jan 19:13  cat               # NMODL dynamics
+drwxr-xr-x     - hater 14 Jan 16:16  mrf               # morphology files
+.rw-r--r--  1.1k hater 23 Jan 19:16  main.hhcell.py    # template simulation for id=hhcell
 #+end_src
 From here, we need to tweak =main.tmp.py= according to our needs
-- which cell to use (we store one model per =id=)
-- stimuli (part of the network specification)
-- measurements (that you will have to decide yourself)
-- simulation time and time stepping (ditto)
+- placement of stimuli    :: part of the network specification, but the list is given
+- measurements            :: that you will have to decide yourself
+- simulation =t= and =dt= :: ditto; it is listed but in LEMS
 
 * Outlook
 
@@ -324,20 +323,18 @@ sharing RO data etc.
   - simulation settings: ~t=1000 ms~ and ~dt=0.0025~
   - soma-only, discretized into ~0.1um~ segments
 - Arbor 0.6 Release, single thread
-  - left  :: =ARB_VECTORIZE=OFF=
-  - right :: =ARB_VECTORIZE=ON=
-|----------------+----------+-----+----------+----------|
-|                | t_wall/s | 1.0 | t_wall/s | Speed-up |
-|----------------+----------+-----+----------+----------|
-| jnml           |   13.266 | 1.0 |    7.988 |      1.0 |
-| nmlcc 0.2      |    5.934 | 2.2 |    2.827 |      2.8 |
-|----------------+----------+-----+----------+----------|
-| Arbor HH       |    6.376 | 2.1 |    2.960 |      2.7 |
-|----------------+----------+-----+----------+----------|
-| hand-optimised |    5.829 | 2.3 |    2.911 |      2.7 |
-| + CF           |    5.731 | 2.3 |    2.782 |      2.9 |
-| + SM           |    5.212 | 2.5 |    2.504 |      3.2 |
-|----------------+----------+-----+----------+----------|
+|----------------------+----------+----------+----------+----------|
+| ARB_VECTORIZE=OFF/ON | t_wall/s | Speed-up | t_wall/s | Speed-up |
+|----------------------+----------+----------+----------+----------|
+| jnml                 |   13.266 |      1.0 |    7.988 |      1.0 |
+| nmlcc 0.2            |    5.934 |      2.2 |    2.827 |      2.8 |
+|----------------------+----------+----------+----------+----------|
+| Arbor HH             |    6.376 |      2.1 |    2.960 |      2.7 |
+|----------------------+----------+----------+----------+----------|
+| hand-optimised       |    5.829 |      2.3 |    2.911 |      2.7 |
+| + CF                 |    5.731 |      2.3 |    2.782 |      2.9 |
+| + SM                 |    5.212 |      2.5 |    2.504 |      3.2 |
+|----------------------+----------+----------+----------+----------|
 #+TBLFM: $3=@2$2/$2;%.1f::$5=@2$4/$4;%.1f
 
 * Recap
@@ -355,11 +352,12 @@ sharing RO data etc.
 
 * Collaborations
 - Arborio :: HBP SGA3 CEoI partners
-  - inferior olive models in NML2
+
   - channels, networks, cells
 - P. Gleeson :: NML2 core people
   - testing
   - make Arbor an official backend for NML2
+
 * Fin
 
     ███        ▄█    █▄       ▄████████ ███▄▄▄▄      ▄█   ▄█▄    ▄████████
