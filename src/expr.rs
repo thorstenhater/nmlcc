@@ -475,7 +475,7 @@ fn simplify_pow(es: &[Expr]) -> Expr {
     match &result[..] {
         [] => Expr::F64(1.0),
         [e] => e.clone(),
-        [x @ Expr::Var(_), Expr::F64(v)] if *v > 0.0 && v.fract() == 0.0 => {
+        [x @ Expr::Var(_), Expr::F64(v)] if *v > 0.0 && v.fract() == 0.0 && *v < 10.0 => {
             Expr::Mul(vec![x.clone(); *v as usize])
         }
         // [x, Expr::F64(v)] if *v < 0.0 && v.fract() == 0.0 => Expr::Pow(vec![Expr::Mul(vec![x.clone(); (-*v) as usize]), Expr::F64(-1.0)]),

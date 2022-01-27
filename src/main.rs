@@ -18,7 +18,7 @@ use error::Result;
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
-#[clap(version = "0.0.1", author = "t.hater@fz-juelich.de")]
+#[clap(version = "0.2.0", author = "t.hater@fz-juelich.de")]
 struct Cli {
     /// Path to NMLCoreTypes
     #[clap(short, long, default_value = "ext/NeuroML2/NeuroML2CoreTypes")]

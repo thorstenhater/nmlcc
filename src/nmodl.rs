@@ -325,7 +325,10 @@ fn nmodl_neuron_block(coll: &Collapsed) -> Result<String> {
     let current = if ion.is_empty() {
         String::from("  NONSPECIFIC_CURRENT i\n")
     } else {
-        format!("  USEION {} READ e{} WRITE i{}\n", ion, ion, ion)
+        format!(
+            "  USEION {ion} READ e{ion}, {ion}i WRITE i{ion}\n",
+            ion = ion
+        )
     };
     let range = if !coll.parameters.is_empty() {
         let rs = coll.parameters.keys().cloned().collect::<Vec<_>>();
@@ -472,6 +475,15 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 .get("species")
                 .cloned()
                 .unwrap_or_default();
+
+            if !ion.is_empty() {
+                instance.component_type.variables.push(Variable {
+                    name: format!("{}Conc", ion),
+                    exposure: None,
+                    dimension: String::from("concentration"),
+                    kind: VarKind::Derived(Vec::new(), Some(Expr::parse(&format!("{}i", ion))?)),
+                });
+            }
 
             if !filter.is_empty() {
                 filter.push(',');

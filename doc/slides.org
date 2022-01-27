@@ -279,8 +279,8 @@ $> ls hhcell
 Permissions Size User  Date Modified Name
 drwxr-xr-x     - hater 19 Jan 14:01  acc         # cell model and region assignments
 drwxr-xr-x     - hater 23 Jan 19:13  cat         # NMODL dynamics
+drwxr-xr-x     - hater 14 Jan 16:16  mrf         # morphology files
 .rw-r--r--  1.1k hater 23 Jan 19:16  main.tmp.py # template simulation
-.rw-r--r--  2.1k hater 14 Jan 16:16  mrf         # morphology files
 #+end_src
 From here, we need to tweak =main.tmp.py= according to our needs
 - which cell to use (we store one model per =id=)
@@ -300,7 +300,7 @@ Consider this channel assignment
 <channelDensity id="leak" ionChannel="pas" g="0.3 mS_per_cm2" e="-54.387 mV" ion="none"/>
 #+end_src
 in Arbor and Neuron =g= and =e= are runtime variables, but they never change
-after the simulation has been started.
+after the simulation has been started. (That might change sometime soon)
 
 So, we can specialise, possibly per assigned region, and make those _constants_,
 allowing even more speed by uncovering more optimisation potential and reducing
@@ -322,31 +322,52 @@ sharing RO data etc.
 * Performance
 - HH tutorial cell from =https://github.com/openworm/hodgkin_huxley_tutorial=
   - simulation settings: ~t=1000 ms~ and ~dt=0.0025~
-  - soma-only, discretized into 0.1\mum$ segments
-- Arbor 0.6 Release no SIMD
-|----------------+----------+----------|
-|                | t_wall/s | Speed-up |
-|----------------+----------+----------|
-| jnml           |   13.266 |      1.0 |
-| nmlcc 0.2      |    5.934 |      2.2 |
-|----------------+----------+----------|
-| Arbor HH       |    6.376 |      2.1 |
-|----------------+----------+----------|
-| hand-optimised |    5.829 |      2.3 |
-| + CF           |    5.731 |      2.3 |
-| + SM           |    5.212 |      2.5 |
-|----------------+----------+----------|
-#+TBLFM: $3=@2$2/$2;%.1f
+  - soma-only, discretized into ~0.1um~ segments
+- Arbor 0.6 Release, single thread
+  - left  :: =ARB_VECTORIZE=OFF=
+  - right :: =ARB_VECTORIZE=ON=
+|----------------+----------+-----+----------+----------|
+|                | t_wall/s | 1.0 | t_wall/s | Speed-up |
+|----------------+----------+-----+----------+----------|
+| jnml           |   13.266 | 1.0 |    7.988 |      1.0 |
+| nmlcc 0.2      |    5.934 | 2.2 |    2.827 |      2.8 |
+|----------------+----------+-----+----------+----------|
+| Arbor HH       |    6.376 | 2.1 |    2.960 |      2.7 |
+|----------------+----------+-----+----------+----------|
+| hand-optimised |    5.829 | 2.3 |    2.911 |      2.7 |
+| + CF           |    5.731 | 2.3 |    2.782 |      2.9 |
+| + SM           |    5.212 | 2.5 |    2.504 |      3.2 |
+|----------------+----------+-----+----------+----------|
+#+TBLFM: $3=@2$2/$2;%.1f::$5=@2$4/$4;%.1f
 
 * Recap
 
 - Enabling a workflow to bring NML2 projects to Arbor.
-- What's new?
   - direct conversion of NML2 dynamics into Arbor NMODL
   - bespoke representations optimised for Arbor
   - bio-physical parameters / assignments / simulation settings
-- What's missing?
+- Missing
   - extraction of networks
-- What would be nice to have?
+  - lots of testing
+- Nice to have
   - micro-optimisations: CSE, some algebraic passes, ...
   - merging and specialising mechanisms based on _'runtime'_ information
+
+* Collaborations
+- Arborio :: HBP SGA3 CEoI partners
+  - inferior olive models in NML2
+  - channels, networks, cells
+- P. Gleeson :: NML2 core people
+  - testing
+  - make Arbor an official backend for NML2
+* Fin
+
+    ███        ▄█    █▄       ▄████████ ███▄▄▄▄      ▄█   ▄█▄    ▄████████
+▀█████████▄   ███    ███     ███    ███ ███▀▀▀██▄   ███ ▄███▀   ███    ███
+   ▀███▀▀██   ███    ███     ███    ███ ███   ███   ███▐██▀     ███    █▀
+    ███   ▀  ▄███▄▄▄▄███▄▄   ███    ███ ███   ███  ▄█████▀      ███
+    ███     ▀▀███▀▀▀▀███▀  ▀███████████ ███   ███ ▀▀█████▄    ▀███████████
+    ███       ███    ███     ███    ███ ███   ███   ███▐██▄            ███
+    ███       ███    ███     ███    ███ ███   ███   ███ ▀███▄    ▄█    ███
+   ▄████▀     ███    █▀      ███    █▀   ▀█   █▀    ███   ▀█▀  ▄████████▀
+                                                    ▀
