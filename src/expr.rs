@@ -475,10 +475,9 @@ fn simplify_pow(es: &[Expr]) -> Expr {
     match &result[..] {
         [] => Expr::F64(1.0),
         [e] => e.clone(),
-        // TODO These are only a win if `v` is a simple variable. We should however enable this optmisation
-        // since GCC/Clang only do it for `e = 1, 2`` OR if --fast-math is engaged. If done, it seems to be
-        // a win up to at least `e=1000`
-        // [x, Expr::F64(v)] if *v > 0.0 && v.fract() == 0.0 => Expr::Mul(vec![x.clone(); *v as usize]),
+        [x @ Expr::Var(_), Expr::F64(v)] if *v > 0.0 && v.fract() == 0.0 => {
+            Expr::Mul(vec![x.clone(); *v as usize])
+        }
         // [x, Expr::F64(v)] if *v < 0.0 && v.fract() == 0.0 => Expr::Pow(vec![Expr::Mul(vec![x.clone(); (-*v) as usize]), Expr::F64(-1.0)]),
         [xs @ .., Expr::F64(x), Expr::F64(y)] => {
             let mut res = xs.to_vec();

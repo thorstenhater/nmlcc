@@ -2,17 +2,51 @@ use crate::{
     error::Error,
     expr::Quantity,
     lems::file::LemsFile,
+    neuroml::process_files,
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, ChannelDensityNernst,
         ExtracellularProperties, InitMembPotential, IntracellularProperties,
         IntracellularPropertiesBody, MembraneProperties, MembranePropertiesBody, Resistivity,
         Species, SpecificCapacitance,
     },
+    xml,
     Result,
 };
 
+use std::fs::write;
+use std::path::PathBuf;
 use std::collections::HashMap as Map;
 use tracing::info;
+
+pub fn export(lems: &LemsFile, nml: &str, cell: &Option<&str>, pfx: &str) -> Result<()> {
+    std::fs::create_dir_all(&pfx)?;
+    process_files(&[nml], |_, node| {
+        if node.tag_name().name() != "cell" {
+            return Ok(());
+        }
+        if let Some(id) = node.attribute("id") {
+            if let Some(cell) = cell {
+                if id != *cell {
+                    return Ok(());
+                }
+            }
+            let mut result = Vec::new();
+            for bpp in node.descendants() {
+                if bpp.tag_name().name() != "biophysicalProperties" {
+                    continue;
+                }
+                let prop: BiophysicalProperties = xml::XML::from_node(&bpp);
+                result.append(&mut acc(&prop, lems)?);
+            }
+            let mut file = PathBuf::from(pfx);
+            file.push(id);
+            file.set_extension("acc");
+            info!("Writing ACC to {:?}", &file);
+            write(&file, result.to_sexp())?;
+        }
+        Ok(())
+    })
+}
 
 fn acc_unimplemented(f: &str) -> Error {
     Error::Acc {

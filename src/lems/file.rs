@@ -119,7 +119,15 @@ impl LemsFile {
             .collect();
         let blessed_units = blessed
             .iter()
-            .map(|(s, d)| (d.to_string(), units.get(&s.to_string()).expect(&format!("No blessed unit '{}'", s)).clone()))
+            .map(|(s, d)| {
+                (
+                    d.to_string(),
+                    units
+                        .get(&s.to_string())
+                        .expect(&format!("No blessed unit '{}'", s))
+                        .clone(),
+                )
+            })
             .collect();
         let types = Map::new();
         let base_of = Map::new();

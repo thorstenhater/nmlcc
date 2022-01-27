@@ -2,6 +2,14 @@
 #+AUTHOR: T. Hater
 #+EMAIL: t.hater@fz-juelich.de
 
+* Arbor 💘 NeuroML2
+
+Thorsten Hater
+t.hater@fz-juelich.de
+
+HPCNS
+31.01.2022
+
 * What is NeuroML2?
   #+begin_quote
   XML based format for the description of neuro-scientific models
@@ -13,9 +21,9 @@
 - Coverage
   - Cell/Ion channel dynamics
   - Morphology and parametrisations
-  - Connectivity
+  - Connectivity/networks
   - Units and quantities
-- LEMS adds
+- NMl2 is then _used_ in LEMS to add
   - Simulation
   - Visualisation/Data extraction
 
@@ -24,7 +32,7 @@
 <cell id="pas-cell">
   <morphology ="morphology" />
     <segment id="0" name="root">
-      <proximal x="0" y="0" z="0" diameter="17.841242"/> <!-- A=1000 um^2 -->
+      <proximal x="0" y="0" z="0" diameter="17.841242"/>
       <distal   x="0" y="0" z="0" diameter="17.841242"/>
     </segment>
 
@@ -49,15 +57,17 @@ It's the worst system we have, except all others, which are even worse.
 #+end_quote
 - Status
   - _done (SY)_ load morphologies from =.nml= files.
-  - _in progress_ compiling the dynamics specification to our native format.
-  - _planned_: Reading networks and parametrisations.
+  - _in progress_
+    1. compiling the dynamics specification to Arbor's native format.
+    2. extracting cell parametrisations
+  - _planned_: Reading networks.
 - Why?
-  - only decently portable format (we know of)
-  - also somewhat modular
+  - only decently portable and somewhat modular format
   - interesting eco-system: OSB, NML-DB, ...
-  - supported by multiple simulators, aiding comparisons
+  - supported by multiple simulators
   - allows us to target a new demographic of scientists
-  - part of the ModeCI initiative
+  - large repository of existing models
+  - reference implementation has quite poor performance
 
 * Ion Channel Dynamics in Arbor
 
@@ -66,17 +76,13 @@ It's the worst system we have, except all others, which are even worse.
   - Decoupling Arbor from the mechanisms was one of my projects in '21
 - =NMODL= is *not* anyones favourite language, not by quite some margin.
   - ...but, it _is_ kind of the default for MC neurons
-  - We are working on an alternative called =ArbLang=, also via the ABI
+  - (We are working on an alternative called =ArbLang=, also via the ABI)
 - Status Quo: =NML2= channels in Arbor
   1. Install =jnml=
   2. Run =jnml -neuron my_channel.nml=
-  3. Edit the resulting =.mod=
-     a. Hard to read, way to verbose
-     b. Need to conform with Arbor's dialect
-     c. Performance is ~x10~ worse than it should be
-  4. Goto 2. if =.nml= changes
-- We can at least try to change =3.a-c= for the better
-
+  3. Edit the resulting =.mod= to fit Arbor's dialect
+  4. Manually copy out parametrisations, channel assignments, ...
+  5. Run the simulation, complain that it's way too slow
 
 * Example
 #+begin_src xml
@@ -97,9 +103,7 @@ It's the worst system we have, except all others, which are even worse.
 
 * Bringing =NML2= Channels to Arbor
 
-- Need to AOT compile channels to Arbor's ABI
-  - Possibly via =NMODL= and =modcc=
-  - In the future we might consider runtime JIT compilation
+- Need to AOT compile channels to Arbor's ABI, possibly via =NMODL= and =modcc=
 - Why compilation?
   - Each =.nml= file may define new kinds of mechanisms.
   - Adding a single line in NML2 may change dynamics substantially
@@ -109,6 +113,27 @@ It's the worst system we have, except all others, which are even worse.
   - So, we compile LEMS =<Dynamics>= specifications
   - Here, the output is usually a conductance or a current
   - Types like =<cell>= then define ODEs ~U'(t) = g I(t)~
+
+* The 10'000ft View
+#+begin_example
+┌───────────────────────┐      ┌───────────────────────┐
+│                       │      │                       │
+│  LEMS Schema XSD      │      │  NML2 Schema XSD      │
+│                       │      │                       │
+└───────────┬───────────┘      └───────────┬───────────┘
+            │                              │
+            │                              │
+┌───────────▼───────────┐      ┌───────────▼───────────┐
+│                       │      │                       │
+│  NeuroML2 Definitions │      │  NML2 Instances       │
+│                       │      │                       │
+│  <ComponentType>      ├─────►│  <Component>          │
+│                       │      │                       │
+│                       │      │  <ComponentType>      │
+│                       │      │                       │
+└───────────────────────┘      └───────────────────────┘
+#+end_example
+
 
 * =nmlcc:= a Compiler for NML2
 
@@ -120,14 +145,17 @@ It's the worst system we have, except all others, which are even worse.
   1. Data model: LEMS schema =.xsd= to Rust =struct= and =enum=
   2. LEMS/NML2: XML to abstract syntax tree (AST)
 - From the AST we can extract and export
-  - NMODL    :: implemented, being tested
-  - Cell     :: next step
-  - Networks :: planned, somewhere in the future
+  - NMODL       :: implemented, being tested
+  - Cell        :: implemented, being tested
+  - Simulations :: working on it
+  - Networks    :: next step, somewhere in the future
 - Find us here [[https://github.com/thorstenhater/nmlcc]]
   - =sloc= reports ~~9k~ lines of Rust, thereof ~~6k~ auto-generated
   - test-suite and CI enabled
 
 * Unpacking NML2
+
+** A Gate: =HHExp=
 
 - Consider an excerpt from our example before
   #+begin_src xml
@@ -164,11 +192,44 @@ It's the worst system we have, except all others, which are even worse.
   - ODEs via =StateVariable=
   - =KineticScheme= for reactions
 
+** But what _is_ a Gate Actually _Doing_?
+
+#+begin_src xml
+<ComponentType name="gateHHrates" extends="gate">
+  <Child name="forwardRate" type="baseVoltageDepRate"/>
+  <Child name="reverseRate" type="baseVoltageDepRate"/>
+
+  <Dynamics>
+    <StateVariable name="q" dimension="none" exposure="q"/>
+    <DerivedVariable name="alpha" dimension="per_time" select="forwardRate/r"/>
+    <DerivedVariable name="beta"  dimension="per_time" select="reverseRate/r"/>
+    <DerivedVariable name="inf"   dimension="none"     value="alpha/(alpha+beta)"/>
+    <DerivedVariable name="tau"   dimension="time"     value="1/(alpha+beta)"/>
+
+    <TimeDerivative variable="q" value="(inf - q) / tau"/>
+
+    <OnStart>
+      <StateAssignment variable="q" value="inf"/>
+    </OnStart>
+  </Dynamics>
+</ComponentType>
+#+end_src
+
+- Much simplified adaption.
+- Here we define the dynamics of a =gate= in terms of an ODE.
+- Note, that we can swap the instantiations of =forwardRate= and =reverseRate=.
+- Thus we can compose a whole zoo of HH-like channels.
+- In the higher layers, =q= will be used together with similar variables of
+  other gates to determine conductance densities =g= and in turn current
+  densities =i=, and so on, up to Ohm's law.
+
 * Example
+
+Now let us build a channel for Arbor using =nmlcc=
+
+** Running =nmlcc=
 #+begin_src bash
-$> cat example/nml-minimal-channel.xml
-[... example before ...]
-$> # Build data model
+$> # Build data model (this is *not* needed in regular use)
 $> cargo run --bin schema
 [... download & compile dependencies ...]
 [... compile ...]
@@ -186,7 +247,7 @@ $> # Show output
 $> cat NaConductance.mod
 #+end_src
 
-* Output, Compressed to Fit
+** Output, Compressed to Fit
 #+begin_src
 NEURON {
   SUFFIX NaConductance
@@ -197,7 +258,7 @@ INITIAL { ... }
 DERIVATIVE dstate {
   LOCAL gates_m_forwardRate_r, gates_m_reverseRate_r, gates_m_tau, gates_m_inf
   gates_m_forwardRate_r = exp(0.1 * (40 + v))
-  gates_m_reverseRate_r = 4 * exp(-0.05555555555555555 * (65 + v))
+  gates_m_reverseRate_r = 4 * exp(-0.056 * (65 + v))
   gates_m_tau = (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_m_q' = (gates_m_inf + -1 * gates_m_q) * gates_m_tau^-1
@@ -210,16 +271,82 @@ BREAKPOINT {
 }
 #+end_src
 
+* NML2, Prêt-à-simuler
+#+begin_src bash
+$> rm -rf hhcell                                 # no cheating
+$> nmlcc bundle openworm/hhcell.cell.nml hhcell  # all-in-one exporter
+$> ls hhcell
+Permissions Size User  Date Modified Name
+drwxr-xr-x     - hater 19 Jan 14:01  acc         # cell model and region assignments
+drwxr-xr-x     - hater 23 Jan 19:13  cat         # NMODL dynamics
+.rw-r--r--  1.1k hater 23 Jan 19:16  main.tmp.py # template simulation
+.rw-r--r--  2.1k hater 14 Jan 16:16  mrf         # morphology files
+#+end_src
+From here, we need to tweak =main.tmp.py= according to our needs
+- which cell to use (we store one model per =id=)
+- stimuli (part of the network specification)
+- measurements (that you will have to decide yourself)
+- simulation time and time stepping (ditto)
+
+* Outlook
+
+NML2 specificies the _whole_ simulation flow and we really, really want to
+exploit this for performance. This is also nothing we would like to do manually,
+since it involves lots boilerplate and repetition.
+
+** Specialised Mechanisms
+Consider this channel assignment
+#+begin_src xml
+<channelDensity id="leak" ionChannel="pas" g="0.3 mS_per_cm2" e="-54.387 mV" ion="none"/>
+#+end_src
+in Arbor and Neuron =g= and =e= are runtime variables, but they never change
+after the simulation has been started.
+
+So, we can specialise, possibly per assigned region, and make those _constants_,
+allowing even more speed by uncovering more optimisation potential and reducing
+memory traffic.
+
+** Merging Mechanisms
+#+begin_src xml
+<membraneProperties>
+  <channelDensity id="pas" ionChannel="pas" condDensity="0.3 mS_per_cm2" erev="-54.387mV" ion="none"/>
+  <channelDensity id="na"  ionChannel="na"  condDensity="120 mS_per_cm2" erev="50.0 mV" ion="na"/>
+  <channelDensity id="k"   ionChannel="k"   condDensity=" 36 mS_per_cm2" erev="-77mV" ion="k"/>
+</membraneProperties>
+#+end_src
+By essentially the same idea, we can merge all mechanisms on a region in to one.
+We create one such _'super-mechanism'_ per assignment. This also gives a
+significant speed-up, by reducing memory accesses, function call overheads,
+sharing RO data etc.
+
+* Performance
+- HH tutorial cell from =https://github.com/openworm/hodgkin_huxley_tutorial=
+  - simulation settings: ~t=1000 ms~ and ~dt=0.0025~
+  - soma-only, discretized into 0.1\mum$ segments
+- Arbor 0.6 Release no SIMD
+|----------------+----------+----------|
+|                | t_wall/s | Speed-up |
+|----------------+----------+----------|
+| jnml           |   13.266 |      1.0 |
+| nmlcc 0.2      |    5.934 |      2.2 |
+|----------------+----------+----------|
+| Arbor HH       |    6.376 |      2.1 |
+|----------------+----------+----------|
+| hand-optimised |    5.829 |      2.3 |
+| + CF           |    5.731 |      2.3 |
+| + SM           |    5.212 |      2.5 |
+|----------------+----------+----------|
+#+TBLFM: $3=@2$2/$2;%.1f
+
 * Recap
 
 - Enabling a workflow to bring NML2 projects to Arbor.
-  - final goal: codegen for a full simulation from NML2
 - What's new?
   - direct conversion of NML2 dynamics into Arbor NMODL
-  - a path towards extraction of
-    - bio-physical parameters / assignments
-    - networks
+  - bespoke representations optimised for Arbor
+  - bio-physical parameters / assignments / simulation settings
 - What's missing?
-  - optimisations: CSE, some algebraic passes, ...
-  - a more principled IR (which will enable the above)
-
+  - extraction of networks
+- What would be nice to have?
+  - micro-optimisations: CSE, some algebraic passes, ...
+  - merging and specialising mechanisms based on _'runtime'_ information

@@ -102,8 +102,8 @@ impl Instance {
             } else if "id" == key || "type" == key {
             } else {
                 return Err(nml2_error(format!(
-                    "Uknown key/value pair in Instance: {:?} => {:?}",
-                    key, val
+                    "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
+                    key, val, node
                 )));
             }
         }

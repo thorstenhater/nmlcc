@@ -114,11 +114,13 @@ $> cat hhcell.acc
 =nmlcc bundle <input.nml> <output>= combines the last two commands into a
 convenient package. The NML2 file =<input.nml>= must contain all morphologies
 needed for the relevant cells. It generates a directory =<output>= and fills it
-like follows
-- =acc= :: ACC files, one per cell id found in =<input.nml>=, named =<id>.acc=.
-- =cat= :: NMODL files, one per ~ComponentType~ derived from either
+like follows (=id= refers to the NML ~id~ attribute found on the ~cell~
+component)
+- =acc/*.acc=   :: ACC files, one per cell found in =<input.nml>=, named =<id>.acc=.
+- =cat/*.nmodl= :: NMODL files, one per ~ComponentType~ derived from either
   =baseIonChannel= or =baseSynapse=, with parameter filters set to =-*=.
-- =morph.nml= :: a copy the original =<input.nml>=.
+- =mrf/*.nml=   :: NML2 files containing extracted morphologies, one per _cell_, stored
+  as =<id>.nml=
 - =main.tmp.py= :: template python script to
   1. Build and install the catalogue from the NMODL file.
   2. Load the morphologies, parameter assignments, and labels.
@@ -130,7 +132,8 @@ like follows
   cm~ internally. This can have some consequences for accuracy.
 - ACC export is only valid for Arbor =0.6=.
 - No support for networks.
-- =bundle= does not concatenate morphologies.
+- Currently, running =nmlcc= is only possible from the top-level directory (git
+  working copy).
 
 * Bootstrapping the Compiler
 

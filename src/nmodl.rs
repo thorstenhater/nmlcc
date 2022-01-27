@@ -1,9 +1,14 @@
 use std::collections::HashMap as Map;
 use std::collections::HashSet as Set;
+use tracing::{info, trace};
+use std::fs::write;
+use std::path::PathBuf;
 
 use crate::{
     error::Error,
     expr::{Expr, Quantity},
+    neuroml::process_files,
+    lems::file::LemsFile,
     instance::{Collapsed, Instance},
     variable::{VarKind, Variable},
     Result,
@@ -590,4 +595,39 @@ fn sorted_dependencies_of(
     }
 
     Ok(result)
+}
+
+pub fn export(
+    lems: &LemsFile,
+    nml: &str,
+    ty: &Option<&str>,
+    filter: &str,
+    cat: &str,
+) -> Result<()> {
+    let tys = if let Some(ty) = ty {
+        vec![*ty]
+    } else {
+        vec!["baseIonChannel", "baseSynapse"]
+    };
+    process_files(&[nml], |_, node| {
+        let tag = node.tag_name().name();
+        for ty in &tys {
+            if lems.derived_from(tag, ty) {
+                let instance = Instance::new(lems, node)?;
+                let mut path = PathBuf::from(&cat);
+                if !path.exists() {
+                    trace!("Creating path to {:?}", &path);
+                    std::fs::create_dir_all(&path)?;
+                }
+                let file = instance.id.as_deref().ok_or(crate::error::Error::Nml {
+                    what: String::from("Channel must have an id"),
+                })?;
+                path.push(file);
+                path.set_extension("mod");
+                info!("Writing NMODL to {:?}", &path);
+                write(&path, to_nmodl(&instance, filter)?)?;
+            }
+        }
+        Ok(())
+    })
 }
