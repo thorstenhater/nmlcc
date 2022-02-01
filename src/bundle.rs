@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::acc::Paintable;
 use crate::{
-    acc::{Sexp, self},
+    acc::{self, Sexp},
     error::{Error, Result},
     expr::Expr,
     expr::Quantity,
@@ -172,10 +172,13 @@ impl Assign {
     fn new(m: &str, g: &str, e: &str) -> Result<Self> {
         let g = Quantity::parse(g)?;
         let e = Quantity::parse(e)?;
-        Ok(Self { m: m.to_string(), g, e })
+        Ok(Self {
+            m: m.to_string(),
+            g,
+            e,
+        })
     }
 }
-
 
 pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
     use BiophysicalPropertiesBody::*;
@@ -183,7 +186,9 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) ->
     let mut sms: Map<(String, String), Vec<Assign>> = Map::new();
     process_files(&[nml], |_, node| {
         if node.tag_name().name() == "cell" {
-            let id = node.attribute("id").ok_or(Error::Nml{ what: "Cell without id".to_string() })?;
+            let id = node.attribute("id").ok_or(Error::Nml {
+                what: "Cell without id".to_string(),
+            })?;
             let mut ass = Vec::new();
             for bpp in node.descendants() {
                 if bpp.tag_name().name() != "biophysicalProperties" {
@@ -202,12 +207,17 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) ->
                                 ..
                             }) = item
                             {
-                                let a = Assign::new(ionChannel, condDensity.as_deref().unwrap(), erev.as_str())?;
+                                let a = Assign::new(
+                                    ionChannel,
+                                    condDensity.as_deref().unwrap(),
+                                    erev.as_str(),
+                                )?;
                                 let region = if segmentGroup.is_empty() {
                                     "all"
                                 } else {
                                     segmentGroup
-                                }.to_string();
+                                }
+                                .to_string();
                                 sms.entry((id.to_string(), region)).or_default().push(a);
                             }
                         }
@@ -221,9 +231,14 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) ->
             let mut ass_sm = Vec::new();
             for d in ass.into_iter() {
                 match d {
-                    acc::Decor::Paint(r, Paintable::Mech(_, _)) => if !seen.contains(&r) {
-                        ass_sm.push(acc::Decor::Paint(r.to_string(), Paintable::Mech(format!("{}_{}", id, r), Map::new())));
-                        seen.insert(r.to_string());
+                    acc::Decor::Paint(r, Paintable::Mech(_, _)) => {
+                        if !seen.contains(&r) {
+                            ass_sm.push(acc::Decor::Paint(
+                                r.to_string(),
+                                Paintable::Mech(format!("{}_{}", id, r), Map::new()),
+                            ));
+                            seen.insert(r.to_string());
+                        }
                     }
                     _ => ass_sm.push(d),
                 }
@@ -304,7 +319,6 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) ->
                     dimension: String::from("current"),
                     kind: VarKind::Derived(Vec::new(), Some(i)),
                 });
-
             }
         }
 

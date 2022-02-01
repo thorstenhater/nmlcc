@@ -106,7 +106,11 @@ fn main() -> Result<()> {
             nmodl::export(&lems, &nml, &r#type.as_deref(), &parameter, &dir)?;
         }
         Cmd::Acc { nml, cell, dir } => acc::export(&lems, &nml, &cell.as_deref(), &dir)?,
-        Cmd::Bundle { nml, dir, super_mechanisms } => {
+        Cmd::Bundle {
+            nml,
+            dir,
+            super_mechanisms,
+        } => {
             get_runtime_types(&mut lems, &nml)?;
             bundle::export(&lems, &nml, &dir, super_mechanisms)?;
         }
