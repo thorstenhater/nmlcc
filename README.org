@@ -19,7 +19,10 @@ Arbor simulation that can be customised to your needs.
 2. The performance of =nmlcc='s NMODL channels is far superior. Measured
    end-to-end simulation in Arbor (includes model construction) gives at least a
    2x improvement. This is the result of automating lots of manual
-   transformations we have learned while porting models to Arbor.
+   transformations we have learned while porting models to Arbor. In addition,
+   mechanisms can be combined into '_super-mechansims_' (SM) per assigned
+   segment group and parameters inlined where possible, giving access to
+   constant folding (CF).
 3. If you are not using Arbor, you might still be able to profit from NMODL
    output. However this is not tested, use at your own risk.
 
@@ -32,6 +35,35 @@ Arbor simulation that can be customised to your needs.
 3. If you are not interested in multi-compartment models. Currently only
    MC-cells are supported.
 4. If you are reliant on other features of =jnml= and/or =jlems=.
+
+
+** Performance
+
+  Casual benchmarking on a 2018 i5 MacBook Pro gives these results
+  - HH tutorial cell from =https://github.com/openworm/hodgkin_huxley_tutorial=
+  - simulation settings: ~t=1000 ms~ and ~dt=0.0025~
+  - soma-only, ~d=17.8um~ discretized into ~0.1um~ segments
+- Arbor 0.6 Release, single thread
+  - times are measured across ~sim.run(...)~
+  - thus model building is included
+
+|-------------------+----------------+----------+---------------+----------|
+| ARB_VECTORIZE=    | *OFF* t_wall/s | Speed-up | *ON* t_wall/s | Speed-up |
+|-------------------+----------------+----------+---------------+----------|
+| jnml              |         13.266 |      1.0 |         7.988 |      1.0 |
+| nmlcc 0.2         |          5.934 |      2.2 |         2.827 |      2.8 |
+| + CF + SM \dagger |          6.210 |      2.1 |         2.727 |      2.9 |
+|-------------------+----------------+----------+---------------+----------|
+| Arbor HH          |          6.376 |      2.1 |         2.960 |      2.7 |
+|-------------------+----------------+----------+---------------+----------|
+| hand-optimised    |          5.829 |      2.3 |         2.911 |      2.7 |
+| + CF              |          5.731 |      2.3 |         2.782 |      2.9 |
+| + SM              |          5.212 |      2.5 |         2.504 |      3.2 |
+|-------------------+----------------+----------+---------------+----------|
+#+TBLFM: $3=@2$2/$2;%.1f::$5=@2$4/$4;%.1f
+
+\dagger Built using ~nmlcc bundle --super-mechanisms~
+
 
 * Getting Started
 
@@ -116,7 +148,6 @@ being the NML2 id.
 - =--cell=<id>= :: selects a cell for export by NML2 id, if not given all cells
   will be processed
 - =--dir=<dir>= :: store ouput under this directory, defaults to current directory.
-
 *** Example: Fetch Parameter Assignments from a Simple Cell Model
 
 #+begin_src shell
@@ -156,6 +187,11 @@ component)
   - Probes to measure observables, an example is provided
   - Extraction of measurement traces
   - Tweak simulation time =t= and =dt=
+
+*** Options
+- =--super-mechanisms= :: try to produce combined ion-channels per segment group
+  while inlining all parameters. Can give a ~20-30% speed boost depending on
+  your problem.
 
 * Current Limitations
 - units will not be treated completly, rather upon seeing a quantity, it will be
