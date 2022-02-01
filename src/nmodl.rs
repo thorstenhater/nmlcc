@@ -22,18 +22,18 @@ fn nmodl_error<T: Into<String>>(what: T) -> Error {
 }
 
 fn automatic_variables(coll: &Collapsed) -> Vec<String> {
-    let ion = ion_species(coll);
-    vec![
-        "v".to_string(),
-        "v_peer".to_string(),
-        format!("e{}", ion),
-        format!("i{}", ion),
-        format!("{}i", ion),
-        format!("{}o", ion),
-    ]
+    let mut res = vec!["v".to_string(), "v_peer".to_string()];
+    for ion in ion_species(coll) {
+        res.push(format!("e{}", ion));
+        res.push(format!("i{}", ion));
+        res.push(format!("{}i", ion));
+        res.push(format!("{}o", ion));
+    }
+    res
 }
 
 fn nmodl_init_block(coll: &Collapsed) -> Result<String> {
+    let mut result = vec![String::from("INITIAL {")];
     let mut state = Vec::new();
     let mut deriv = Vec::new();
 
@@ -70,11 +70,8 @@ fn nmodl_init_block(coll: &Collapsed) -> Result<String> {
         .chain(state.iter())
         .cloned()
         .collect::<Vec<_>>();
-    let result = vec![
-        String::from("INITIAL {"),
-        print_dependencies(&init, &deps, &known)?,
-        String::from("}\n\n"),
-    ];
+    result.push(print_dependencies(&init, &deps, &known)?);
+    result.push(String::from("}\n\n"));
     Ok(result.join("\n"))
 }
 
@@ -166,11 +163,11 @@ fn nmodl_break_block(coll: &Collapsed) -> Result<String> {
     if !coll.transitions.is_empty() {
         result.push(String::from("  SOLVE scheme METHOD sparse"));
     }
-    result.push(print_dependencies(
-        &[format!("i{}", ion_species(coll))],
-        &vars,
-        &known,
-    )?);
+    let currents: Vec<_> = ion_species(coll)
+        .iter()
+        .map(|s| format!("i{}", s))
+        .collect();
+    result.push(print_dependencies(&currents, &vars, &known)?);
     result.push(String::from("}\n\n"));
     Ok(result.join("\n"))
 }
@@ -321,29 +318,24 @@ fn nmodl_kinetic_block(coll: &Collapsed) -> Result<String> {
 }
 
 fn nmodl_neuron_block(coll: &Collapsed) -> Result<String> {
-    let ion = ion_species(coll);
-    let current = if ion.is_empty() {
-        String::from("  NONSPECIFIC_CURRENT i\n")
-    } else {
-        format!(
-            "  USEION {ion} READ e{ion}, {ion}i WRITE i{ion}\n",
-            ion = ion
-        )
-    };
-    let range = if !coll.parameters.is_empty() {
-        let rs = coll.parameters.keys().cloned().collect::<Vec<_>>();
-        format!("  RANGE {}\n", rs.join(", "))
-    } else {
-        String::new()
-    };
     let suffix = coll.name.as_ref().unwrap().to_string();
-    let result = vec![
-        String::from("NEURON {\n"),
-        format!("  SUFFIX {}\n", suffix),
-        current,
-        range,
-        String::from("}\n\n"),
-    ];
+    let mut result = vec![String::from("NEURON {\n"), format!("  SUFFIX {}\n", suffix)];
+    for ion in &ion_species(coll) {
+        let current = if ion.is_empty() {
+            String::from("  NONSPECIFIC_CURRENT i\n")
+        } else {
+            format!(
+                "  USEION {ion} READ e{ion}, {ion}i WRITE i{ion}\n",
+                ion = ion
+            )
+        };
+        result.push(current);
+    }
+    if !coll.parameters.is_empty() {
+        let rs = coll.parameters.keys().cloned().collect::<Vec<_>>();
+        result.push(format!("  RANGE {}\n", rs.join(", ")));
+    }
+    result.push(String::from("}\n\n"));
     Ok(result.join(""))
 }
 
@@ -366,12 +358,19 @@ fn nmodl_recv_block(coll: &Collapsed) -> Result<String> {
     }
 }
 
-fn ion_species(coll: &Collapsed) -> String {
+fn ion_species(coll: &Collapsed) -> Vec<String> {
     coll.attributes
-        .get("species")
-        .cloned()
-        .flatten()
-        .unwrap_or_default()
+        .iter()
+        .filter_map(|(k, v)| {
+            if k.ends_with("_species") {
+                Some(v.as_deref().unwrap_or_default().to_string())
+            } else {
+                None
+            }
+        })
+        .collect::<Set<_>>()
+        .into_iter()
+        .collect::<Vec<_>>()
 }
 
 fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) -> Result<String> {
@@ -433,7 +432,7 @@ fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) 
                 )));
             }
             None => {
-                return Err(nmodl_error(format!("No such variable: {}", d)));
+                // return Err(nmodl_error(format!("No such variable: {}", d)));
             }
         }
     }
@@ -476,6 +475,11 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 .cloned()
                 .unwrap_or_default();
 
+            if !filter.is_empty() {
+                filter.push(',');
+            }
+            filter.push_str("+conductance");
+
             if !ion.is_empty() {
                 instance.component_type.variables.push(Variable {
                     name: format!("{}Conc", ion),
@@ -485,10 +489,6 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 });
             }
 
-            if !filter.is_empty() {
-                filter.push(',');
-            }
-            filter.push_str("+conductance");
             if ion.is_empty() {
                 instance
                     .parameters
@@ -507,18 +507,20 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
         }
         _ => {}
     }
+    mk_nmodl(&Collapsed::from_instance(&instance)?.simplify(&filter))
+}
 
-    let coll = Collapsed::from_instance(&instance)?.simplify(&filter);
+pub fn mk_nmodl(coll: &Collapsed) -> Result<String> {
     let result = vec![
-        nmodl_neuron_block(&coll)?,
-        nmodl_const_block(&coll)?,
-        nmodl_param_block(&coll)?,
-        nmodl_state_block(&coll)?,
-        nmodl_init_block(&coll)?,
-        nmodl_deriv_block(&coll)?,
-        nmodl_break_block(&coll)?,
-        nmodl_recv_block(&coll)?,
-        nmodl_kinetic_block(&coll)?,
+        nmodl_neuron_block(coll)?,
+        nmodl_const_block(coll)?,
+        nmodl_param_block(coll)?,
+        nmodl_state_block(coll)?,
+        nmodl_init_block(coll)?,
+        nmodl_deriv_block(coll)?,
+        nmodl_break_block(coll)?,
+        nmodl_recv_block(coll)?,
+        nmodl_kinetic_block(coll)?,
     ];
     Ok(result.join(""))
 }
@@ -636,7 +638,11 @@ pub fn export(
                 })?;
                 path.push(file);
                 path.set_extension("mod");
-                info!("Writing NMODL to {:?}", &path);
+                info!(
+                    "Writing NMODL for '{}' to {:?}",
+                    instance.id.as_deref().unwrap(),
+                    &path
+                );
                 write(&path, to_nmodl(&instance, filter)?)?;
             }
         }

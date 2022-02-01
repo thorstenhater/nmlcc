@@ -1,55 +1,36 @@
+use std::collections::HashMap as Map;
+use std::collections::HashSet as Set;
 use std::fs::{create_dir_all, write};
+use tracing::info;
 
+use crate::acc::Paintable;
 use crate::{
-    acc,
-    error::{self, Result},
+    acc::{Sexp, self},
+    error::{Error, Result},
+    expr::Expr,
     expr::Quantity,
+    instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
     neuroml::process_files,
-    neuroml::raw::PulseGenerator,
+    neuroml::raw::{
+        BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
+        PulseGenerator,
+    },
     nmodl,
+    variable::{VarKind, Variable},
     xml::XML,
 };
 
-pub fn export(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
-    create_dir_all(&bundle)?;
-    create_dir_all(&format!("{}/mrf", bundle))?;
+pub fn export(lems: &LemsFile, nml: &str, bundle: &str, use_super_mechs: bool) -> Result<()> {
+    export_template(lems, nml, bundle)?;
 
-    let mut ics = Vec::new();
-    let mut ids = Vec::new();
-    process_files(&[nml], |_, node| {
-        // TODO This is clunky and too restrictive
-        if node.tag_name().name() == "pulseGenerator" {
-            let ic: PulseGenerator = XML::from_node(node);
-            ics.push(ic);
-        }
-
-        let doc = node.document().input_text();
-        for mrf in node.descendants() {
-            if node.tag_name().name() == "cell" {
-                let id = node.attribute("id").ok_or(error::Error::Nml {
-                    what: String::from("Cell has no id"),
-                })?;
-                ids.push(id.to_string());
-                if mrf.tag_name().name() == "morphology" {
-                    write(
-                        format!("{}/mrf/{}.nml", bundle, id),
-                        mk_mrf(id, &doc[mrf.range()]),
-                    )?;
-                }
-            }
-        }
-        Ok(())
-    })?;
-
+    // We always export these to keep synapse etc alive
     nmodl::export(lems, nml, &None, "-*", &format!("{}/{}", bundle, "cat"))?;
-    acc::export(lems, nml, &None, &format!("{}/{}", bundle, "acc"))?;
 
-    for id in &ids {
-        write(
-            &format!("{}/main.{}.py", bundle, id),
-            mk_main_py(lems, id, &ics)?,
-        )?;
+    if use_super_mechs {
+        export_with_super_mechanisms(lems, nml, bundle)?;
+    } else {
+        acc::export(lems, nml, &None, &format!("{}/{}", bundle, "acc"))?;
     }
     Ok(())
 }
@@ -139,4 +120,205 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
 "#,
         id, id, mrf
     )
+}
+
+fn export_template(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
+    create_dir_all(&bundle)?;
+    create_dir_all(&format!("{}/mrf", bundle))?;
+
+    let mut ics = Vec::new();
+    let mut ids = Vec::new();
+    process_files(&[nml], |_, node| {
+        // TODO This is clunky and too restrictive
+        if node.tag_name().name() == "pulseGenerator" {
+            let ic: PulseGenerator = XML::from_node(node);
+            ics.push(ic);
+        }
+
+        let doc = node.document().input_text();
+        for mrf in node.descendants() {
+            if node.tag_name().name() == "cell" {
+                let id = node.attribute("id").ok_or(Error::Nml {
+                    what: String::from("Cell has no id"),
+                })?;
+                ids.push(id.to_string());
+                if mrf.tag_name().name() == "morphology" {
+                    write(
+                        format!("{}/mrf/{}.nml", bundle, id),
+                        mk_mrf(id, &doc[mrf.range()]),
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    })?;
+
+    for id in &ids {
+        write(
+            &format!("{}/main.{}.py", bundle, id),
+            mk_main_py(lems, id, &ics)?,
+        )?;
+    }
+    Ok(())
+}
+
+struct Assign {
+    m: String,
+    g: Quantity,
+    e: Quantity,
+}
+
+impl Assign {
+    fn new(m: &str, g: &str, e: &str) -> Result<Self> {
+        let g = Quantity::parse(g)?;
+        let e = Quantity::parse(e)?;
+        Ok(Self { m: m.to_string(), g, e })
+    }
+}
+
+
+pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
+    use BiophysicalPropertiesBody::*;
+    use MembranePropertiesBody::*;
+    let mut sms: Map<(String, String), Vec<Assign>> = Map::new();
+    process_files(&[nml], |_, node| {
+        if node.tag_name().name() == "cell" {
+            let id = node.attribute("id").ok_or(Error::Nml{ what: "Cell without id".to_string() })?;
+            let mut ass = Vec::new();
+            for bpp in node.descendants() {
+                if bpp.tag_name().name() != "biophysicalProperties" {
+                    continue;
+                }
+                let prop: BiophysicalProperties = XML::from_node(&bpp);
+                ass.append(&mut acc::acc(&prop, lems)?);
+                for item in &prop.body {
+                    if let membraneProperties(membrane) = item {
+                        for item in &membrane.body {
+                            if let channelDensity(ChannelDensity {
+                                ionChannel,
+                                condDensity,
+                                erev,
+                                segmentGroup,
+                                ..
+                            }) = item
+                            {
+                                let a = Assign::new(ionChannel, condDensity.as_deref().unwrap(), erev.as_str())?;
+                                let region = if segmentGroup.is_empty() {
+                                    "all"
+                                } else {
+                                    segmentGroup
+                                }.to_string();
+                                sms.entry((id.to_string(), region)).or_default().push(a);
+                            }
+                        }
+                    }
+                }
+            }
+
+            let path = format!("{}/{}/{}.acc", bundle, "acc", id);
+
+            let mut seen = Set::new();
+            let mut ass_sm = Vec::new();
+            for d in ass.into_iter() {
+                match d {
+                    acc::Decor::Paint(r, Paintable::Mech(_, _)) => if !seen.contains(&r) {
+                        ass_sm.push(acc::Decor::Paint(r.to_string(), Paintable::Mech(format!("{}_{}", id, r), Map::new())));
+                        seen.insert(r.to_string());
+                    }
+                    _ => ass_sm.push(d),
+                }
+            }
+
+            info!("Writing Super Mechanism ACC to {:?}", &path);
+            write(&path, ass_sm.to_sexp())?;
+        }
+        Ok(())
+    })?;
+
+    let mut instances = Vec::new();
+    process_files(&[nml], |_, node| {
+        let tag = node.tag_name().name();
+        if lems.derived_from(tag, "baseIonChannel") {
+            let instance = Instance::new(lems, node)?;
+            instances.push(instance);
+        }
+        Ok(())
+    })?;
+
+    for ((id, reg), ms) in &sms {
+        let mut coll = Collapsed::new(&Some(format!("{}_{}", id, reg)));
+        let mut ions: Map<_, Vec<_>> = Map::new();
+        for Assign { m, g, e } in ms {
+            for inst in &instances {
+                if inst.id == Some(m.to_string()) {
+                    let mut inst = inst.clone();
+                    let ion = inst.attributes.get("species").cloned().unwrap_or_default();
+                    // Set Parameters e, g
+                    let g = lems.normalise_quantity(g)?;
+                    inst.parameters.insert(format!("{}_conductance", m), g);
+                    if ion.is_empty() {
+                        let e = lems.normalise_quantity(e)?;
+                        inst.parameters.insert(String::from("e"), e);
+                        inst.component_type.parameters.push(String::from("e"));
+                    }
+                    ions.entry(ion.clone()).or_default().push(m.clone());
+                    coll.add(&inst, &Context::new(), None)?;
+                }
+            }
+        }
+
+        // Add iX
+        for (ion, mechs) in &ions {
+            if !ion.is_empty() {
+                let i = Expr::parse(&format!("g_{}*(v - e{})", ion, ion))?;
+                coll.variables.push(Variable {
+                    name: format!("i{}", ion),
+                    exposure: None,
+                    dimension: String::from("current"),
+                    kind: VarKind::Derived(Vec::new(), Some(i)),
+                });
+
+                let g = mechs
+                    .iter()
+                    .map(|m| format!("{}_g", m))
+                    .collect::<Vec<_>>()
+                    .join(" + ");
+                let g = Expr::parse(&g)?;
+                coll.variables.push(Variable {
+                    name: format!("g_{}", ion),
+                    exposure: None,
+                    dimension: String::from("conductance"),
+                    kind: VarKind::Derived(Vec::new(), Some(g)),
+                });
+            } else {
+                // here we must sum currents directly
+                let mut i = Vec::new();
+                for mech in mechs {
+                    i.push(format!("{}_g*(v - {}_e)", mech, mech));
+                }
+                let i = i.join(" + ");
+                let i = Expr::parse(&i)?;
+                coll.variables.push(Variable {
+                    name: "i".to_string(),
+                    exposure: None,
+                    dimension: String::from("current"),
+                    kind: VarKind::Derived(Vec::new(), Some(i)),
+                });
+
+            }
+        }
+
+        // Simplify with none to keep and export
+        coll = coll.simplify("-*");
+        let nmodl = nmodl::mk_nmodl(&coll)?;
+
+        let path = format!("{}/{}/{}-{}.mod", bundle, "cat", id, reg);
+        info!(
+            "Writing Super-Mechanism NMODL for cell '{}' region '{}' to {:?}",
+            id, reg, &path
+        );
+        write(&path, nmodl)?;
+    }
+
+    Ok(())
 }

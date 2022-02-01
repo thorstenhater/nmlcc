@@ -4,14 +4,14 @@
 
 * Arbor 💘 NeuroML2
 
-  Thorsten Hater (=t.hater@fz-juelich.de=)
-
 *HPCNS*
 31.01.2022
 
+Thorsten Hater (=t.hater@fz-juelich.de=)
+
 * What is NeuroML2?
   #+begin_quote
-  XML based format for the description of neuro-scientific models
+  XML based format for the description of neuro-scientific simulations.
   #+end_quote
 - Versions
   - v1 :: not used anymore, conductance models only
@@ -22,13 +22,15 @@
   - Morphology and parametrisations
   - Connectivity/networks
   - Units and quantities
-- NMl2 is then _used_ in LEMS to add
+- NML2 is then _used_ in LEMS to add
   - Simulation
   - Visualisation/Data extraction
 
-* Example
+~LEMS~ = Low Entropy Model Specification (language)
+
+* Example: Cell
 #+begin_src xml
-<cell id="pas-cell">
+<cell id="cell">
   <morphology ="morphology" />
     <segment id="0" name="root">
       <proximal x="0" y="0" z="0" diameter="17.841242"/>
@@ -44,13 +46,34 @@
     <membraneProperties>
       <channelDensity id="leak" ionChannel="pas" g="0.3mS_per_cm2" e="-54.387mV" ion="none"/>
       <specificCapacitance value="1.0 uF_per_cm2"/>
-      <initMembPotential   value="-65mV"/>
+      <initMembPotential value="-65mV"/>
     </membraneProperties>
   </biophysicalProperties>
 </cell>
 #+end_src
 
-* NeuroML2 and Arbor
+* The 10'000ft View
+#+begin_example
+┌───────────────────────┐      ┌───────────────────────┐
+│                       │      │                       │
+│  LEMS Schema XSD      │      │  NML2 Schema XSD      │
+│                       │      │                       │
+└───────────┬───────────┘      └───────────┬───────────┘
+            │                              │
+            │                              │
+┌───────────▼───────────┐      ┌───────────▼───────────┐
+│                       │      │                       │
+│  NeuroML2 Definitions │      │  NML2 Instances       │
+│                       │      │                       │
+│  <ComponentType>      ├─────►│  <Component>          │
+│                       │      │                       │
+│                       │      │  <ComponentType>      │
+│                       │      │                       │
+└───────────────────────┘      └───────────────────────┘
+#+end_example
+
+
+* =NeuroML2= and ~Arbor~
 #+begin_quote
 It's the worst system we have, except all others, which are even worse.
 #+end_quote
@@ -83,7 +106,7 @@ It's the worst system we have, except all others, which are even worse.
   4. Manually copy out parametrisations, channel assignments, ...
   5. Run the simulation, complain that it's way too slow
 
-* Example
+* Example: Ion-Channel
 #+begin_src xml
 <?xml version="1.0" encoding="UTF-8"?>
 <neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
@@ -113,27 +136,6 @@ It's the worst system we have, except all others, which are even worse.
   - Here, the output is usually a conductance or a current
   - Types like =<cell>= then define ODEs ~U'(t) = g I(t)~
 
-* The 10'000ft View
-#+begin_example
-┌───────────────────────┐      ┌───────────────────────┐
-│                       │      │                       │
-│  LEMS Schema XSD      │      │  NML2 Schema XSD      │
-│                       │      │                       │
-└───────────┬───────────┘      └───────────┬───────────┘
-            │                              │
-            │                              │
-┌───────────▼───────────┐      ┌───────────▼───────────┐
-│                       │      │                       │
-│  NeuroML2 Definitions │      │  NML2 Instances       │
-│                       │      │                       │
-│  <ComponentType>      ├─────►│  <Component>          │
-│                       │      │                       │
-│                       │      │  <ComponentType>      │
-│                       │      │                       │
-└───────────────────────┘      └───────────────────────┘
-#+end_example
-
-
 * =nmlcc:= a Compiler for NML2
 
 - Written in Rust, because Rust is great for the job
@@ -148,11 +150,12 @@ It's the worst system we have, except all others, which are even worse.
   - Cell        :: implemented, being tested
   - Simulations :: working on it
   - Networks    :: next step, somewhere in the future
+- Covers only the multi-compartment aspects of =NML2=
 - Find us here [[https://github.com/thorstenhater/nmlcc]]
   - =sloc= reports ~~9k~ lines of Rust, thereof ~~6k~ auto-generated
   - test-suite and CI enabled
 
-* Unpacking NML2
+* Unpacking =NML2=
 
 ** A Gate: =HHExp=
 
@@ -166,7 +169,6 @@ It's the worst system we have, except all others, which are even worse.
 - Opening the lid on =HHExpRate=
   #+begin_src xml
   <ComponentType name="baseVoltageDepRate">
-    <Exposure name="r" dimension="per_time"/>
     <Requirement name="v" dimension="voltage"/>
   </ComponentType>
 
@@ -178,7 +180,7 @@ It's the worst system we have, except all others, which are even worse.
 
   <ComponentType name="HHExpRate" extends="baseHHRate">
     <Dynamics>
-      <DerivedVariable name="r" exposure="r" value="rate * exp((v - midpoint)/scale)" dimension="per_time"/>
+      <DerivedVariable name="r" value="rate * exp((v - midpoint)/scale)" />
     </Dynamics>
   </ComponentType>
   #+end_src
@@ -222,10 +224,7 @@ It's the worst system we have, except all others, which are even worse.
   other gates to determine conductance densities =g= and in turn current
   densities =i=, and so on, up to Ohm's law.
 
-* Example
-
-Now let us build a channel for Arbor using =nmlcc=
-
+* Example: Running =nmlcc=
 ** Running =nmlcc=
 #+begin_src bash
 $> # Build data model (this is *not* needed in regular use)
@@ -248,12 +247,10 @@ $> cat NaConductance.mod
 
 ** Output, Compressed to Fit
 #+begin_src
-NEURON {
-  SUFFIX NaConductance
-  USEION na READ ena WRITE ina
-}
+NEURON { ... }
 STATE { gates_m_q }
 INITIAL { ... }
+
 DERIVATIVE dstate {
   LOCAL gates_m_forwardRate_r, gates_m_reverseRate_r, gates_m_tau, gates_m_inf
   gates_m_forwardRate_r = exp(0.1 * (40 + v))
@@ -262,43 +259,47 @@ DERIVATIVE dstate {
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_m_q' = (gates_m_inf + -1 * gates_m_q) * gates_m_tau^-1
 }
+
 BREAKPOINT {
   SOLVE dstate METHOD cnexp
-  LOCAL gates_m_fcond, g
-  g = 0.00000001 * gates_m_q^3
-  ina = g * (v + -1 * ena)
+  ina = 0.00000001 * gates_m_q^3 * (v + -1 * ena)
 }
 #+end_src
 
-* NML2, Prêt-à-simuler
+* =NML2=: Prêt-à-simuler with ~nmlcc bundle~
+
+This is still tedious and involves manually copying out parameters from XML.
+
+So, let's do better:
 #+begin_src bash
 $> rm -rf hhcell                                       # no cheating
 $> nmlcc bundle openworm/HHCellNetwork.net.nml hhcell  # all-in-one exporter
 $> ls hhcell
 Permissions Size User  Date Modified Name
-drwxr-xr-x     - hater 19 Jan 14:01  acc               # cell model and region assignments
-drwxr-xr-x     - hater 23 Jan 19:13  cat               # NMODL dynamics
-drwxr-xr-x     - hater 14 Jan 16:16  mrf               # morphology files
-.rw-r--r--  1.1k hater 23 Jan 19:16  main.hhcell.py    # template simulation for id=hhcell
+drwxr-xr-x     - hater 29 Jan 14:01  acc               # cell model and region assignments
+drwxr-xr-x     - hater 29 Jan 14:01  cat               # NMODL dynamics
+drwxr-xr-x     - hater 29 Jan 14:01  mrf               # morphology files
+.rw-r--r--  1.1k hater 29 Jan 14:01  main.hhcell.py    # template simulation for id=hhcell
+$> python3 main.hhcell.py                              # runs, but without stimuli
 #+end_src
-From here, we need to tweak =main.tmp.py= according to our needs
+From here, we need to tweak =main.<id>.py= according to our needs
 - placement of stimuli    :: part of the network specification, but the list is given
 - measurements            :: that you will have to decide yourself
-- simulation =t= and =dt= :: ditto; it is listed but in LEMS
+- simulation =t= and =dt=     :: ditto; it is given but in LEMS not NML2
 
 * Outlook
 
 NML2 specificies the _whole_ simulation flow and we really, really want to
 exploit this for performance. This is also nothing we would like to do manually,
-since it involves lots boilerplate and repetition.
+since it involves lots of boilerplate and repetition.
 
 ** Specialised Mechanisms
 Consider this channel assignment
 #+begin_src xml
 <channelDensity id="leak" ionChannel="pas" g="0.3 mS_per_cm2" e="-54.387 mV" ion="none"/>
 #+end_src
-in Arbor and Neuron =g= and =e= are runtime variables, but they never change
-after the simulation has been started. (That might change sometime soon)
+in Arbor and NEURON =g= and =e= are runtime variables, but they never change
+after the simulation has been started. (In Arbor, that might change sometime soon)
 
 So, we can specialise, possibly per assigned region, and make those _constants_,
 allowing even more speed by uncovering more optimisation potential and reducing
@@ -320,46 +321,49 @@ sharing RO data etc.
 * Performance
 - HH tutorial cell from =https://github.com/openworm/hodgkin_huxley_tutorial=
   - simulation settings: ~t=1000 ms~ and ~dt=0.0025~
-  - soma-only, discretized into ~0.1um~ segments
+  - soma-only, ~d=17.8um~ discretized into ~0.1um~ segments
 - Arbor 0.6 Release, single thread
   - times are measured across ~sim.run(...)~
-  - thus model building is included and speed-ups are a _lower bound_
-|----------------+----------------+----------+---------------+----------|
-| ARB_VECTORIZE= | *OFF* t_wall/s | Speed-up | *ON* t_wall/s | Speed-up |
-|----------------+----------------+----------+---------------+----------|
-| jnml           |         13.266 |      1.0 |         7.988 |      1.0 |
-| nmlcc 0.2      |          5.934 |      2.2 |         2.827 |      2.8 |
-|----------------+----------------+----------+---------------+----------|
-| Arbor HH       |          6.376 |      2.1 |         2.960 |      2.7 |
-|----------------+----------------+----------+---------------+----------|
-| hand-optimised |          5.829 |      2.3 |         2.911 |      2.7 |
-| + CF           |          5.731 |      2.3 |         2.782 |      2.9 |
-| + SM           |          5.212 |      2.5 |         2.504 |      3.2 |
-|----------------+----------------+----------+---------------+----------|
+  - thus model building is included
+|-------------------+----------------+----------+---------------+----------|
+| ARB_VECTORIZE=    | *OFF* t_wall/s | Speed-up | *ON* t_wall/s | Speed-up |
+|-------------------+----------------+----------+---------------+----------|
+| jnml              |         13.266 |      1.0 |         7.988 |      1.0 |
+| nmlcc 0.2         |          5.934 |      2.2 |         2.827 |      2.8 |
+| + CF + SM \dagger |          6.210 |      2.1 |         2.727 |      2.9 |
+|-------------------+----------------+----------+---------------+----------|
+| Arbor HH          |          6.376 |      2.1 |         2.960 |      2.7 |
+|-------------------+----------------+----------+---------------+----------|
+| hand-optimised    |          5.829 |      2.3 |         2.911 |      2.7 |
+| + CF              |          5.731 |      2.3 |         2.782 |      2.9 |
+| + SM              |          5.212 |      2.5 |         2.504 |      3.2 |
+|-------------------+----------------+----------+---------------+----------|
 #+TBLFM: $3=@2$2/$2;%.1f::$5=@2$4/$4;%.1f
+
+\dagger Incomplete feature
 
 * Recap
 
-- Enabling a workflow to bring NML2 projects to Arbor.
-  - direct conversion of NML2 dynamics into Arbor NMODL
+- Enabling a workflow to bring =NML2= projects to Arbor.
+  - direct conversion of =NML2= dynamics into Arbor NMODL
   - bespoke representations optimised for Arbor
   - bio-physical parameters / assignments / simulation settings
+  - merging and specialising mechanisms based on _'runtime'_ information
 - Missing
   - extraction of networks
   - lots of testing
 - Nice to have
   - micro-optimisations: CSE, some algebraic passes, ...
-  - merging and specialising mechanisms based on _'runtime'_ information
-
-* Collaborations
-- Arborio :: HBP SGA3 CEoI partners
-
-  - channels, networks, cells
-- P. Gleeson :: NML2 core people
-  - testing
-  - make Arbor an official backend for NML2
+  - NML2-specific peephole optimisations
+- Working with
+  - ArborIO   :: inferior olive model in NML2, so far hand-ported
+    - will drive features added to =nmlcc=
+  - NML2 devs :: P. Gleeson et al
+    - correctness testing
+    - include Arbor in NML2 test framework
 
 * Fin
+#+begin_example
 
     ███        ▄█    █▄       ▄████████ ███▄▄▄▄      ▄█   ▄█▄    ▄████████
 ▀█████████▄   ███    ███     ███    ███ ███▀▀▀██▄   ███ ▄███▀   ███    ███
@@ -370,3 +374,4 @@ sharing RO data etc.
     ███       ███    ███     ███    ███ ███   ███   ███ ▀███▄    ▄█    ███
    ▄████▀     ███    █▀      ███    █▀   ▀█   █▀    ███   ▀█▀  ▄████████▀
                                                     ▀
+#+end_example

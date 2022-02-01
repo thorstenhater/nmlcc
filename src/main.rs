@@ -67,6 +67,9 @@ enum Cmd {
     Bundle {
         /// NeuroML2 compliant XML file
         nml: String,
+        /// Try to combine channels per segment group
+        #[clap(short, long)]
+        super_mechanisms: bool,
         /// Prefix to put bundle
         dir: String,
     },
@@ -103,9 +106,9 @@ fn main() -> Result<()> {
             nmodl::export(&lems, &nml, &r#type.as_deref(), &parameter, &dir)?;
         }
         Cmd::Acc { nml, cell, dir } => acc::export(&lems, &nml, &cell.as_deref(), &dir)?,
-        Cmd::Bundle { nml, dir } => {
+        Cmd::Bundle { nml, dir, super_mechanisms } => {
             get_runtime_types(&mut lems, &nml)?;
-            bundle::export(&lems, &nml, &dir)?;
+            bundle::export(&lems, &nml, &dir, super_mechanisms)?;
         }
     }
     Ok(())

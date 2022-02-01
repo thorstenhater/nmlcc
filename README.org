@@ -25,9 +25,13 @@ Arbor simulation that can be customised to your needs.
 
 ** Why Shouldn't I Use This?
 
-1. This project is quite early in its lifecycle, so expect bugs and missing features.
-2. If you are not using Arbor.
-3. If you are reliant on other features of =jnml= and/or =jlems=.
+1. This project is quite early in its lifecycle, so expect bugs and missing
+   features.
+2. If you are not using Arbor. While NMODL export might work for NEURON, we do
+   not test this nor do we plan support for it.
+3. If you are not interested in multi-compartment models. Currently only
+   MC-cells are supported.
+4. If you are reliant on other features of =jnml= and/or =jlems=.
 
 * Getting Started
 

@@ -165,8 +165,12 @@ impl Collapsed {
     }
 
     pub fn from_instance(inst: &Instance) -> Result<Self> {
+        Self::from_instance_with_name(inst, false)
+    }
+
+    pub fn from_instance_with_name(inst: &Instance, use_name: bool) -> Result<Self> {
         use crate::expr::Path;
-        let mut coll = Self::from_instance_(inst, &Context::new(), None, false)?;
+        let mut coll = Self::from_instance_(inst, &Context::new(), None, use_name)?;
         for ks in &coll.kinetic {
             let Match(ps) = &ks.edge;
             let mut ix = 0;
@@ -389,7 +393,7 @@ impl Collapsed {
         Ok(result)
     }
 
-    fn add(&mut self, inst: &Instance, ctx: &Context, name: Option<String>) -> Result<()> {
+    pub fn add(&mut self, inst: &Instance, ctx: &Context, name: Option<String>) -> Result<()> {
         let other = Self::from_instance_(inst, ctx, name, true)?;
         self.parameters
             .extend(other.parameters.iter().map(|(a, b)| (a.clone(), b.clone())));
@@ -516,10 +520,10 @@ impl Collapsed {
 
 /// Stacked contexts of local symbols
 #[derive(Debug, Clone)]
-struct Context(Vec<(String, Vec<String>)>);
+pub struct Context(Vec<(String, Vec<String>)>);
 
 impl Context {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Context(Vec::new())
     }
     fn enter(&mut self, name: &str, vars: &[String]) {
