@@ -25,12 +25,12 @@ pub fn export(lems: &LemsFile, nml: &str, bundle: &str, use_super_mechs: bool) -
     export_template(lems, nml, bundle)?;
 
     // We always export these to keep synapse etc alive
-    nmodl::export(lems, nml, &None, "-*", &format!("{}/{}", bundle, "cat"))?;
+    nmodl::export(lems, nml, &None, "-*", &format!("{}/cat", bundle))?;
 
     if use_super_mechs {
         export_with_super_mechanisms(lems, nml, bundle)?;
     } else {
-        acc::export(lems, nml, &None, &format!("{}/{}", bundle, "acc"))?;
+        acc::export(lems, nml, &None, &format!("{}/acc", bundle))?;
     }
     Ok(())
 }
@@ -225,7 +225,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) ->
                 }
             }
 
-            let path = format!("{}/{}/{}.acc", bundle, "acc", id);
+            let path = format!("{}/acc/{}.acc", bundle, id);
 
             let mut seen = Set::new();
             let mut ass_sm = Vec::new();
@@ -326,7 +326,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) ->
         coll = coll.simplify("-*");
         let nmodl = nmodl::mk_nmodl(&coll)?;
 
-        let path = format!("{}/{}/{}-{}.mod", bundle, "cat", id, reg);
+        let path = format!("{}/cat/{}-{}.mod", bundle, id, reg);
         info!(
             "Writing Super-Mechanism NMODL for cell '{}' region '{}' to {:?}",
             id, reg, &path

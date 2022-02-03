@@ -22,12 +22,16 @@ fn nmodl_error<T: Into<String>>(what: T) -> Error {
 }
 
 fn automatic_variables(coll: &Collapsed) -> Vec<String> {
-    let mut res = vec!["v".to_string(), "v_peer".to_string()];
+    let mut res = vec![String::from("v"), String::from("v_peer")];
     for ion in ion_species(coll) {
         res.push(format!("e{}", ion));
         res.push(format!("i{}", ion));
         res.push(format!("{}i", ion));
         res.push(format!("{}o", ion));
+    }
+    let cai = String::from("cai");
+    if !res.contains(&cai) {
+        res.push(cai);
     }
     res
 }
@@ -320,7 +324,8 @@ fn nmodl_kinetic_block(coll: &Collapsed) -> Result<String> {
 fn nmodl_neuron_block(coll: &Collapsed) -> Result<String> {
     let suffix = coll.name.as_ref().unwrap().to_string();
     let mut result = vec![String::from("NEURON {\n"), format!("  SUFFIX {}\n", suffix)];
-    for ion in &ion_species(coll) {
+    let ions = ion_species(coll);
+    for ion in &ions {
         let current = if ion.is_empty() {
             String::from("  NONSPECIFIC_CURRENT i\n")
         } else {
@@ -330,6 +335,9 @@ fn nmodl_neuron_block(coll: &Collapsed) -> Result<String> {
             )
         };
         result.push(current);
+    }
+    if !ions.contains(&String::from("ca")) {
+        result.push(String::from("  USEION ca READ cai\n"));
     }
     if !coll.parameters.is_empty() {
         let rs = coll.parameters.keys().cloned().collect::<Vec<_>>();
@@ -362,7 +370,7 @@ fn ion_species(coll: &Collapsed) -> Vec<String> {
     coll.attributes
         .iter()
         .filter_map(|(k, v)| {
-            if k.ends_with("_species") {
+            if k.ends_with("species") {
                 Some(v.as_deref().unwrap_or_default().to_string())
             } else {
                 None
@@ -488,6 +496,14 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                     kind: VarKind::Derived(Vec::new(), Some(Expr::parse(&format!("{}i", ion))?)),
                 });
             }
+
+            instance.component_type.variables.push(Variable {
+                name: String::from("caConc"),
+                exposure: None,
+                dimension: String::from("concentration"),
+                kind: VarKind::Derived(Vec::new(), Some(Expr::parse("cai")?)),
+            });
+
 
             if ion.is_empty() {
                 instance
