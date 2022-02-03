@@ -752,3 +752,92 @@ more idiomatically.
  ~ionChannel~'s conductance, see above ~g = fopen * conductance~. The parameter
  ~condDensity~ added in ~channelDensityCond~ is identical to ~conductance~.
  Thus, we need to retain ~conductance~ and set it to the value of ~condDensity~.
+
+* Much Time Has Passed
+* Networks
+
+Networks are important for us for both actual network support and simulation
+inputs. We note the following about the network layout in NML2.
+
+Instances for input and synapse appear at top-level, next to cells and networks.
+Thus any =.nml= file is eligible to define them.
+
+Networks are defined in terms of _populations_ and _projections_.
+
+** Populations
+
+Populations can be written in two ways inside a ~network~
+- ~<population component="X" size="n"/>~ :: ~n~ duplicates of ~X~; using
+  ~MultiInstantiate~ which seems to have no particular definition.
+- ~<populationList component="X">~ :: give children as list of ~<instance>~ with
+  a 3D position, all have type ~X~.
+
+For us, there seems to be no practical difference between them. In both cases
+~X~ names a ~ComponentType~ deriving ~baseCell~.
+
+
+** Projections
+
+Projections specify pre- and post-synaptic populations and a connection type, eg
+a synapse. Then, a list of connections is given as tuples =(pre: location, post:
+location)= where =location= takes the form =(cell: id, segment: id, fraction:
+[0, 1])=
+
+Target cells are _selected_ by the relative paths and an index, eg
+~target=../pop0[0]~ addresses the population ~pop0~, one tag up from here, and
+picks cell zero from there. If ~pop0~ has a single member, the index is
+optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~
+
+*** Questions
+- Does ~[ix]~ query by id or offset?
+- What's the difference between ~pop/id/Cell~ and ~/pop[0]~?
+- Why do connections have to traverse the tree and do not work relative to their
+  pre/post populations? Seems counterintuitive.
+- How does Arbor translate segments into its internal rep? Can we directly use
+  it like ~branch~?
+
+*** Example
+
+#+begin_src xml
+<network id="MultiCompCellNetwork">
+    <population id="pop0" type="populationList" component="Cell">
+        <instance id="0">
+            <location x="0" y="0" z="0"/>
+        </instance>
+        <instance id="1">
+            <location x="30" y="0" z="0"/>
+        </instance>
+    </population>
+
+    <projection id="AMPA-syn" presynapticPulation="pop" postsynapticPulation="pop" synapse="AMPA">
+      <connection id="0"
+                  preCellId="../pop/0/Cell" preSegmentId="0" preFractionAlong="0.5"
+                  postCellId="../pop/1/Cell" postSegmentId="0" postFractionAlong="0.5"/>
+      <connection id="1"
+                  preCellId="../pop/0/Cell" preSegmentId="0" preFractionAlong="0.5"
+                  postCellId="../pop/1/Cell" postSegmentId="3" postFractionAlong="0.3"/>
+    </projection>
+</network>
+#+end_src
+
+** Inputs
+- inputs are similar to (one-sided) connections
+  - targets are written as
+    - id, default = 0
+    - fraction, default = 0.5
+  - relevant tags: =explicitInput=
+- stimuli derive =basePointCurrent=
+  - pulse, sine, cosine
+
+*** Example
+
+#+begin_src xml
+<pulseGenerator id="pulseGen1" delay="100ms" duration="100ms" amplitude="0.10nA"/>
+<pulseGenerator id="pulseGen2" delay="300ms" duration="100ms" amplitude="0.35nA"/>
+
+<network id="HHCellNetwork">
+    <population id="hhpop" component="hhcell" size="1"/>
+    <explicitInput target="hhpop[0]" input="pulseGen1"/>
+    <explicitInput target="hhpop[0]" input="pulseGen2"/>
+</network>
+#+end_src

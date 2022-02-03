@@ -9,6 +9,7 @@ mod error;
 mod expr;
 mod instance;
 mod lems;
+mod network;
 mod neuroml;
 mod nmodl;
 mod variable;
