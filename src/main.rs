@@ -5,7 +5,6 @@ use lems::file::LemsFile;
 
 mod acc;
 mod bundle;
-mod cps;
 mod error;
 mod expr;
 mod instance;
