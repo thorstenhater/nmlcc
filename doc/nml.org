@@ -825,9 +825,12 @@ optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~
   - targets are written as
     - id, default = 0
     - fraction, default = 0.5
-  - relevant tags: =explicitInput=
 - stimuli derive =basePointCurrent=
   - pulse, sine, cosine
+- relevant tags:
+  - =explicitInput= ::
+  - =inputList= ::
+
 
 *** Example
 
