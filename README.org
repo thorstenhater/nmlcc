@@ -74,7 +74,7 @@ package manager.
 
 Then, clone this repo and try an example
 #+begin_src shell
-git clone git@github.com:thorstenhater/nmlcc.git
+git clone git@github.com:thorstenhater/nmlcc.git --recurse-submodules
 cd nmlcc
 cargo run -- nmodl --type=ionChannelHH example/nml-simple-ion-channels.xml
 #+end_src
