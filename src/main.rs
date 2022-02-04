@@ -5,6 +5,7 @@ use lems::file::LemsFile;
 
 mod acc;
 mod bundle;
+mod cps;
 mod error;
 mod expr;
 mod instance;
@@ -36,7 +37,7 @@ enum Cmd {
     /// Export to NMODL
     Nmodl {
         /// NeuroML2 compliant XML file
-        nml: String,
+        nml: Vec<String>,
         /// Base class to extract, if not given, a list of known Dynamics base
         /// types will be tried, namely: baseSynapse, baseIonChannel
         #[clap(short, long)]
@@ -56,7 +57,7 @@ enum Cmd {
     /// Export to Arbor Cable Cell format (.acc)
     Acc {
         /// NeuroML2 compliant XML file
-        nml: String,
+        nml: Vec<String>,
         /// Cell id to extract, if not given will visit _all_ cells.
         #[clap(short, long)]
         cell: Option<String>,
@@ -67,7 +68,7 @@ enum Cmd {
     /// DWIM creation of an Arbor simulation template
     Bundle {
         /// NeuroML2 compliant XML file
-        nml: String,
+        nml: Vec<String>,
         /// Try to combine channels per segment group
         #[clap(short, long)]
         super_mechanisms: bool,
@@ -76,8 +77,8 @@ enum Cmd {
     },
 }
 
-fn get_runtime_types(lems: &mut LemsFile, nml: &str) -> Result<()> {
-    neuroml::process_files(&[nml], |_, node| {
+fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
+    neuroml::process_files(nml, |_, node| {
         if node.tag_name().name() == "ComponentType" {
             let ct: lems::raw::ComponentType = xml::XML::from_node(node);
             lems.add_component_type(&ct)?;

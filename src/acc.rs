@@ -17,9 +17,9 @@ use std::fs::write;
 use std::path::PathBuf;
 use tracing::info;
 
-pub fn export(lems: &LemsFile, nml: &str, cell: &Option<&str>, pfx: &str) -> Result<()> {
+pub fn export(lems: &LemsFile, nml: &[String], cell: &Option<&str>, pfx: &str) -> Result<()> {
     std::fs::create_dir_all(&pfx)?;
-    process_files(&[nml], |_, node| {
+    process_files(nml, |_, node| {
         if node.tag_name().name() != "cell" {
             return Ok(());
         }

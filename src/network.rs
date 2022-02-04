@@ -1,3 +1,5 @@
+#![allow(dead_code, unused)]
+
 use tracing::trace;
 
 use crate::{error::Result, expr::Quantity, lems::file::LemsFile, neuroml::raw};
@@ -17,7 +19,7 @@ impl Network {
             match item {
                 projection(p) => proj(p)?,
                 population(p) => pop(p)?,
-                inputList(i) => {},
+                inputList(i) => {}
                 explicitInput(i) => stim(i)?,
                 _ => trace!("Ignored {:?} in Network", item),
             }
@@ -26,7 +28,6 @@ impl Network {
         Ok(Network { temp: t.value })
     }
 }
-
 
 fn pop(p: &raw::Population) -> Result<()> {
     Ok(())

@@ -21,7 +21,7 @@ use crate::{
     xml::XML,
 };
 
-pub fn export(lems: &LemsFile, nml: &str, bundle: &str, use_super_mechs: bool) -> Result<()> {
+pub fn export(lems: &LemsFile, nml: &[String], bundle: &str, use_super_mechs: bool) -> Result<()> {
     export_template(lems, nml, bundle)?;
 
     // We always export these to keep synapse etc alive
@@ -122,13 +122,13 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
     )
 }
 
-fn export_template(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
+fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     create_dir_all(&bundle)?;
     create_dir_all(&format!("{}/mrf", bundle))?;
 
     let mut ics = Vec::new();
     let mut ids = Vec::new();
-    process_files(&[nml], |_, node| {
+    process_files(nml, |_, node| {
         // TODO This is clunky and too restrictive
         if node.tag_name().name() == "pulseGenerator" {
             let ic: PulseGenerator = XML::from_node(node);
@@ -180,11 +180,11 @@ impl Assign {
     }
 }
 
-pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) -> Result<()> {
+pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     use BiophysicalPropertiesBody::*;
     use MembranePropertiesBody::*;
     let mut sms: Map<(String, String), Vec<Assign>> = Map::new();
-    process_files(&[nml], |_, node| {
+    process_files(nml, |_, node| {
         if node.tag_name().name() == "cell" {
             let id = node.attribute("id").ok_or(Error::Nml {
                 what: "Cell without id".to_string(),
@@ -251,7 +251,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &str, bundle: &str) ->
     })?;
 
     let mut instances = Vec::new();
-    process_files(&[nml], |_, node| {
+    process_files(nml, |_, node| {
         let tag = node.tag_name().name();
         if lems.derived_from(tag, "baseIonChannel") {
             let instance = Instance::new(lems, node)?;

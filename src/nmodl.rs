@@ -440,7 +440,7 @@ fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) 
                 )));
             }
             None => {
-                // return Err(nmodl_error(format!("No such variable: {}", d)));
+                return Err(nmodl_error(format!("No such variable: {}", d)));
             }
         }
     }
@@ -503,7 +503,6 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 dimension: String::from("concentration"),
                 kind: VarKind::Derived(Vec::new(), Some(Expr::parse("cai")?)),
             });
-
 
             if ion.is_empty() {
                 instance
@@ -629,7 +628,7 @@ fn sorted_dependencies_of(
 
 pub fn export(
     lems: &LemsFile,
-    nml: &str,
+    nml: &[String],
     ty: &Option<&str>,
     filter: &str,
     cat: &str,
@@ -639,7 +638,7 @@ pub fn export(
     } else {
         vec!["baseIonChannel", "baseSynapse"]
     };
-    process_files(&[nml], |_, node| {
+    process_files(nml, |_, node| {
         let tag = node.tag_name().name();
         for ty in &tys {
             if lems.derived_from(tag, ty) {

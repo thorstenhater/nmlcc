@@ -7,7 +7,7 @@ use crate::error::{Error, Result};
 
 pub mod raw;
 
-pub fn process_files<F>(nmls: &[&str], mut f: F) -> Result<()>
+pub fn process_files<F>(nmls: &[String], mut f: F) -> Result<()>
 where
     F: FnMut(&str, &Node) -> Result<()>,
 {
