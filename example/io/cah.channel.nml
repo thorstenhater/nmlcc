@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta2.xsd" id="cah">
+
+  <!-- 
+    ## from model_description.txt 
+    I_CaH  =  g_CaH * r * r * (V_dend - V_Ca)
+    
+    alpha_r = 1.7 / (1 + exp( -(V_dend - 5) / 13.9))
+    beta_r = 0.02 * (V_dend + 8.5) / (exp((V_dend + 8.5) / 5) - 1)
+  -->
+
+  <annotation>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+      <rdf:Description rdf:about="cah">
+
+        <bqmodel:isDescribedBy xmlns:bqmodel="http://biomodels.net/model-qualifiers/">
+          <rdf:Bag>???</rdf:Bag>
+        </bqmodel:isDescribedBy>
+
+        <bqbiol:isVersionOf xmlns:bqbiol="http://biomodels.net/biology-qualifiers/">
+          <rdf:Bag>
+            <rdf:li>Calcium channels</rdf:li>
+            <rdf:li rdf:resource="https://senselab.med.yale.edu/NeuronDB/channelGene2.aspx#table1"/>
+          </rdf:Bag>
+        </bqbiol:isVersionOf>
+
+      </rdf:Description>
+    </rdf:RDF>
+  </annotation>
+
+  <ionChannel id="cah" type="ionChannelHH" conductance="10pS" species="ca">
+
+    <gateHHrates id="r" instances="2">
+      <q10Settings type="q10Fixed" fixedQ10="0.2"/><!-- hack to get 5*tau -->
+      <forwardRate type="HHSigmoidRate" rate="1.7per_ms" midpoint="5mV" scale="13.9mV"/>
+      <reverseRate type="HHExpLinearRate" rate="0.1per_ms" midpoint="-8.5mV" scale="-5mV"/>
+    </gateHHrates>
+
+  </ionChannel>
+
+</neuroml>

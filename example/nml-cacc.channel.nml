@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta2.xsd" id="cacc">
+  <ionChannel id="cacc" type="ionChannelHH" conductance="10pS" species="cl">
+    <gate type="gateHHInstantaneous" id="m" instances="1">
+      <steadyState type="m_inf"/>
+    </gate>
+  </ionChannel>
+  <ComponentType name="m_inf" extends = "baseVoltageConcDepVariable">
+      <Constant name="VOLT_SCALE" dimension="voltage" value="1 mV"/>
+      <Constant name="CONC_SCALE" dimension="concentration" value="1 mol_per_cm3"/>
+      <Dynamics>
+            <DerivedVariable name="V" dimension="none" value="v /VOLT_SCALE"/>
+            <DerivedVariable name="ca_conc" dimension="none" value="caConc / CONC_SCALE"/>
+            <DerivedVariable name="x" exposure="x" dimension="none" value=" 1 / ( 1  +  exp((3.7 - ca_conc*1e6)/0.9))"/>
+      </Dynamics>
+  </ComponentType>
+</neuroml>

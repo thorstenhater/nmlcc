@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta2.xsd" id="ExpTime">
+
+  <ComponentType name="ExpTime" extends="baseVoltageDepTime">
+    <Parameter name="tau" dimension="time"/>
+    <Parameter name="midpoint" dimension="voltage"/>
+    <Parameter name="scale" dimension="voltage"/>
+    <Dynamics>
+      <DerivedVariable name="t" exposure="t" value="tau * exp((v - midpoint)/scale)" dimension="time"/>
+    </Dynamics>
+  </ComponentType>
+
+</neuroml>

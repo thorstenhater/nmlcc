@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta2.xsd" id="na_a">
+
+  <!-- 
+    ## from model_description.txt 
+    I_Na_a  = g_Na_a  * m_a * m_a * m_a * h_a * (V_axon - V_Na)
+
+    m_inf_a   = 1 / (1 + (exp((-30 - V_axon)/ 5.5)))
+    h_inf_a   = 1 / (1 + (exp((-60 - V_axon)/-5.8)))
+    tau_h_a   =     1.5 * exp((-40 - V_axon)/33)
+
+  -->
+
+
+  <include href="ExpTime.nml"/>
+
+  
+<!--
+  <annotation>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+      <rdf:Description rdf:about="na_a">
+
+        <bqmodel:isDescribedBy xmlns:bqmodel="http://biomodels.net/model-qualifiers/">
+          <rdf:Bag>
+            <rdf:li>Parri HR, Crunelli V (1998) Sodium current in rat and cat thalamocortical neurons: Role of a non-inactivating component in tonic and burst firing. J Neurosci 18: 854–867. </rdf:li>
+            <rdf:li rdf:resource="http://www.ncbi.nlm.nih.gov/pubmed/9437007"/>
+          </rdf:Bag>
+        </bqmodel:isDescribedBy>
+
+        <bqbiol:isVersionOf xmlns:bqbiol="http://biomodels.net/biology-qualifiers/">
+          <rdf:Bag>
+            <rdf:li>Sodium channels</rdf:li>
+            <rdf:li rdf:resource="https://senselab.med.yale.edu/NeuronDB/channelGene2.aspx#table2"/>
+          </rdf:Bag>
+        </bqbiol:isVersionOf>
+
+      </rdf:Description>
+    </rdf:RDF>
+  </annotation>
+-->
+
+  <ionChannel id="na_a" type="ionChannelHH" conductance="10pS" species="na">
+
+    <gate type="gateHHInstantaneous" id="m" instances="3">
+      <steadyState type="HHSigmoidVariable" rate="1" midpoint="-30mV" scale="5.5mV"/>
+    </gate>
+
+    <gate type="gateHHtauInf" id="h" instances="1">
+      <timeCourse type="ExpTime" tau="1.5ms" midpoint="-40mV" scale="-33mV"/>
+      <steadyState type="HHSigmoidVariable" rate="1" midpoint="-60mV" scale="-5.8mV"/>
+    </gate>
+
+  </ionChannel>
+
+</neuroml>

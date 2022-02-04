@@ -1,0 +1,9 @@
+(arbor-component
+  (meta-data (version "0.1-dev"))
+  (decor
+    (paint (region "all") (density (mechanism "all")))
+    (default (ion-reversal-potential "na" 50))
+    (default (ion-reversal-potential "k" -77))
+    (default (membrane-capacitance 0.01))
+    (default (membrane-potential -65.4000015258789))
+    (default (axial-resistivity 29.999999329447746))))

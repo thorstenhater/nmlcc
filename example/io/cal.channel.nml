@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta2.xsd" id="cal">
+
+  <!-- 
+    ## from model_description.txt 
+
+    I_CaL = g_CaL * k * k * k * l * (V_soma - V_Ca)
+
+    k_inf = (1 / (1 + exp(-1 * (V_soma + 61)   / 4.2)))
+    l_inf = (1 / (1 + exp((     V_soma + 85.5) / 8.5)))
+    tau_k = 1
+    tau_l = ((20 * exp((V_soma + 160) / 30) / (1 + exp((V_soma + 84) / 7.3))) +35)
+
+  -->
+
+  <annotation>
+    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+      <rdf:Description rdf:about="cal">
+
+        <bqmodel:isDescribedBy xmlns:bqmodel="http://biomodels.net/model-qualifiers/">
+          <rdf:Bag>
+            <rdf:li>???</rdf:li>
+            <rdf:li rdf:resource=""/>
+          </rdf:Bag>
+        </bqmodel:isDescribedBy>
+
+        <bqbiol:isVersionOf xmlns:bqbiol="http://biomodels.net/biology-qualifiers/">
+          <rdf:Bag>
+            <rdf:li>Calcium channels</rdf:li>
+            <rdf:li rdf:resource="https://senselab.med.yale.edu/NeuronDB/channelGene2.aspx#table1"/>
+          </rdf:Bag>
+        </bqbiol:isVersionOf>
+
+      </rdf:Description>
+    </rdf:RDF>
+  </annotation>
+
+  <ionChannel id="cal" type="ionChannelHH" conductance="10pS" species="ca">
+
+    <gateHHtauInf id="k" instances="3">
+      <steadyState type="HHSigmoidVariable" rate="1" midpoint="-61mV" scale="4.2mV"/>
+      <timeCourse type="fixedTimeCourse" tau="1 ms"/>
+    </gateHHtauInf>
+
+    <gateHHtauInf id="l" instances="1">
+      <steadyState type="HHSigmoidVariable" rate="1" midpoint="-85.5mV" scale="-8.5mV"/>
+      <timeCourse type="CaL_tau" tau="3ms" midpoint="-40mV" scale="-33mV"/>
+    </gateHHtauInf>
+
+  </ionChannel>
+
+  <ComponentType name="CaL_tau" extends="baseVoltageDepTime">
+    <Constant name="TIME_SCALE" dimension="time" value="1 ms"/>
+    <Constant name="VOLT_SCALE" dimension="voltage" value="1 mV"/>
+    <Dynamics>
+      <DerivedVariable name="V" dimension="none" value="v / VOLT_SCALE"/>
+      <DerivedVariable name="t" exposure="t" value="TIME_SCALE*((20 * exp((V + 160) / 30) / (1 + exp((V + 84) / 7.3))) +35)" dimension="time"/>
+    </Dynamics>
+  </ComponentType>
+
+</neuroml>

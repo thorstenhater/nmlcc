@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 https://raw.github.com/NeuroML/NeuroML2/development/Schemas/NeuroML2/NeuroML_v2beta4.xsd" id="Kahp_pyr">
+
+
+    <ionChannel id="kca" conductance="10pS" type="ionChannelHH" species="k">
+                
+        <gate id="z" type="gateHHrates" instances="1">
+            <forwardRate type="kca_alpha"/>
+            <reverseRate type="kca_beta"/>
+        </gate>
+                            
+    </ionChannel>
+
+    <ComponentType name="kca_alpha" extends="baseVoltageConcDepRate">
+        <Constant name="TIME_SCALE" dimension="time" value="1 ms"/>
+        <Constant name="CONC_SCALE" dimension="concentration" value="1 mM"/>
+
+        <Dynamics>
+            <DerivedVariable name="ca_norm" dimension="none" value="0.00002 * caConc / CONC_SCALE"/>
+            <ConditionalDerivedVariable name="r" exposure="r" dimension="per_time">
+                <Case condition="ca_norm  .gt. 0.01" value="0.01 / TIME_SCALE"/>
+                <Case condition="ca_norm  .leq.  0.01" value="ca_norm / TIME_SCALE"/>
+            </ConditionalDerivedVariable>
+        </Dynamics>
+
+    </ComponentType>
+
+    <ComponentType name="kca_beta" extends="baseVoltageDepRate">
+        <Constant name="TIME_SCALE" dimension="time" value="1 ms"/>
+
+        <Dynamics>
+            <DerivedVariable name="r" exposure="r" dimension="per_time" value="0.015 / TIME_SCALE"/>
+        </Dynamics>
+
+    </ComponentType>
+
+</neuroml>
