@@ -1,6 +1,6 @@
-
-Note: This file also exists in Markdown format in this repo, generated at an
-unspecified point in time with =pandoc -f org -t gfm -o nml.md nml.org=.
+Note: This file also exists in Markdown format in this repo, generated
+at an unspecified point in time with
+`pandoc -f org -t gfm -o nml.md nml.org`.
 
 # Introduction
 

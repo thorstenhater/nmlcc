@@ -1,3 +1,7 @@
+Note: This file also exists in Markdown format in this repo, generated
+at an unspecified point in time with
+`pandoc -f org -t gfm -o README.md README.org`.
+
 # Introduction
 
 Compile NML2 definitions to data compatible with Arbor
@@ -74,7 +78,7 @@ favourite package manager.
 Then, clone this repo and try an example
 
 ``` shell
-git clone git@github.com:thorstenhater/nmlcc.git --recurse-submodules
+git clone git@github.com:thorstenhater/nmlcc.git
 cd nmlcc
 cargo run -- nmodl --type=ionChannelHH example/nml-simple-ion-channels.xml
 ```
