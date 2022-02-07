@@ -1,5 +1,7 @@
 #+TITLE: NeuroML2 From Whole Cloth
 
+
+
 * Introduction
 
 This document describes my current knowledge of NeuroML2 and in a way aims to

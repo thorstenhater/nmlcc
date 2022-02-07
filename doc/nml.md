@@ -1,3 +1,7 @@
+
+Note: This file also exists in Markdown format in this repo, generated at an
+unspecified point in time with =pandoc -f org -t gfm -o nml.md nml.org=.
+
 # Introduction
 
 This document describes my current knowledge of NeuroML2 and in a way
@@ -16,6 +20,8 @@ Despite its flaws, NeuroML2 is a valiant effort and an important feature
 to support.
 
 # NeuroML2 and LEMS
+
+**TL;DR**: NeuroML is a dialect of the LEMS format. All NeuroML is LEMS.
 
 Here I lay out the overall look and feel of NeuroML2, links to in-depth
 sections follow.
