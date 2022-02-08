@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use tracing::{info, trace};
 
 use crate::{
+    cps,
     error::Error,
     expr::{Expr, Quantity},
     instance::{Collapsed, Instance},
@@ -381,6 +382,10 @@ fn ion_species(coll: &Collapsed) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 
+fn nml_to_cps(roots: &[String], vars: &[Variable], known: &Set<String>) {
+
+}
+
 fn print_dependencies(roots: &[String], vars: &[Variable], known: &Set<String>) -> Result<String> {
     let mut result = Vec::new();
     let dependencies = find_dependencies(vars);
@@ -522,20 +527,130 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
         }
         _ => {}
     }
-    mk_nmodl(&Collapsed::from_instance(&instance)?.simplify(&filter))
+    mk_nmodl(&Collapsed::from_instance(&instance)?, &filter)
 }
 
-pub fn mk_nmodl(coll: &Collapsed) -> Result<String> {
+fn simplify(coll: &Collapsed, filter: &str) -> Collapsed {
+    // Remove parameters we do not need
+    let mut retain = Set::new();
+    for f in filter.split(',') {
+        if let Some(f) = f.strip_prefix('+') {
+            if f.ends_with('*') {
+                let keep = coll
+                    .parameters
+                    .keys()
+                    .filter(|p| p.starts_with(&f[..f.len() - 1]))
+                    .map(|p| p.to_string())
+                    .collect::<Set<_>>();
+                retain = retain.union(&keep).cloned().collect();
+            } else {
+                retain.insert(f.to_string());
+            }
+        } else if let Some(f) = f.strip_prefix('-') {
+            if f.ends_with('*') {
+                let keep = coll
+                    .parameters
+                    .keys()
+                    .filter(|p| p.starts_with(&f[..f.len() - 1]))
+                    .map(|p| p.to_string())
+                    .collect::<Set<_>>();
+                retain = retain.difference(&keep).cloned().collect();
+            } else {
+                retain.remove(&f.to_string());
+            }
+        } else {
+            panic!("Unknown filter kind: {}", f);
+        }
+    }
+
+    retain.extend(
+        coll.parameters
+            .iter()
+            .filter(|t| t.1.is_none())
+            .map(|t| t.0.clone()),
+    );
+    trace!("Retaining parameters {:?}", retain);
+
+    // Constant propagation
+    let mut prv = coll.clone();
+    loop {
+        let mut table: Map<String, Expr> = Map::new();
+
+        for (p, v) in &coll.parameters {
+            if !retain.contains(p) {
+                if let Some(Quantity { value, .. }) = v {
+                    table.insert(p.to_string(), Expr::F64(*value));
+                }
+            }
+        }
+
+        for (p, Quantity { value, .. }) in &coll.constants {
+            table.insert(p.to_string(), Expr::F64(*value));
+        }
+
+        for v in &prv.variables {
+            if let VarKind::Derived(cs, Some(k)) = &v.kind {
+                if cs.is_empty() && matches!(k, Expr::F64(_) | Expr::Var(_)) {
+                    table.insert(v.name.to_string(), k.clone());
+                }
+            }
+        }
+
+        let mut cur = prv.clone();
+        let splat = |v: &Expr| {
+            if let Expr::Var(n) = v {
+                if let Some(x) = table.get(n) {
+                    return x.clone();
+                }
+            }
+            v.clone()
+        };
+
+        for v in cur.variables.iter_mut() {
+            match &v.kind {
+                VarKind::State(i, d) => {
+                    let i = i.as_ref().map(|e| e.map(&splat).simplify());
+                    let d = d.as_ref().map(|e| e.map(&splat).simplify());
+                    v.kind = VarKind::State(i, d);
+                }
+                VarKind::Derived(cs, df) => {
+                    let cs = cs
+                        .iter()
+                        .map(|(c, e)| (c.map(&splat).simplify(), e.map(&splat).simplify()))
+                        .collect::<Vec<_>>();
+                    let df = df.as_ref().map(|e| e.map(&splat).simplify());
+                    v.kind = VarKind::Derived(cs, df);
+                }
+                _ => {}
+            }
+        }
+        if cur == prv {
+            break;
+        }
+        prv = cur;
+    }
+    prv.constants.clear();
+    prv.parameters = prv
+        .parameters
+        .into_iter()
+        .filter(|p| retain.contains(&p.0))
+        .collect();
+    prv
+}
+
+
+pub fn mk_nmodl(coll: &Collapsed, filter: &str) -> Result<String> {
+    let coll = simplify(coll, filter);
     let result = vec![
-        nmodl_neuron_block(coll)?,
-        nmodl_const_block(coll)?,
-        nmodl_param_block(coll)?,
-        nmodl_state_block(coll)?,
-        nmodl_init_block(coll)?,
-        nmodl_deriv_block(coll)?,
-        nmodl_break_block(coll)?,
-        nmodl_recv_block(coll)?,
-        nmodl_kinetic_block(coll)?,
+        nmodl_neuron_block(&coll)?,
+        nmodl_const_block(&coll)?,
+        nmodl_param_block(&coll)?,
+        nmodl_state_block(&coll)?,
+        nmodl_init_block(&coll)?,
+        nmodl_deriv_block(&coll)?,
+        nmodl_break_block(&coll)?,
+        nmodl_recv_block(&coll)?,
+        nmodl_kinetic_block(&coll)?,
     ];
     Ok(result.join(""))
 }

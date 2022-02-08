@@ -322,9 +322,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
             }
         }
 
-        // Simplify with none to keep and export
-        coll = coll.simplify("-*");
-        let nmodl = nmodl::mk_nmodl(&coll)?;
+        let nmodl = nmodl::mk_nmodl(&coll, "-*")?;
 
         let path = format!("{}/cat/{}-{}.mod", bundle, id, reg);
         info!(
