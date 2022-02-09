@@ -1,7 +1,3 @@
-Note: This file also exists in Markdown format in this repo, generated
-at an unspecified point in time with
-`pandoc -f org -t gfm -o README.md README.org`.
-
 # Introduction
 
 Compile NML2 definitions to data compatible with Arbor

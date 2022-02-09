@@ -21,7 +21,8 @@ to support.
 
 # NeuroML2 and LEMS
 
-**TL;DR**: NeuroML is a dialect of the LEMS format. All NeuroML is LEMS.
+**TL;DR**: NeuroML2 is a library of definitions written in LEMS, which
+is written in XML. All NeuroML2 is LEMS.
 
 Here I lay out the overall look and feel of NeuroML2, links to in-depth
 sections follow.
