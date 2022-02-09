@@ -1,20 +1,15 @@
 use std::collections::HashMap as Map;
-use std::collections::HashSet as Set;
 
 use roxmltree::Node;
 use tracing::{info, trace};
 
 use crate::{
-    error::Error,
+    error::nml2_error,
     expr::{Boolean, Expr, Match, Quantity},
     lems,
     variable::{SelectBy, VarKind, Variable},
     Result,
 };
-
-fn nml2_error<T: Into<String>>(what: T) -> Error {
-    Error::Nml { what: what.into() }
-}
 
 /// Kinetic scheme from components
 /// This does not hold any real data, just links and prefixes. The surrounding

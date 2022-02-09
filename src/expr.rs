@@ -45,12 +45,13 @@ impl Expr {
     }
 
     pub fn fold<T>(&self, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
+        f(self, acc);
         match self {
             Expr::Add(vs) => vs.iter().for_each(|v| v.fold(acc, f)),
             Expr::Mul(vs) => vs.iter().for_each(|v| v.fold(acc, f)),
             Expr::Pow(vs) => vs.iter().for_each(|v| v.fold(acc, f)),
             Expr::Exp(b) => b.fold(acc, f),
-            e => f(e, acc),
+            _ => {}
         }
     }
 
@@ -112,12 +113,76 @@ impl Expr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq)]
+pub enum Stmnt {
+    Ift(Boolean, Box<Stmnt>, Box<Stmnt>),
+    Ass(String, Expr),
+}
+
+impl Stmnt {
+    pub fn simplify(&self) -> Self {
+        match self {
+            Stmnt::Ass(s, e) => Stmnt::Ass(s.to_string(), e.simplify()),
+            Stmnt::Ift(c, t, e) => {
+                let c = c.simplify();
+                let t = t.simplify();
+                let e = e.simplify();
+                match c {
+                    Boolean::Lit(true) => t,
+                    Boolean::Lit(false) => e,
+                    _ => Stmnt::Ift(c, Box::new(t), Box::new(e)),
+                }
+            }
+        }
+    }
+
+    pub fn print_to_string(&self, ind: usize) -> String {
+        match self {
+            Stmnt::Ass(n, e) => {
+                format!("{:width$}{} = {}", "", n, e.print_to_string(), width = ind)
+            }
+            Stmnt::Ift(c, t, f) => format!(
+                "{:width$}if ({}) {{
+{}
+{:width$}}} else {{
+{}
+{:width$}}}",
+                " ",
+                c.print_to_string(),
+                t.print_to_string(ind + 2),
+                " ",
+                f.print_to_string(ind + 2),
+                " ",
+                width=ind
+            ),
+        }
+    }
+
+    pub fn map(&self, f: &impl Fn(&Expr) -> Expr) -> Stmnt {
+        match self {
+            Stmnt::Ass(s, e) => Stmnt::Ass(s.to_string(), e.map(f)),
+            Stmnt::Ift(c, t, e) => Stmnt::Ift(c.map(f), Box::new(t.map(f)), Box::new(e.map(f))),
+        }
+    }
+
+    pub fn fold<T>(&self, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
+        match self {
+            Stmnt::Ass(_, e) => e.fold(acc, f),
+            Stmnt::Ift(c, t, e) => {
+                c.fold(acc, f);
+                t.fold(acc, f);
+                e.fold(acc, f);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Op {
     And,
     Or,
 }
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum Cmp {
     Eq,
     Ne,
@@ -131,11 +196,13 @@ pub enum Cmp {
 pub enum Boolean {
     Op(Op, Box<Boolean>, Box<Boolean>),
     Cmp(Cmp, Box<Expr>, Box<Expr>),
+    Lit(bool),
 }
 
 impl Boolean {
     pub fn print_to_string(&self) -> String {
         match &self {
+            Boolean::Lit(b) => format!("{}", b),
             Boolean::Cmp(o, l, r) => {
                 let op = match o {
                     Cmp::Eq => "==",
@@ -166,15 +233,48 @@ impl Boolean {
     }
 
     pub fn simplify(&self) -> Self {
-        self.clone()
+        match self {
+            Boolean::Cmp(o, l, r) => {
+                let l = l.simplify();
+                let r = r.simplify();
+                match (&l, &r) {
+                    (Expr::F64(x), Expr::F64(y)) => {
+                        let r = match o {
+                            Cmp::Eq => x == y,
+                            Cmp::Ne => x != y,
+                            Cmp::Ge => x >= y,
+                            Cmp::Le => x <= y,
+                            Cmp::Gt => x > y,
+                            Cmp::Lt => x < y,
+                        };
+                        Boolean::Lit(r)
+                    }
+                    _ => Boolean::Cmp(*o, Box::new(l), Box::new(r)),
+                }
+            }
+            Boolean::Op(o, l, r) => {
+                let l = l.simplify();
+                let r = r.simplify();
+                match (&l, &r) {
+                    (Boolean::Lit(x), Boolean::Lit(y)) => {
+                        let r = match o {
+                            Op::And => *x && *y,
+                            Op::Or => *x || *y,
+                        };
+                        Boolean::Lit(r)
+                    }
+                    _ => Boolean::Op(*o, Box::new(l), Box::new(r)),
+                }
+            }
+            _ => self.clone(),
+        }
     }
 
     pub fn map(&self, f: &impl Fn(&Expr) -> Expr) -> Boolean {
         match self {
-            Boolean::Cmp(o, l, r) => {
-                Boolean::Cmp(o.clone(), Box::new(l.map(f)), Box::new(r.map(f)))
-            }
-            Boolean::Op(o, l, r) => Boolean::Op(o.clone(), Box::new(l.map(f)), Box::new(r.map(f))),
+            Boolean::Cmp(o, l, r) => Boolean::Cmp(*o, Box::new(l.map(f)), Box::new(r.map(f))),
+            Boolean::Op(o, l, r) => Boolean::Op(*o, Box::new(l.map(f)), Box::new(r.map(f))),
+            b => b.clone(),
         }
     }
 
@@ -188,6 +288,7 @@ impl Boolean {
                 l.fold(acc, f);
                 r.fold(acc, f);
             }
+            _ => {}
         }
     }
 }
