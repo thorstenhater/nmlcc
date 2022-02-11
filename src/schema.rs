@@ -1,5 +1,5 @@
 use roxmltree::{Document, Node, TextPos};
-use std::collections::HashMap as Map;
+use std::collections::BTreeMap as Map;
 use std::fs::File;
 use std::io::prelude::*;
 

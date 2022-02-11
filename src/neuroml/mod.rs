@@ -1,9 +1,11 @@
 use roxmltree::Node;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use tracing::trace;
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    Set,
+};
 
 pub mod raw;
 
@@ -15,7 +17,7 @@ where
     for nml in nmls {
         todo.push(PathBuf::from(&nml).canonicalize()?);
     }
-    let mut seen = HashSet::new();
+    let mut seen = Set::new();
     while let Some(nml) = todo.pop() {
         if seen.contains(&nml) {
             continue;

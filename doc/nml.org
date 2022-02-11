@@ -49,7 +49,8 @@ might look like this
   #+end_src
 - NML2 file
   #+begin_src xml
-  <ion_channel g="5 uS" />
+  <ion_channel id="ic1" g="5 uS"/>
+  <ion_channel id="ic2" g="42 uS"/>
   #+end_src
 
 The tag ~<ComponentType name="foo">~ introduces a new type, which can be
@@ -836,7 +837,6 @@ optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~
 - relevant tags:
   - =explicitInput= ::
   - =inputList= ::
-
 
 *** Example
 

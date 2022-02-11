@@ -1,21 +1,12 @@
-#![allow(soft_unstable)]
-
 use clap::{Parser, Subcommand};
-use lems::file::LemsFile;
 
-mod acc;
-mod bundle;
-mod error;
-mod expr;
-mod instance;
-mod lems;
-mod network;
-mod neuroml;
-mod nmodl;
-mod variable;
-mod xml;
-
-use error::Result;
+use nml2::{
+    acc, bundle,
+    error::Result,
+    lems::{self, file::LemsFile},
+    neuroml, nmodl,
+    xml::XML,
+};
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
@@ -35,7 +26,7 @@ struct Cli {
 enum Cmd {
     /// Export to NMODL
     Nmodl {
-        /// NeuroML2 compliant XML file
+        /// NeuroML2 compliant XML files
         nml: Vec<String>,
         /// Base class to extract, if not given, a list of known Dynamics base
         /// types will be tried, namely: baseSynapse, baseIonChannel
@@ -55,7 +46,7 @@ enum Cmd {
     },
     /// Export to Arbor Cable Cell format (.acc)
     Acc {
-        /// NeuroML2 compliant XML file
+        /// NeuroML2 compliant XML files
         nml: Vec<String>,
         /// Cell id to extract, if not given will visit _all_ cells.
         #[clap(short, long)]
@@ -67,7 +58,7 @@ enum Cmd {
     /// DWIM creation of an Arbor simulation template
     Bundle {
         /// NeuroML2 compliant XML file
-        nml: Vec<String>,
+        nml: String,
         /// Try to combine channels per segment group
         #[clap(short, long)]
         super_mechanisms: bool,
@@ -79,7 +70,7 @@ enum Cmd {
 fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
     neuroml::process_files(nml, |_, node| {
         if node.tag_name().name() == "ComponentType" {
-            let ct: lems::raw::ComponentType = xml::XML::from_node(node);
+            let ct: lems::raw::ComponentType = XML::from_node(node);
             lems.add_component_type(&ct)?;
         }
         Ok(())
@@ -112,8 +103,8 @@ fn main() -> Result<()> {
             dir,
             super_mechanisms,
         } => {
-            get_runtime_types(&mut lems, &nml)?;
-            bundle::export(&lems, &nml, &dir, super_mechanisms)?;
+            get_runtime_types(&mut lems, &[nml.to_string()])?;
+            bundle::export(&lems, &[nml], &dir, super_mechanisms)?;
         }
     }
     Ok(())

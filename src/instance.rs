@@ -1,20 +1,13 @@
-use std::collections::HashMap as Map;
-use std::collections::HashSet as Set;
-
 use roxmltree::Node;
 use tracing::{info, trace};
 
 use crate::{
-    error::Error,
+    error::{nml2_error, Result},
     expr::{Boolean, Expr, Match, Quantity},
     lems,
     variable::{SelectBy, VarKind, Variable},
-    Result,
+    Map, Set,
 };
-
-fn nml2_error<T: Into<String>>(what: T) -> Error {
-    Error::Nml { what: what.into() }
-}
 
 /// Kinetic scheme from components
 /// This does not hold any real data, just links and prefixes. The surrounding
@@ -147,6 +140,7 @@ pub struct Collapsed {
     pub events: Vec<(String, Expr)>,
     pub kinetic: Vec<Kinetic>,
     pub transitions: Vec<(String, String, String, String)>,
+    pub states: Vec<Set<String>>,
 }
 
 impl Collapsed {
@@ -161,6 +155,7 @@ impl Collapsed {
             events: Vec::new(),
             kinetic: Vec::new(),
             transitions: Vec::new(),
+            states: Vec::new(),
         }
     }
 
@@ -170,7 +165,8 @@ impl Collapsed {
 
     pub fn from_instance_with_name(inst: &Instance, use_name: bool) -> Result<Self> {
         use crate::expr::Path;
-        let mut coll = Self::from_instance_(inst, &Context::new(), None, use_name)?;
+        let mut coll = Self::from_instance_(inst, &Context::default(), None, use_name)?;
+        // Massage kinetic schemes
         for ks in &coll.kinetic {
             let Match(ps) = &ks.edge;
             let mut ix = 0;
@@ -234,7 +230,8 @@ impl Collapsed {
                     _ => unimplemented!(),
                 }
             }
-            for (pfx, node) in nodes {
+            let mut states = Set::new();
+            for (pfx, node) in &nodes {
                 // TODO This is a horrible hack and must be replaced by proper lookup
                 let mut qfx = Vec::new();
                 let Match(ref qs) = &ks.node;
@@ -247,24 +244,32 @@ impl Collapsed {
                 let qfx = qfx.join("_");
                 // TODO End of horrible hack
                 let pfx = pfx.join("_");
+                let from = format!(
+                    "{}_{}_{}",
+                    qfx,
+                    node.attributes.get("from").unwrap(),
+                    ks.state
+                );
+                let to = format!(
+                    "{}_{}_{}",
+                    qfx,
+                    node.attributes.get("to").unwrap(),
+                    ks.state
+                );
                 coll.transitions.push((
-                    format!(
-                        "{}_{}_{}",
-                        qfx,
-                        node.attributes.get("from").unwrap(),
-                        ks.state
-                    ),
-                    format!(
-                        "{}_{}_{}",
-                        qfx,
-                        node.attributes.get("to").unwrap(),
-                        ks.state
-                    ),
+                    from.clone(),
+                    to.clone(),
                     format!("{}_{}", pfx, ks.rfwd),
                     format!("{}_{}", pfx, ks.rbwd),
                 ));
+                states.insert(from);
+                states.insert(to);
             }
+            coll.states.push(states);
         }
+        // Eliminate fixed parameters
+        coll.parameters
+            .retain(|k, _| !coll.constants.contains_key(k));
         Ok(coll)
     }
 
@@ -408,124 +413,13 @@ impl Collapsed {
         self.events.extend(other.events.iter().cloned());
         Ok(())
     }
-
-    pub fn simplify(&self, filter: &str) -> Self {
-        // Remove parameters we do not need
-        let mut retain = Set::new();
-        for f in filter.split(',') {
-            if let Some(f) = f.strip_prefix('+') {
-                if f.ends_with('*') {
-                    let keep = self
-                        .parameters
-                        .keys()
-                        .filter(|p| p.starts_with(&f[..f.len() - 1]))
-                        .map(|p| p.to_string())
-                        .collect::<Set<_>>();
-                    retain = retain.union(&keep).cloned().collect();
-                } else {
-                    retain.insert(f.to_string());
-                }
-            } else if let Some(f) = f.strip_prefix('-') {
-                if f.ends_with('*') {
-                    let keep = self
-                        .parameters
-                        .keys()
-                        .filter(|p| p.starts_with(&f[..f.len() - 1]))
-                        .map(|p| p.to_string())
-                        .collect::<Set<_>>();
-                    retain = retain.difference(&keep).cloned().collect();
-                } else {
-                    retain.remove(&f.to_string());
-                }
-            } else {
-                panic!("Unknown filter kind: {}", f);
-            }
-        }
-
-        retain.extend(
-            self.parameters
-                .iter()
-                .filter(|t| t.1.is_none())
-                .map(|t| t.0.clone()),
-        );
-        trace!("Retaining parameters {:?}", retain);
-
-        // Constant propagation
-        let mut prv = self.clone();
-        loop {
-            let mut table: Map<String, Expr> = Map::new();
-
-            for (p, v) in &self.parameters {
-                if !retain.contains(p) {
-                    if let Some(Quantity { value, .. }) = v {
-                        table.insert(p.to_string(), Expr::F64(*value));
-                    }
-                }
-            }
-
-            for (p, Quantity { value, .. }) in &self.constants {
-                table.insert(p.to_string(), Expr::F64(*value));
-            }
-
-            for v in &prv.variables {
-                if let VarKind::Derived(cs, Some(k)) = &v.kind {
-                    if cs.is_empty() && matches!(k, Expr::F64(_) | Expr::Var(_)) {
-                        table.insert(v.name.to_string(), k.clone());
-                    }
-                }
-            }
-
-            let mut cur = prv.clone();
-            let splat = |v: &Expr| {
-                if let Expr::Var(n) = v {
-                    if let Some(x) = table.get(n) {
-                        return x.clone();
-                    }
-                }
-                v.clone()
-            };
-
-            for v in cur.variables.iter_mut() {
-                match &v.kind {
-                    VarKind::State(i, d) => {
-                        let i = i.as_ref().map(|e| e.map(&splat).simplify());
-                        let d = d.as_ref().map(|e| e.map(&splat).simplify());
-                        v.kind = VarKind::State(i, d);
-                    }
-                    VarKind::Derived(cs, df) => {
-                        let cs = cs
-                            .iter()
-                            .map(|(c, e)| (c.map(&splat).simplify(), e.map(&splat).simplify()))
-                            .collect::<Vec<_>>();
-                        let df = df.as_ref().map(|e| e.map(&splat).simplify());
-                        v.kind = VarKind::Derived(cs, df);
-                    }
-                    _ => {}
-                }
-            }
-            if cur == prv {
-                break;
-            }
-            prv = cur;
-        }
-        prv.constants.clear();
-        prv.parameters = prv
-            .parameters
-            .into_iter()
-            .filter(|p| retain.contains(&p.0))
-            .collect();
-        prv
-    }
 }
 
 /// Stacked contexts of local symbols
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Context(Vec<(String, Vec<String>)>);
 
 impl Context {
-    pub fn new() -> Self {
-        Context(Vec::new())
-    }
     fn enter(&mut self, name: &str, vars: &[String]) {
         self.0.push((name.to_string(), vars.to_vec()));
     }
@@ -685,9 +579,13 @@ impl ComponentType {
                 Link(t) => {
                     links.insert(t.name.to_string(), t.r#type.to_string());
                 }
+                Fixed(t) => {
+                    constants.insert(t.parameter.to_string(), Quantity::parse(&t.value)?);
+                }
                 b => trace!("Ignoring {:?}", b),
             }
         }
+
         Ok(Self {
             name,
             base,
