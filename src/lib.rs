@@ -1,4 +1,3 @@
-#![feature(backtrace)]
 #![allow(soft_unstable)]
 
 use std::collections::BTreeMap as Map;
