@@ -31,6 +31,7 @@ pub enum Expr {
     Pow(Vec<Expr>),
     // Builtin Functions
     Exp(Box<Expr>),
+    Sqrt(Box<Expr>),
 }
 
 impl Expr {
@@ -40,6 +41,7 @@ impl Expr {
             Expr::Mul(vs) => Expr::Mul(vs.iter().map(|v| v.map(f)).collect()),
             Expr::Pow(vs) => Expr::Pow(vs.iter().map(|v| v.map(f)).collect()),
             Expr::Exp(b) => Expr::Exp(Box::new(b.map(f))),
+            Expr::Sqrt(b) => Expr::Sqrt(Box::new(b.map(f))),
             e => f(e),
         }
     }
@@ -51,6 +53,7 @@ impl Expr {
             Expr::Mul(vs) => vs.iter().for_each(|v| v.fold(acc, f)),
             Expr::Pow(vs) => vs.iter().for_each(|v| v.fold(acc, f)),
             Expr::Exp(b) => b.fold(acc, f),
+            Expr::Sqrt(b) => b.fold(acc, f),
             _ => {}
         }
     }
@@ -68,6 +71,7 @@ impl Expr {
             Expr::F64(x) => format!("{}", x),
             Expr::Var(x) => x.to_string(),
             Expr::Exp(x) => format!("exp({})", x.print_to_string()),
+            Expr::Sqrt(x) => format!("Sqrt({})", x.print_to_string()),
             Expr::Add(xs) => xs
                 .iter()
                 .map(|x| x.print_to_string())
@@ -104,6 +108,7 @@ impl Expr {
                 Expr::Add(vs) => simplify_add(vs),
                 Expr::Mul(vs) => simplify_mul(vs),
                 Expr::Exp(vs) => simplify_exp(vs),
+                Expr::Sqrt(vs) => simplify_sqrt(vs),
                 e => e.clone(),
             };
             done = old == new;
@@ -435,9 +440,14 @@ mod parse {
         Ok((input, Expr::Exp(Box::new(e))))
     }
 
+    fn sqrt(input: &str) -> IResult<&str, Expr> {
+        let (input, e) = preceded(tag("sqrt"), parenthised)(input)?;
+        Ok((input, Expr::Exp(Box::new(e))))
+    }
+
     fn atom(input: &str) -> IResult<&str, Expr> {
         let (input, sign) = opt(delimited(space0, tag("-"), space0))(input)?;
-        let (input, result) = delimited(space0, alt((parenthised, exp, lit, var)), space0)(input)?;
+        let (input, result) = delimited(space0, alt((parenthised, exp, sqrt, lit, var)), space0)(input)?;
         if sign.is_some() {
             Ok((input, Expr::Mul(vec![Expr::F64(-1.0), result])))
         } else {
@@ -683,6 +693,15 @@ fn simplify_exp(es: &Expr) -> Expr {
         Expr::F64(x.exp())
     } else {
         Expr::Exp(Box::new(xs))
+    }
+}
+
+fn simplify_sqrt(es: &Expr) -> Expr {
+    let xs = es.simplify();
+    if let Expr::F64(x) = xs {
+        Expr::F64(x.exp())
+    } else {
+        Expr::Sqrt(Box::new(xs))
     }
 }
 

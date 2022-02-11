@@ -36,7 +36,7 @@ pub struct Nmodl {
     /// Settable parameters, with optional defaults
     parameters: Map<String, Option<Quantity>>,
     /// State variables
-    state: Vec<String>,
+    state: Set<String>,
     /// State initialisation
     init: Map<String, Stmnt>,
     /// State derivatives
@@ -105,7 +105,7 @@ impl Nmodl {
             .iter()
             .map(|(k, e)| (k.to_string(), Stmnt::Ass(k.to_string(), e.clone())))
             .collect();
-        let mut state = Vec::new();
+        let mut state = Set::new();
         let mut init = Map::new();
         let mut deriv = Map::new();
         let mut variables = Map::new();
@@ -113,7 +113,7 @@ impl Nmodl {
         for var in &coll.variables {
             let nm = var.name.to_string();
             if let VarKind::State(i, d) = &var.kind {
-                state.push(var.name.clone());
+                state.insert(var.name.clone());
                 if let Some(i) = i {
                     init.insert(nm.to_string(), Stmnt::Ass(nm.clone(), i.clone()));
                 }
@@ -242,6 +242,7 @@ impl Nmodl {
 
         let mut symbols: Set<_> = [
             String::from("v"),
+            String::from("area"),
             String::from("v_peer"),
             String::from("cai"),
         ]
@@ -297,6 +298,13 @@ impl Nmodl {
         }
         simplify(&mut self.outputs, &mut self.fixed, &self.keep);
     }
+    pub fn add_initials(&mut self, rhs: &Map<String, Stmnt>) {
+        for (k, v) in rhs {
+            self.init.insert(k.clone(), v.clone());
+            self.keep.insert(k.clone());
+        }
+        simplify(&mut self.init, &mut self.fixed, &self.keep);
+    }
 }
 
 pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
@@ -316,7 +324,7 @@ pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
 
 fn nmodl_state_block(n: &Nmodl) -> Result<String> {
     if !n.state.is_empty() {
-        Ok(format!("STATE {{ {} }}\n\n", n.state.join(" ")))
+        Ok(format!("STATE {{ {} }}\n\n", n.state.iter().cloned().collect::<Vec<_>>().join(" ")))
     } else {
         Ok(String::new())
     }
@@ -481,7 +489,7 @@ fn nmodl_kinetic_block(n: &Nmodl) -> Result<String> {
         let row = row.iter().cloned().collect::<Vec<_>>().join(" + ");
         result.push_str(&format!("  CONSERVE {} = 1\n", row));
     }
-    result.push_str("}\n");
+    result.push_str("}\n\n");
     Ok(result)
 }
 
@@ -555,7 +563,7 @@ fn nmodl_recv_block(n: &Nmodl) -> Result<String> {
         let result = vec![
             String::from("NET_RECEIVE(weight) {"),
             evts,
-            String::from("}\n"),
+            String::from("}\n\n"),
         ];
         Ok(result.join("\n"))
     } else {
@@ -568,6 +576,8 @@ fn ion_species(coll: &Collapsed) -> Vec<String> {
         .iter()
         .filter_map(|(k, v)| {
             if k.ends_with("species") {
+                Some(v.as_deref().unwrap_or_default().to_string())
+            } else if k == "ion" {
                 Some(v.as_deref().unwrap_or_default().to_string())
             } else {
                 None
@@ -681,7 +691,9 @@ fn print_dependency_chains(
 }
 
 pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
+    eprintln!("Hay");
     match instance.component_type.name.as_ref() {
+        // TODO(TH): We should really scan for the base class of instance here
         "gapJunction" => {
             let mut filter = filter.to_string();
             let mut instance = instance.clone();
@@ -714,7 +726,6 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
                 filter.push(',');
             }
             filter.push_str("+conductance");
-            // TODO non-specific ions need an extra parameter e
             if instance
                 .attributes
                 .keys()
@@ -750,7 +761,49 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
             n.kind = Kind::Density;
             mk_nmodl(&n)
         }
-        // TODO(TH, robustness): concluding a synapse here is shaky. However. Below we filter on basechannel/basesynapse, so it might be ok?!
+        "decayingPoolConcentrationModel" | "fixedFactorConcentrationModel" => {
+            let filter = filter.to_string();
+            let instance = instance.clone();
+            let coll = Collapsed::from_instance(&instance)?;
+            let ion = coll.attributes.get("ion").unwrap().as_deref().unwrap();
+            let mut n = Nmodl::from(&coll, &filter)?;
+            let xi = format!("{}i", ion);
+            let xo = format!("{}o", ion);
+            let ix = format!("i{}", ion);
+            let ic = String::from("concentration");
+            let ec = String::from("extConcentration");
+            let mut os = Map::new();
+            os.insert(xi.clone(), Stmnt::Ass(xi.clone(), Expr::Var(ic.clone())));
+            os.insert(xo.clone(), Stmnt::Ass(xo.clone(), Expr::Var(ec.clone())));
+            n.add_outputs(&os);
+            let mut is = Map::new();
+            is.insert(ic.clone(), Stmnt::Ass(ic.clone(), Expr::Var(xi.clone())));
+            is.insert(ec.clone(), Stmnt::Ass(ec.clone(), Expr::Var(xo.clone())));
+            n.add_initials(&is);
+            // Map variables iCa -> iX to compensate for NML2 mistakes
+            let fix = |ex: &Expr| -> Expr {
+                match ex {
+                    Expr::Var(x) if x == "iCa" => Expr::Var(ix.clone()),
+                    Expr::Var(x) if x == "surfaceArea" => Expr::Var("area".to_string()),
+                    _ => ex.clone(),
+                }
+            };
+            for stm in n.variables.values_mut() {
+                *stm = stm.map(&fix);
+            }
+            for stm in n.deriv.values_mut() {
+                *stm = stm.map(&fix);
+            }
+            for stm in n.init.values_mut() {
+                *stm = stm.map(&fix);
+            }
+            for stm in n.outputs.values_mut() {
+                *stm = stm.map(&fix);
+            }
+            // FIXME: Scan
+            mk_nmodl(&n)
+        }
+        // TODO(TH, robustness): concluding a synapse here is shaky. However. Below we filter on baseChannel/baseSynapse
         _ => {
             let filter = filter.to_string();
             let instance = instance.clone();
@@ -819,7 +872,7 @@ pub fn export(
     let tys = if let Some(ty) = ty {
         vec![*ty]
     } else {
-        vec!["baseIonChannel", "baseSynapse"]
+        vec!["baseIonChannel", "baseSynapse", "concentrationModel"]
     };
     process_files(nml, |_, node| {
         let tag = node.tag_name().name();
