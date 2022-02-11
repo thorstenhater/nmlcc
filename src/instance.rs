@@ -1,5 +1,3 @@
-use std::collections::HashMap as Map;
-
 use roxmltree::Node;
 use tracing::{info, trace};
 
@@ -8,7 +6,7 @@ use crate::{
     expr::{Boolean, Expr, Match, Quantity},
     lems,
     variable::{SelectBy, VarKind, Variable},
-    Result,
+    Map, Result, Set,
 };
 
 /// Kinetic scheme from components
@@ -142,6 +140,7 @@ pub struct Collapsed {
     pub events: Vec<(String, Expr)>,
     pub kinetic: Vec<Kinetic>,
     pub transitions: Vec<(String, String, String, String)>,
+    pub states: Vec<Set<String>>,
 }
 
 impl Collapsed {
@@ -156,6 +155,7 @@ impl Collapsed {
             events: Vec::new(),
             kinetic: Vec::new(),
             transitions: Vec::new(),
+            states: Vec::new(),
         }
     }
 
@@ -166,6 +166,7 @@ impl Collapsed {
     pub fn from_instance_with_name(inst: &Instance, use_name: bool) -> Result<Self> {
         use crate::expr::Path;
         let mut coll = Self::from_instance_(inst, &Context::new(), None, use_name)?;
+        // Massage kinetic schemes
         for ks in &coll.kinetic {
             let Match(ps) = &ks.edge;
             let mut ix = 0;
@@ -229,7 +230,8 @@ impl Collapsed {
                     _ => unimplemented!(),
                 }
             }
-            for (pfx, node) in nodes {
+            let mut states = Set::new();
+            for (pfx, node) in &nodes {
                 // TODO This is a horrible hack and must be replaced by proper lookup
                 let mut qfx = Vec::new();
                 let Match(ref qs) = &ks.node;
@@ -242,24 +244,32 @@ impl Collapsed {
                 let qfx = qfx.join("_");
                 // TODO End of horrible hack
                 let pfx = pfx.join("_");
+                let from = format!(
+                    "{}_{}_{}",
+                    qfx,
+                    node.attributes.get("from").unwrap(),
+                    ks.state
+                );
+                let to = format!(
+                    "{}_{}_{}",
+                    qfx,
+                    node.attributes.get("to").unwrap(),
+                    ks.state
+                );
                 coll.transitions.push((
-                    format!(
-                        "{}_{}_{}",
-                        qfx,
-                        node.attributes.get("from").unwrap(),
-                        ks.state
-                    ),
-                    format!(
-                        "{}_{}_{}",
-                        qfx,
-                        node.attributes.get("to").unwrap(),
-                        ks.state
-                    ),
+                    from.clone(),
+                    to.clone(),
                     format!("{}_{}", pfx, ks.rfwd),
                     format!("{}_{}", pfx, ks.rbwd),
                 ));
+                states.insert(from);
+                states.insert(to);
             }
+            coll.states.push(states);
         }
+        // Eliminate fixed parameters
+        coll.parameters
+            .retain(|k, _| !coll.constants.contains_key(k));
         Ok(coll)
     }
 
@@ -572,9 +582,13 @@ impl ComponentType {
                 Link(t) => {
                     links.insert(t.name.to_string(), t.r#type.to_string());
                 }
+                Fixed(t) => {
+                    constants.insert(t.parameter.to_string(), Quantity::parse(&t.value)?);
+                }
                 b => trace!("Ignoring {:?}", b),
             }
         }
+
         Ok(Self {
             name,
             base,

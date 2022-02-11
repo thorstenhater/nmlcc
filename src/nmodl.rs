@@ -1,5 +1,3 @@
-use std::collections::HashMap as Map;
-use std::collections::HashSet as Set;
 use std::fs::write;
 use std::path::PathBuf;
 use tracing::{info, trace, warn};
@@ -10,16 +8,25 @@ use crate::{
     instance::{Collapsed, Instance},
     lems::file::LemsFile,
     neuroml::process_files,
-    variable::{VarKind, Variable},
-    Result,
+    variable::VarKind,
+    Map, Result, Set,
 };
 
 fn nmodl_error<T: Into<String>>(what: T) -> Error {
     Error::Nmodl { what: what.into() }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Kind {
+    Density,
+    Point,
+    Junction,
+}
+
 #[derive(Debug, Clone)]
-struct Nmodl {
+pub struct Nmodl {
+    /// Kind
+    pub kind: Kind,
     /// Suffix
     suffix: String,
     /// Declared (but undefined) variables
@@ -34,16 +41,21 @@ struct Nmodl {
     init: Map<String, Stmnt>,
     /// State derivatives
     deriv: Map<String, Stmnt>,
+    /// Output for BREAK block
+    pub outputs: Map<String, Stmnt>,
     /// Variables
-    variables: Map<String, Stmnt>,
-    /// Ionic species we write currents for
+    pub variables: Map<String, Stmnt>,
+    /// Ionic species
     species: Vec<String>,
-    /// Actual current assignments
-    currents:  Map<String, Stmnt>,
     /// Transition matrix
     transitions: Vec<(String, String, String, String)>,
     /// Event processing
-    events: Vec<(String, Expr)>,
+    events: Map<String, Stmnt>,
+    /// Kinetic system transition rates
+    rates: Map<String, Stmnt>,
+    states: Vec<Set<String>>,
+    fixed: Map<String, Expr>,
+    keep: Set<String>,
 }
 
 fn apply_filter(filter: &str, keys: &Set<String>) -> Set<String> {
@@ -79,20 +91,25 @@ fn apply_filter(filter: &str, keys: &Set<String>) -> Set<String> {
 }
 
 impl Nmodl {
-    fn from(coll: &Collapsed, filter: &str) -> Result<Self> {
+    pub fn from(coll: &Collapsed, filter: &str) -> Result<Self> {
+        let kind = Kind::Density;
         let suffix = coll
             .name
             .as_deref()
             .ok_or_else(|| nml2_error("Unnamed channel."))?
             .to_string();
         let species = ion_species(coll);
-        let events = coll.events.clone();
-        let transitions = coll.transitions.clone();
-
+        let mut outputs = Map::new();
+        let mut events: Map<String, Stmnt> = coll
+            .events
+            .iter()
+            .map(|(k, e)| (k.to_string(), Stmnt::Ass(k.to_string(), e.clone())))
+            .collect();
         let mut state = Vec::new();
         let mut init = Map::new();
         let mut deriv = Map::new();
         let mut variables = Map::new();
+        let mut rates = Map::new();
         for var in &coll.variables {
             let nm = var.name.to_string();
             if let VarKind::State(i, d) = &var.kind {
@@ -154,18 +171,74 @@ impl Nmodl {
             }
         }
 
-        let mut currents = Map::new();
-        for ion in &species {
-            let ik = format!("i{}", ion);
-            let ix = Expr::parse(&format!("g*(v - e{})", ion)).unwrap();
-            currents.insert(ik.clone(), Stmnt::Ass(ik, ix));
-            let ki = format!("{}conc", ion);
-            let xi = Expr::Var(format!("{}i", ion));
-            variables.insert(ki.clone(), Stmnt::Ass(ki, xi));
+        let mut table = Map::new();
+        for (from, to, fwd, bwd) in &coll.transitions {
+            // Swap if needed, since rates are symmetric
+            let (key, fwd, bwd) = if from > to {
+                ((from, to), fwd, bwd)
+            } else {
+                ((to, from), bwd, fwd)
+            };
+            let fwd = Expr::parse(fwd)?;
+            let bwd = Expr::parse(bwd)?;
+            // Rates are additive
+            table
+                .entry(key)
+                .and_modify(|(f, b): &mut (Expr, Expr)| {
+                    *f = Expr::Add(vec![fwd.clone(), f.clone()]).simplify();
+                    *b = Expr::Add(vec![bwd.clone(), b.clone()]).simplify();
+                })
+                .or_insert((fwd, bwd));
         }
-        variables.insert(String::from("caConc"), Stmnt::Ass(String::from("caConc"), Expr::Var(String::from("cai"))));
+        let mut transitions = Vec::new();
+        for ((from, to), (fwd, bwd)) in table.into_iter() {
+            let pfx = from
+                .chars()
+                .zip(to.chars())
+                .take_while(|(a, b)| a == b)
+                .map(|t| t.0)
+                .collect::<String>();
+            let f = from.strip_prefix(&pfx).unwrap_or(from);
+            let t = to.strip_prefix(&pfx).unwrap_or(to);
+            let fname = format!("{}{}_to_{}", pfx, f, t);
+            let bname = format!("{}{}_to_{}", pfx, t, f);
+            let fwd = Stmnt::Ass(fname.clone(), fwd);
+            let bwd = Stmnt::Ass(bname.clone(), bwd);
+            rates.insert(fname.clone(), bwd.clone());
+            rates.insert(bname.clone(), fwd.clone());
+            transitions.push((
+                from.to_string(),
+                to.to_string(),
+                fname.to_string(),
+                bname.to_string(),
+            ));
+        }
 
-        variables = simplify(&variables, &fixed);
+        variables.insert(
+            String::from("caConc"),
+            Stmnt::Ass(String::from("caConc"), Expr::Var(String::from("cai"))),
+        );
+        variables.insert(
+            String::from("vpeer"),
+            Stmnt::Ass(String::from("vpeer"), Expr::Var(String::from("v_peer"))),
+        );
+
+        let keep = outputs
+            .keys()
+            .chain(outputs.keys())
+            .chain(deriv.keys())
+            .chain(init.keys())
+            .chain(events.keys())
+            .chain(rates.keys())
+            .cloned()
+            .collect();
+
+        simplify(&mut variables, &mut fixed, &keep);
+        simplify(&mut outputs, &mut fixed, &keep);
+        simplify(&mut init, &mut fixed, &keep);
+        simplify(&mut deriv, &mut fixed, &keep);
+        simplify(&mut events, &mut fixed, &keep);
+        simplify(&mut rates, &mut fixed, &keep);
 
         let mut symbols: Set<_> = [
             String::from("v"),
@@ -175,16 +248,21 @@ impl Nmodl {
         .into_iter()
         .collect();
         for ion in &species {
-            symbols.insert(format!("e{}", ion));
-            symbols.insert(format!("i{}", ion));
-            symbols.insert(format!("{}i", ion));
-            symbols.insert(format!("{}o", ion));
+            if !ion.is_empty() {
+                symbols.insert(format!("e{}", ion));
+                symbols.insert(format!("i{}", ion));
+                symbols.insert(format!("{}i", ion));
+                symbols.insert(format!("{}o", ion));
+            }
         }
         symbols.extend(parameters.iter().map(|p: (&String, _)| p.0.to_string()));
         symbols.extend(constants.iter().map(|p: (&String, _)| p.0.to_string()));
         symbols.extend(state.iter().cloned());
 
+        let states = coll.states.clone();
+
         Ok(Nmodl {
+            kind,
             suffix,
             symbols,
             constants,
@@ -194,27 +272,46 @@ impl Nmodl {
             deriv,
             variables,
             species,
-            currents,
+            outputs,
             events,
+            rates,
             transitions,
+            states,
+            fixed,
+            keep,
         })
+    }
+
+    pub fn add_variables(&mut self, rhs: &Map<String, Stmnt>) {
+        for (k, v) in rhs {
+            self.variables.insert(k.clone(), v.clone());
+            self.keep.insert(k.clone());
+        }
+        simplify(&mut self.variables, &mut self.fixed, &self.keep);
+    }
+
+    pub fn add_outputs(&mut self, rhs: &Map<String, Stmnt>) {
+        for (k, v) in rhs {
+            self.outputs.insert(k.clone(), v.clone());
+            self.keep.insert(k.clone());
+        }
+        simplify(&mut self.outputs, &mut self.fixed, &self.keep);
     }
 }
 
-pub fn mk_nmodl(coll: &Collapsed, filter: &str) -> Result<String> {
-    let n = Nmodl::from(coll, filter)?;
-    let result = vec![
-        nmodl_neuron_block(&n)?,
-        nmodl_const_block(&n)?,
-        nmodl_param_block(&n)?,
-        nmodl_state_block(&n)?,
-        nmodl_init_block(&n)?,
-        nmodl_deriv_block(&n)?,
-        nmodl_break_block(&n)?,
-        nmodl_recv_block(&n)?,
-        nmodl_kinetic_block(&n)?,
-    ];
-    Ok(result.join(""))
+pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
+    Ok(vec![
+        nmodl_neuron_block(n)?,
+        nmodl_const_block(n)?,
+        nmodl_param_block(n)?,
+        nmodl_state_block(n)?,
+        nmodl_init_block(n)?,
+        nmodl_deriv_block(n)?,
+        nmodl_break_block(n)?,
+        nmodl_recv_block(n)?,
+        nmodl_kinetic_block(n)?,
+    ]
+    .join(""))
 }
 
 fn nmodl_state_block(n: &Nmodl) -> Result<String> {
@@ -226,7 +323,7 @@ fn nmodl_state_block(n: &Nmodl) -> Result<String> {
 }
 
 fn nmodl_init_block(n: &Nmodl) -> Result<String> {
-    if n.init.is_empty() {
+    if n.init.is_empty() && n.transitions.is_empty() {
         return Ok(String::new());
     }
     let vars = n
@@ -242,12 +339,18 @@ fn nmodl_init_block(n: &Nmodl) -> Result<String> {
         .map(|s| s.print_to_string(2))
         .collect::<Vec<String>>()
         .join("\n");
-    let result = vec![
+    let mut result = vec![
         String::from("INITIAL {"),
         print_dependency_chains(&roots, &vars, &n.symbols)?,
         init,
+        if !n.transitions.is_empty() {
+            String::from("  SOLVE scheme STEADYSTATE sparse")
+        } else {
+            String::new()
+        },
         String::from("}\n\n"),
     ];
+    result.retain(|s| !s.is_empty());
     Ok(result.join("\n"))
 }
 
@@ -262,19 +365,18 @@ fn nmodl_deriv_block(n: &Nmodl) -> Result<String> {
         .chain(n.deriv.iter())
         .map(|(a, b)| (a.clone(), b.clone()))
         .collect::<Map<String, Stmnt>>();
-    let deriv = n
-        .deriv
-        .values()
-        .map(|s| s.print_to_string(2))
-        .collect::<Vec<String>>()
-        .join("\n");
-    let result = vec![
-        String::from("DERIVATIVE dstate {"),
-        print_dependency_chains(&roots, &vars, &n.symbols)?,
-        deriv,
-        String::from("}\n\n"),
-    ];
-    Ok(result.join("\n"))
+    let mut result = String::from("DERIVATIVE dstate {\n");
+    let ls = print_dependency_chains(&roots, &vars, &n.symbols)?;
+    if !ls.is_empty() {
+        result.push_str(&ls);
+        result.push('\n');
+    }
+    for d in n.deriv.values() {
+        result.push_str(&d.print_to_string(2));
+        result.push('\n');
+    }
+    result.push_str("}\n\n");
+    Ok(result)
 }
 
 fn nmodl_break_block(n: &Nmodl) -> Result<String> {
@@ -292,23 +394,20 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
     let vars = n
         .variables
         .iter()
-        .chain(n.currents.iter())
+        .chain(n.outputs.iter())
         .map(|(a, b)| (a.clone(), b.clone()))
         .collect::<Map<String, Stmnt>>();
-    let roots = n.currents.keys().cloned().collect::<Vec<String>>();
+    let roots = n.outputs.keys().cloned().collect::<Vec<String>>();
     let currents = n
-        .currents
+        .outputs
         .values()
         .map(|s| s.print_to_string(2))
         .collect::<Vec<String>>()
         .join("\n");
-
-
-    result.push(print_dependency_chains(
-        &roots,
-        &vars,
-        &n.symbols,
-    )?);
+    let deps = print_dependency_chains(&roots, &vars, &n.symbols)?;
+    if !deps.is_empty() {
+        result.push(deps);
+    }
     result.push(currents);
     result.push(String::from("}\n\n"));
     Ok(result.join("\n"))
@@ -354,99 +453,88 @@ fn nmodl_kinetic_block(n: &Nmodl) -> Result<String> {
         return Ok(String::new());
     }
 
-    let mut transitions = Map::new();
-    for (from, to, fwd, bwd) in &n.transitions {
-        if from > to {
-            transitions
-                .entry((from, to))
-                .and_modify(|t: &mut (Expr, Expr)| {
-                    *t = (
-                        Expr::Add(vec![Expr::parse(fwd).unwrap(), t.0.clone()]).simplify(),
-                        Expr::Add(vec![Expr::parse(bwd).unwrap(), t.1.clone()]).simplify(),
-                    )
-                })
-                .or_insert((Expr::parse(fwd).unwrap(), Expr::parse(bwd).unwrap()));
-        } else {
-            transitions
-                .entry((to, from))
-                .and_modify(|t: &mut (Expr, Expr)| {
-                    *t = (
-                        Expr::Add(vec![Expr::parse(bwd).unwrap(), t.0.clone()]).simplify(),
-                        Expr::Add(vec![Expr::parse(fwd).unwrap(), t.1.clone()]).simplify(),
-                    )
-                })
-                .or_insert((Expr::parse(bwd).unwrap(), Expr::parse(fwd).unwrap()));
-        }
+    let vars = n
+        .variables
+        .iter()
+        .chain(n.rates.iter())
+        .map(|(a, b)| (a.clone(), b.clone()))
+        .collect::<Map<String, Stmnt>>();
+
+    let locals = n.rates.keys().cloned().collect::<Vec<_>>();
+    let mut result = String::from("KINETIC scheme {\n");
+    if !locals.is_empty() {
+        result.push_str(&format!("LOCAL {}\n", locals.join(", ")));
     }
-
-    let mut vars = n.variables.clone();
-    let mut table = Vec::new();
-    let mut depds = Vec::new();
-    let mut locals = Vec::new();
-    for ((from, to), (fwd, bwd)) in transitions.into_iter() {
-        let pfx = from
-            .chars()
-            .zip(to.chars())
-            .take_while(|(a, b)| a == b)
-            .map(|t| t.0)
-            .collect::<String>();
-        let f = from.strip_prefix(&pfx).unwrap_or(from);
-        let t = to.strip_prefix(&pfx).unwrap_or(to);
-        let fname = format!("{}{}_to_{}", pfx, f, t);
-        let bname = format!("{}{}_to_{}", pfx, t, f);
-
-
-        eprintln!("{} {} {:?} {:?}", from, to, fwd, bwd);
-        eprintln!("{} = {:?}", fname, fwd);
-
-        let fwd = Stmnt::Ass(fname.clone(), fwd);
-        let bwd = Stmnt::Ass(bname.clone(), bwd);
-        locals.push(fname.clone());
-        locals.push(bname.clone());
-        vars.insert(fname.clone(), bwd.clone());
-        vars.insert(bname.clone(), fwd.clone());
-        table.push(format!("  ~ {} <-> {} ({}, {})", from, to, fname, bname));
-        depds.push(fwd);
-        depds.push(bwd);
+    let ch = print_dependency_chains(&locals, &vars, &n.symbols)?;
+    if !ch.is_empty() {
+        result.push_str(&ch);
+        result.push('\n');
     }
-
-    eprintln!("Key {:?}", vars.keys());
-
-    let result = format!(
-        "KINETIC scheme {{
-  LOCAL {}
-{}
-
-{}
-}}
-
-",
-        locals.join(", "),
-        print_dependency_chains(&locals, &vars, &n.symbols)?,
-        table.join("\n")
-    );
+    for rate in &n.rates {
+        result.push_str(&rate.1.print_to_string(2));
+        result.push('\n');
+    }
+    for (f, t, rf, rt) in &n.transitions {
+        result.push_str(&format!("  ~ {} <-> {} ({}, {})\n", f, t, rf, rt));
+    }
+    for row in &n.states {
+        let row = row.iter().cloned().collect::<Vec<_>>().join(" + ");
+        result.push_str(&format!("  CONSERVE {} = 1\n", row));
+    }
+    result.push_str("}\n");
     Ok(result)
 }
 
 fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
+    let kind = match &n.kind {
+        Kind::Density => "SUFFIX",
+        Kind::Point => "POINT_PROCESS",
+        Kind::Junction => "JUNCTION",
+    };
     let mut result = vec![
         String::from("NEURON {\n"),
-        format!("  SUFFIX {}\n", n.suffix),
+        format!("  {} {}\n", kind, n.suffix),
     ];
-    // TODO actually _scan_ the ion use here
-    for ion in &n.species {
-        let current = if ion.is_empty() {
-            String::from("  NONSPECIFIC_CURRENT i\n")
-        } else {
-            format!(
-                "  USEION {ion} READ e{ion}, {ion}i WRITE i{ion}\n",
-                ion = ion
-            )
-        };
-        result.push(current);
+    let mut read = Set::new();
+    for roots in &[&n.outputs, &n.init, &n.rates, &n.deriv] {
+        for v in find_dependencies(roots).values() {
+            read.extend(v.iter().cloned());
+        }
     }
-    if !n.species.contains(&String::from("ca")) {
-        result.push(String::from("  USEION ca READ cai\n"));
+    let write = n.outputs.keys().collect::<Set<_>>();
+
+    let mut ions = n.species.iter().cloned().collect::<Set<_>>();
+    ions.insert(String::from("ca"));
+
+    if write.contains(&String::from("i"))
+        && (ions.contains(&String::new()) || n.kind == Kind::Junction || n.kind == Kind::Point)
+    {
+        result.push(String::from("  NONSPECIFIC_CURRENT i\n"));
+    }
+
+    for ion in ions {
+        if !ion.is_empty() {
+            let w = if write.contains(&format!("i{}", ion)) {
+                format!(" WRITE i{}", ion)
+            } else {
+                String::new()
+            };
+            let mut r = vec![
+                format!("{}i", ion),
+                format!("i{}", ion),
+                format!("{}o", ion),
+                format!("e{}", ion),
+            ];
+            r.retain(|v| read.contains(v));
+            let r = if !r.is_empty() {
+                format!(" READ {}", r.join(", "))
+            } else {
+                String::new()
+            };
+            if !w.is_empty() || !r.is_empty() {
+                result.push(format!("  USEION {}{}{}\n", ion, r, w));
+            }
+        };
     }
     if !n.parameters.is_empty() {
         let rs = n.parameters.keys().cloned().collect::<Vec<_>>();
@@ -461,7 +549,7 @@ fn nmodl_recv_block(n: &Nmodl) -> Result<String> {
         let evts = n
             .events
             .iter()
-            .map(|v| v.1.print_to_string())
+            .map(|v| v.1.print_to_string(2))
             .collect::<Vec<_>>()
             .join("\n");
         let result = vec![
@@ -573,6 +661,19 @@ fn print_dependency_chains(
             result.push(s.print_to_string(2));
         } else {
             // return Err(nml2_error(format!("Could not resolve variable {}.", d)));
+            let exprs = roots
+                .iter()
+                .map(|r| {
+                    vars.get(r)
+                        .map(|s| s.print_to_string(2))
+                        .unwrap_or_default()
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            warn!(
+                "Unresolved variable {} resulting from {:?} which are\n{}",
+                d, roots, exprs
+            );
             result.push(format!("{} = ???", d));
         }
     }
@@ -580,60 +681,102 @@ fn print_dependency_chains(
 }
 
 pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
-    let mut filter = filter.to_string();
-    let mut instance = instance.clone();
-    // do fixes for known types
     match instance.component_type.name.as_ref() {
         "gapJunction" => {
+            let mut filter = filter.to_string();
+            let mut instance = instance.clone();
+            if !filter.is_empty() {
+                filter.push(',');
+            }
+            filter.push_str("+weight,+conductance");
             // Gap Junctions need peer voltage, which is provided by Arbor
             instance
                 .component_type
                 .variables
                 .retain(|v| v.name != "vpeer");
-            instance.component_type.variables.push(Variable {
-                name: String::from("vpeer"),
-                exposure: None,
-                dimension: String::from("voltage"),
-                kind: VarKind::Derived(Vec::new(), Some(Expr::parse("v_peer")?)),
-            });
-            if !filter.is_empty() {
-                filter.push(',');
+            let mut coll = Collapsed::from_instance(&instance)?;
+            coll.parameters
+                .insert(String::from("weight"), Some(Quantity::parse("1")?));
+            let mut n = Nmodl::from(&coll, &filter)?;
+            // We know that we must write `i` and that it is in the variables
+            if let Some((k, v)) = n.variables.remove_entry("i") {
+                n.outputs.insert(k, v);
+            } else {
+                return Err(nmodl_error("Gap Junction without defined current 'i'"));
             }
-            filter.push_str("+weight,+conductance");
-            instance
-                .component_type
-                .parameters
-                .push(String::from("weight"));
-            instance
-                .parameters
-                .insert(String::from("weight"), Quantity::parse("1")?);
+            n.kind = Kind::Junction;
+            mk_nmodl(&n)
         }
         "ionChannel" | "ionChannelHH" | "ionChannelKS" | "ionChannelPassive" => {
+            let mut filter = filter.to_string();
+            let mut instance = instance.clone();
             if !filter.is_empty() {
                 filter.push(',');
             }
             filter.push_str("+conductance");
-            // if instance..is_empty() {
-                instance.parameters.insert(String::from("e"), Quantity::parse("0 mV")?);
+            // TODO non-specific ions need an extra parameter e
+            if instance
+                .attributes
+                .keys()
+                .filter(|s| s.ends_with("species"))
+                .count()
+                == 0
+            {
+                instance
+                    .parameters
+                    .insert(String::from("e"), Quantity::parse("0 mV")?);
+                instance.component_type.parameters.push(String::from("e"));
                 filter.push_str(",+e");
-            // }
+            }
+            let coll = Collapsed::from_instance(&instance)?;
+            let mut n = Nmodl::from(&coll, &filter)?;
+            for ion in &n.species {
+                let ik = format!("i{}", ion);
+                let ix = Stmnt::Ass(
+                    ik.clone(),
+                    Expr::parse(&format!("g*(v - e{})", ion)).unwrap(),
+                );
+                if ion.is_empty() {
+                    n.variables.insert(
+                        String::from("g"),
+                        Stmnt::Ass(String::from("g"), Expr::Var(String::from("conductance"))),
+                    );
+                }
+                n.outputs.insert(ik.clone(), ix);
+                let ki = format!("{}conc", ion);
+                let xi = Expr::Var(format!("{}i", ion));
+                n.variables.insert(ki.clone(), Stmnt::Ass(ki, xi));
+            }
+            n.kind = Kind::Density;
+            mk_nmodl(&n)
         }
-        _ => {}
+        // TODO(TH, robustness): concluding a synapse here is shaky
+        _ => {
+            let filter = filter.to_string();
+            let instance = instance.clone();
+            let coll = Collapsed::from_instance(&instance)?;
+            let mut n = Nmodl::from(&coll, &filter)?;
+            // We know that we must write `i` and that it is in the variables
+            if let Some((k, v)) = n.variables.remove_entry("i") {
+                n.outputs.insert(k, v);
+            } else {
+                return Err(nmodl_error("Synapse without defined current 'i'"));
+            }
+            n.kind = Kind::Point;
+            mk_nmodl(&n)
+        }
     }
-    mk_nmodl(&Collapsed::from_instance(&instance)?, &filter)
 }
 
-fn simplify(variables: &Map<String, Stmnt>, fixed: &Map<String, Expr>) -> Map<String, Stmnt> {
-    let mut result = variables.clone();
-    let mut fixed = fixed.clone();
+fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, keep: &Set<String>) {
     loop {
         let mut new = Map::new();
-        for (k, v) in &result {
+        for (k, v) in variables.iter() {
             match v {
-                Stmnt::Ass(_, x @ Expr::F64(_)) => {
+                Stmnt::Ass(k, x @ Expr::F64(_)) if !keep.contains(k) => {
                     fixed.insert(k.clone(), x.clone());
                 }
-                Stmnt::Ass(_, x @ Expr::Var(_)) => {
+                Stmnt::Ass(k, x @ Expr::Var(_)) if !keep.contains(k) => {
                     fixed.insert(k.clone(), x.clone());
                 }
                 _ => {
@@ -659,12 +802,11 @@ fn simplify(variables: &Map<String, Stmnt>, fixed: &Map<String, Expr>) -> Map<St
             *v = y;
         }
 
-        if new == result {
+        if new == *variables {
             break;
         }
-        result = new;
+        *variables = new;
     }
-    result
 }
 
 pub fn export(

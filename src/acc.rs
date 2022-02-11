@@ -9,10 +9,9 @@ use crate::{
         IntracellularPropertiesBody, MembraneProperties, MembranePropertiesBody, Resistivity,
         Species, SpecificCapacitance,
     },
-    xml, Result,
+    xml, Map, Result,
 };
 
-use std::collections::HashMap as Map;
 use std::fs::write;
 use std::path::PathBuf;
 use tracing::info;

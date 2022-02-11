@@ -1,5 +1,8 @@
 #![allow(soft_unstable)]
 
+use std::collections::BTreeMap as Map;
+use std::collections::BTreeSet as Set;
+
 use clap::{Parser, Subcommand};
 use lems::file::LemsFile;
 
@@ -66,8 +69,8 @@ enum Cmd {
     },
     /// DWIM creation of an Arbor simulation template
     Bundle {
-        /// NeuroML2 compliant XML files
-        nml: Vec<String>,
+        /// NeuroML2 compliant XML file
+        nml: String,
         /// Try to combine channels per segment group
         #[clap(short, long)]
         super_mechanisms: bool,
@@ -112,8 +115,8 @@ fn main() -> Result<()> {
             dir,
             super_mechanisms,
         } => {
-            get_runtime_types(&mut lems, &nml)?;
-            bundle::export(&lems, &nml, &dir, super_mechanisms)?;
+            get_runtime_types(&mut lems, &[nml.to_string()])?;
+            bundle::export(&lems, &[nml], &dir, super_mechanisms)?;
         }
     }
     Ok(())

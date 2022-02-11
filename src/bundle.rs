@@ -1,9 +1,8 @@
-use std::collections::HashMap as Map;
-use std::collections::HashSet as Set;
 use std::fs::{create_dir_all, write};
 use tracing::info;
 
 use crate::acc::Paintable;
+use crate::expr::Stmnt;
 use crate::{
     acc::{self, Sexp},
     error::{Error, Result},
@@ -17,8 +16,8 @@ use crate::{
         PulseGenerator,
     },
     nmodl,
-    variable::{VarKind, Variable},
     xml::XML,
+    Map, Set,
 };
 
 pub fn export(lems: &LemsFile, nml: &[String], bundle: &str, use_super_mechs: bool) -> Result<()> {
@@ -125,6 +124,8 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
 fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     create_dir_all(&bundle)?;
     create_dir_all(&format!("{}/mrf", bundle))?;
+    create_dir_all(&format!("{}/acc", bundle))?;
+    create_dir_all(&format!("{}/cat", bundle))?;
 
     let mut ics = Vec::new();
     let mut ids = Vec::new();
@@ -283,46 +284,40 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
         }
 
         // Add iX
+        let mut outputs = Map::new();
+        let mut variables = Map::new();
         for (ion, mechs) in &ions {
             if !ion.is_empty() {
-                let i = Expr::parse(&format!("g_{}*(v - e{})", ion, ion))?;
-                coll.variables.push(Variable {
-                    name: format!("i{}", ion),
-                    exposure: None,
-                    dimension: String::from("current"),
-                    kind: VarKind::Derived(Vec::new(), Some(i)),
-                });
+                let ik = format!("i{}", ion);
+                let ix = Expr::parse(&format!("g_{}*(v - e{})", ion, ion))?;
+                let ix = Stmnt::Ass(ik.clone(), ix);
+                outputs.insert(ik, ix);
 
                 let g = mechs
                     .iter()
                     .map(|m| format!("{}_g", m))
                     .collect::<Vec<_>>()
                     .join(" + ");
-                let g = Expr::parse(&g)?;
-                coll.variables.push(Variable {
-                    name: format!("g_{}", ion),
-                    exposure: None,
-                    dimension: String::from("conductance"),
-                    kind: VarKind::Derived(Vec::new(), Some(g)),
-                });
+                let gk = format!("g_{}", ion);
+                let ig = Expr::parse(&g)?;
+                let ig = Stmnt::Ass(gk.clone(), ig);
+                variables.insert(gk, ig);
             } else {
                 // here we must sum currents directly
                 let mut i = Vec::new();
                 for mech in mechs {
-                    i.push(format!("{}_g*(v - {}_e)", mech, mech));
+                    i.push(format!("{}_conductance*(v - {}_e)", mech, mech));
                 }
                 let i = i.join(" + ");
                 let i = Expr::parse(&i)?;
-                coll.variables.push(Variable {
-                    name: "i".to_string(),
-                    exposure: None,
-                    dimension: String::from("current"),
-                    kind: VarKind::Derived(Vec::new(), Some(i)),
-                });
+                outputs.insert(String::from("i"), Stmnt::Ass(String::from("i"), i));
             }
         }
-
-        let nmodl = nmodl::mk_nmodl(&coll, "-*")?;
+        let mut n = nmodl::Nmodl::from(&coll, "+*")?;
+        n.add_outputs(&outputs);
+        n.add_variables(&outputs);
+        n.add_variables(&variables);
+        let nmodl = nmodl::mk_nmodl(&n)?;
 
         let path = format!("{}/cat/{}-{}.mod", bundle, id, reg);
         info!(
