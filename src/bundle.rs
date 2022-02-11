@@ -278,7 +278,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                         inst.component_type.parameters.push(String::from("e"));
                     }
                     ions.entry(ion.clone()).or_default().push(m.clone());
-                    coll.add(&inst, &Context::new(), None)?;
+                    coll.add(&inst, &Context::default(), None)?;
                 }
             }
         }

@@ -3,13 +3,13 @@ use std::path::PathBuf;
 use tracing::{info, trace, warn};
 
 use crate::{
-    error::{nml2_error, Error},
+    error::{nml2_error, Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Instance},
     lems::file::LemsFile,
     neuroml::process_files,
     variable::VarKind,
-    Map, Result, Set,
+    Map, Set,
 };
 
 fn nmodl_error<T: Into<String>>(what: T) -> Error {

@@ -1,24 +1,12 @@
-#![allow(soft_unstable)]
-
-use std::collections::BTreeMap as Map;
-use std::collections::BTreeSet as Set;
-
 use clap::{Parser, Subcommand};
-use lems::file::LemsFile;
 
-mod acc;
-mod bundle;
-mod error;
-mod expr;
-mod instance;
-mod lems;
-mod network;
-mod neuroml;
-mod nmodl;
-mod variable;
-mod xml;
-
-use error::Result;
+use nml2::{
+    acc, bundle,
+    error::Result,
+    lems::{self, file::LemsFile},
+    neuroml, nmodl,
+    xml::XML,
+};
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
@@ -82,7 +70,7 @@ enum Cmd {
 fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
     neuroml::process_files(nml, |_, node| {
         if node.tag_name().name() == "ComponentType" {
-            let ct: lems::raw::ComponentType = xml::XML::from_node(node);
+            let ct: lems::raw::ComponentType = XML::from_node(node);
             lems.add_component_type(&ct)?;
         }
         Ok(())

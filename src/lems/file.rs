@@ -4,7 +4,12 @@ use super::{
     raw::{Dimension, Unit},
     Lems,
 };
-use crate::{error::Error, expr::Quantity, instance::ComponentType, Map, Result};
+use crate::{
+    error::{Error, Result},
+    expr::Quantity,
+    instance::ComponentType,
+    Map,
+};
 use std::convert::TryInto;
 
 fn nml2_error<T: Into<String>>(what: T) -> Error {

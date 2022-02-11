@@ -2,11 +2,11 @@ use roxmltree::Node;
 use tracing::{info, trace};
 
 use crate::{
-    error::nml2_error,
+    error::{nml2_error, Result},
     expr::{Boolean, Expr, Match, Quantity},
     lems,
     variable::{SelectBy, VarKind, Variable},
-    Map, Result, Set,
+    Map, Set,
 };
 
 /// Kinetic scheme from components
@@ -165,7 +165,7 @@ impl Collapsed {
 
     pub fn from_instance_with_name(inst: &Instance, use_name: bool) -> Result<Self> {
         use crate::expr::Path;
-        let mut coll = Self::from_instance_(inst, &Context::new(), None, use_name)?;
+        let mut coll = Self::from_instance_(inst, &Context::default(), None, use_name)?;
         // Massage kinetic schemes
         for ks in &coll.kinetic {
             let Match(ps) = &ks.edge;
@@ -416,13 +416,10 @@ impl Collapsed {
 }
 
 /// Stacked contexts of local symbols
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Context(Vec<(String, Vec<String>)>);
 
 impl Context {
-    pub fn new() -> Self {
-        Context(Vec::new())
-    }
     fn enter(&mut self, name: &str, vars: &[String]) {
         self.0.push((name.to_string(), vars.to_vec()));
     }

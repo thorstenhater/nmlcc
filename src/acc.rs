@@ -1,5 +1,5 @@
 use crate::{
-    error::Error,
+    error::{Error, Result},
     expr::Quantity,
     lems::file::LemsFile,
     neuroml::process_files,
@@ -9,7 +9,7 @@ use crate::{
         IntracellularPropertiesBody, MembraneProperties, MembranePropertiesBody, Resistivity,
         Species, SpecificCapacitance,
     },
-    xml, Map, Result,
+    xml, Map,
 };
 
 use std::fs::write;
