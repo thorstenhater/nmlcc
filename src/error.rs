@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -8,11 +9,13 @@ pub enum Error {
     Io {
         #[from]
         source: std::io::Error,
+        backtrace: Backtrace,
     },
     #[error("XML error: {}", .source)]
     Xml {
         #[from]
         source: roxmltree::Error,
+        backtrace: Backtrace,
     },
     #[error("NMODL exporter error: {}", .what)]
     Nmodl { what: String },

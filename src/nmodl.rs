@@ -750,7 +750,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
             n.kind = Kind::Density;
             mk_nmodl(&n)
         }
-        // TODO(TH, robustness): concluding a synapse here is shaky
+        // TODO(TH, robustness): concluding a synapse here is shaky. However. Below we filter on basechannel/basesynapse, so it might be ok?!
         _ => {
             let filter = filter.to_string();
             let instance = instance.clone();
