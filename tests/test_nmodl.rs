@@ -46,6 +46,7 @@ BREAKPOINT {
 NET_RECEIVE(weight) {
   g = g + 0.0005 * weight
 }
+
 "#
     );
     assert_eq!(
@@ -80,6 +81,65 @@ BREAKPOINT {
 NET_RECEIVE(weight) {
   g = g + gbase * weight
 }
+
+"#
+    );
+}
+
+#[test]
+fn simple_gap_junction() {
+    let lems = LemsFile::from(
+        &[String::from("ext/NeuroML2/NeuroML2CoreTypes")],
+        &[String::from("NeuroML2CoreTypes.xml")],
+    )
+    .unwrap();
+    let tree = Document::parse(r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
+    id="simple-gap-junction">
+    <gapJunction id="gj1" conductance="10pS"/>
+</neuroml>"#).unwrap();
+    let node = tree
+        .descendants()
+        .find(|n| n.has_tag_name("gapJunction"))
+        .unwrap();
+    let inst = Instance::new(&lems, &node).unwrap();
+    assert_eq!(
+        to_nmodl(&inst, "-*").unwrap(),
+        r#"NEURON {
+  JUNCTION gj1
+  NONSPECIFIC_CURRENT i
+  RANGE conductance, weight
+}
+
+PARAMETER {
+  conductance = 0.00001 (uS)
+  weight = 1
+}
+
+BREAKPOINT {
+  i = conductance * weight * (v_peer + -1 * v)
+}
+
+"#
+    );
+    assert_eq!(
+        to_nmodl(&inst, "+*").unwrap(),
+        r#"NEURON {
+  JUNCTION gj1
+  NONSPECIFIC_CURRENT i
+  RANGE conductance, weight
+}
+
+PARAMETER {
+  conductance = 0.00001 (uS)
+  weight = 1
+}
+
+BREAKPOINT {
+  i = conductance * weight * (v_peer + -1 * v)
+}
+
 "#
     );
 }
