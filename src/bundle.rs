@@ -24,7 +24,7 @@ pub fn export(lems: &LemsFile, nml: &[String], bundle: &str, use_super_mechs: bo
     export_template(lems, nml, bundle)?;
 
     // We always export these to keep synapse etc alive
-    nmodl::export(lems, nml, &None, "-*", &format!("{}/cat", bundle))?;
+    nmodl::export(lems, nml, "-*", &format!("{}/cat", bundle))?;
 
     if use_super_mechs {
         export_with_super_mechanisms(lems, nml, bundle)?;

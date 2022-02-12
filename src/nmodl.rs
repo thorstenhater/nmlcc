@@ -691,36 +691,50 @@ fn print_dependency_chains(
     Ok(result.join("\n"))
 }
 
-pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
-    eprintln!("Hay");
-    match instance.component_type.name.as_ref() {
-        // TODO(TH): We should really scan for the base class of instance here
-        "gapJunction" => {
-            let mut filter = filter.to_string();
-            let mut instance = instance.clone();
-            if !filter.is_empty() {
-                filter.push(',');
-            }
-            filter.push_str("+weight,+conductance");
-            // Gap Junctions need peer voltage, which is provided by Arbor
-            instance
-                .component_type
-                .variables
-                .retain(|v| v.name != "vpeer");
-            let mut coll = Collapsed::from_instance(&instance)?;
-            coll.parameters
-                .insert(String::from("weight"), Some(Quantity::parse("1")?));
-            let mut n = Nmodl::from(&coll, &filter)?;
-            // We know that we must write `i` and that it is in the variables
-            if let Some((k, v)) = n.variables.remove_entry("i") {
-                n.outputs.insert(k, v);
+pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String> {
+    let ty: &str = instance.component_type.name.as_ref();
+    match base {
+        "baseSynapse" => {
+            if ty == "gapJunction" {
+                let mut filter = filter.to_string();
+                let mut instance = instance.clone();
+                if !filter.is_empty() {
+                    filter.push(',');
+                }
+                filter.push_str("+weight,+conductance");
+                // Gap Junctions need peer voltage, which is provided by Arbor
+                instance
+                    .component_type
+                    .variables
+                    .retain(|v| v.name != "vpeer");
+                let mut coll = Collapsed::from_instance(&instance)?;
+                coll.parameters
+                    .insert(String::from("weight"), Some(Quantity::parse("1")?));
+                let mut n = Nmodl::from(&coll, &filter)?;
+                // We know that we must write `i` and that it is in the variables
+                if let Some((k, v)) = n.variables.remove_entry("i") {
+                    n.outputs.insert(k, v);
+                } else {
+                    return Err(nmodl_error("Gap Junction without defined current 'i'"));
+                }
+                n.kind = Kind::Junction;
+                mk_nmodl(&n)
             } else {
-                return Err(nmodl_error("Gap Junction without defined current 'i'"));
+                let filter = filter.to_string();
+                let instance = instance.clone();
+                let coll = Collapsed::from_instance(&instance)?;
+                let mut n = Nmodl::from(&coll, &filter)?;
+                // We know that we must write `i` and that it is in the variables
+                if let Some((k, v)) = n.variables.remove_entry("i") {
+                    n.outputs.insert(k, v);
+                } else {
+                    return Err(nmodl_error("Synapse without defined current 'i'"));
+                }
+                n.kind = Kind::Point;
+                mk_nmodl(&n)
             }
-            n.kind = Kind::Junction;
-            mk_nmodl(&n)
         }
-        "ionChannel" | "ionChannelHH" | "ionChannelKS" | "ionChannelPassive" => {
+        "baseIonChannel" => {
             let mut filter = filter.to_string();
             let mut instance = instance.clone();
             if !filter.is_empty() {
@@ -762,7 +776,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
             n.kind = Kind::Density;
             mk_nmodl(&n)
         }
-        "decayingPoolConcentrationModel" | "fixedFactorConcentrationModel" => {
+        "concentrationModel" => {
             let filter = filter.to_string();
             let instance = instance.clone();
             let coll = Collapsed::from_instance(&instance)?;
@@ -801,24 +815,12 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
             for stm in n.outputs.values_mut() {
                 *stm = stm.map(&fix);
             }
-            // FIXME: Scan
             mk_nmodl(&n)
         }
-        // TODO(TH, robustness): concluding a synapse here is shaky. However. Below we filter on baseChannel/baseSynapse
-        _ => {
-            let filter = filter.to_string();
-            let instance = instance.clone();
-            let coll = Collapsed::from_instance(&instance)?;
-            let mut n = Nmodl::from(&coll, &filter)?;
-            // We know that we must write `i` and that it is in the variables
-            if let Some((k, v)) = n.variables.remove_entry("i") {
-                n.outputs.insert(k, v);
-            } else {
-                return Err(nmodl_error("Synapse without defined current 'i'"));
-            }
-            n.kind = Kind::Point;
-            mk_nmodl(&n)
-        }
+        _ => Err(nmodl_error(format!(
+            "Type {} deriving an expected base {}",
+            ty, base
+        ))),
     }
 }
 
@@ -863,18 +865,9 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
     }
 }
 
-pub fn export(
-    lems: &LemsFile,
-    nml: &[String],
-    ty: &Option<&str>,
-    filter: &str,
-    cat: &str,
-) -> Result<()> {
-    let tys = if let Some(ty) = ty {
-        vec![*ty]
-    } else {
-        vec!["baseIonChannel", "baseSynapse", "concentrationModel"]
-    };
+pub fn export(lems: &LemsFile, nml: &[String], filter: &str, cat: &str) -> Result<()> {
+    let tys = vec!["baseIonChannel", "baseSynapse", "concentrationModel"];
+
     process_files(nml, |_, node| {
         let tag = node.tag_name().name();
         for ty in &tys {
@@ -895,7 +888,7 @@ pub fn export(
                     instance.id.as_deref().unwrap(),
                     &path
                 );
-                write(&path, to_nmodl(&instance, filter)?)?;
+                write(&path, to_nmodl(&instance, filter, ty)?)?;
             }
         }
         Ok(())
