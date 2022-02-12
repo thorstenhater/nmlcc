@@ -22,7 +22,7 @@ fn simple_synapse() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "-*").unwrap(),
+        to_nmodl(&inst, "-*", "baseSynapse").unwrap(),
         r#"NEURON {
   POINT_PROCESS sy1
   NONSPECIFIC_CURRENT i
@@ -50,7 +50,7 @@ NET_RECEIVE(weight) {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "+*").unwrap(),
+        to_nmodl(&inst, "+*", "baseSynapse").unwrap(),
         r#"NEURON {
   POINT_PROCESS sy1
   NONSPECIFIC_CURRENT i
@@ -105,7 +105,7 @@ fn simple_gap_junction() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "-*").unwrap(),
+        to_nmodl(&inst, "-*", "baseSynapse").unwrap(),
         r#"NEURON {
   JUNCTION gj1
   NONSPECIFIC_CURRENT i
@@ -124,7 +124,7 @@ BREAKPOINT {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "+*").unwrap(),
+        to_nmodl(&inst, "+*", "baseSynapse").unwrap(),
         r#"NEURON {
   JUNCTION gj1
   NONSPECIFIC_CURRENT i
