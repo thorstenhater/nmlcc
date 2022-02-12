@@ -324,7 +324,10 @@ pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
 
 fn nmodl_state_block(n: &Nmodl) -> Result<String> {
     if !n.state.is_empty() {
-        Ok(format!("STATE {{ {} }}\n\n", n.state.iter().cloned().collect::<Vec<_>>().join(" ")))
+        Ok(format!(
+            "STATE {{ {} }}\n\n",
+            n.state.iter().cloned().collect::<Vec<_>>().join(" ")
+        ))
     } else {
         Ok(String::new())
     }
@@ -575,9 +578,7 @@ fn ion_species(coll: &Collapsed) -> Vec<String> {
     coll.attributes
         .iter()
         .filter_map(|(k, v)| {
-            if k.ends_with("species") {
-                Some(v.as_deref().unwrap_or_default().to_string())
-            } else if k == "ion" {
+            if k.ends_with("species") || k == "ion" {
                 Some(v.as_deref().unwrap_or_default().to_string())
             } else {
                 None
@@ -777,8 +778,8 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
             os.insert(xo.clone(), Stmnt::Ass(xo.clone(), Expr::Var(ec.clone())));
             n.add_outputs(&os);
             let mut is = Map::new();
-            is.insert(ic.clone(), Stmnt::Ass(ic.clone(), Expr::Var(xi.clone())));
-            is.insert(ec.clone(), Stmnt::Ass(ec.clone(), Expr::Var(xo.clone())));
+            is.insert(ic.clone(), Stmnt::Ass(ic, Expr::Var(xi)));
+            is.insert(ec.clone(), Stmnt::Ass(ec, Expr::Var(xo)));
             n.add_initials(&is);
             // Map variables iCa -> iX to compensate for NML2 mistakes
             let fix = |ex: &Expr| -> Expr {
