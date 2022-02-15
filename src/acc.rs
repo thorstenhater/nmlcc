@@ -204,7 +204,7 @@ pub enum Locset {
 impl Sexp for Locset {
     fn to_sexp(&self) -> String {
         match self {
-            Locset::Segment(i, f) => format!("(on-component (segment {}) {})", i, f),
+            Locset::Segment(i, f) => format!("(on-components {} (segment {}))", f, i),
         }
     }
 }
@@ -246,7 +246,7 @@ impl Sexp for Decor {
             Decor::Place(l, p) => {
                 let (q, n) = match p {
                     Placeable::IClamp(n, e) => {
-                        (format!("(current-clamp {})", e.to_sexp()), n.to_string())
+                        (format!("(current-clamp {} 0 0)", e.to_sexp()), n.to_string())
                     }
                 };
                 format!("(place {} {} \"{}\")", l.to_sexp(), q, n)

@@ -13,7 +13,6 @@ use crate::{
     neuroml::process_files,
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
-        PulseGenerator,
     },
     nmodl,
     xml::XML,
@@ -21,7 +20,7 @@ use crate::{
 };
 
 pub fn export(lems: &LemsFile, nml: &[String], bundle: &str, use_super_mechs: bool) -> Result<()> {
-    export_template(lems, nml, bundle)?;
+    export_template(nml, bundle)?;
 
     // We always export these to keep synapse etc alive
     nmodl::export(lems, nml, "-*", &format!("{}/cat", bundle))?;
@@ -34,27 +33,7 @@ pub fn export(lems: &LemsFile, nml: &[String], bundle: &str, use_super_mechs: bo
     Ok(())
 }
 
-fn mk_main_py(lems: &LemsFile, id: &str, stim: &[PulseGenerator]) -> Result<String> {
-    let norm = |v: &str| -> Result<String> {
-        let q = Quantity::parse(v)?;
-        let u = lems.normalise_quantity(&q)?;
-        Ok(format!("{}", u.value))
-    };
-
-    let ics = stim
-        .iter()
-        .map(|p| {
-            Ok(format!(
-                "# decor.place('<FIXME>', A.iclamp({}, {}, {}), '{}')",
-                norm(&p.delay)?,
-                norm(&p.duration)?,
-                norm(&p.amplitude)?,
-                p.id
-            ))
-        })
-        .collect::<Result<Vec<_>>>()?
-        .join("\n");
-
+fn mk_main_py(id: &str) -> Result<String> {
     Ok(format!(
         "#!/usr/bin/env python3
 import arbor as A
@@ -85,9 +64,6 @@ def mk_cat():
 
 morph, labels, decor = nml_load_cell()
 
-# Place your stimuli here (add a locset and uncomment)
-{ics}
-
 cell = A.cable_cell(morph, labels, decor)
 sim  = A.single_cell_model(cell)
 
@@ -99,8 +75,7 @@ sim.properties.catalogue = mk_cat()
 # Now run the simulation
 sim.run(100, 0.0025)
 ",
-        id = id,
-        ics = ics
+        id = id
     ))
 }
 
@@ -121,44 +96,39 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
     )
 }
 
-fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
+fn export_template(nml: &[String], bundle: &str) -> Result<()> {
     create_dir_all(&bundle)?;
     create_dir_all(&format!("{}/mrf", bundle))?;
     create_dir_all(&format!("{}/acc", bundle))?;
     create_dir_all(&format!("{}/cat", bundle))?;
 
-    let mut ics = Vec::new();
     let mut ids = Vec::new();
     process_files(nml, |_, node| {
-        // TODO This is clunky and too restrictive
-        if node.tag_name().name() == "pulseGenerator" {
-            let ic: PulseGenerator = XML::from_node(node);
-            ics.push(ic);
-        }
-
         let doc = node.document().input_text();
         for mrf in node.descendants() {
-            if node.tag_name().name() == "cell" {
-                let id = node.attribute("id").ok_or(Error::Nml {
-                    what: String::from("Cell has no id"),
-                })?;
-                ids.push(id.to_string());
-                if mrf.tag_name().name() == "morphology" {
-                    write(
-                        format!("{}/mrf/{}.nml", bundle, id),
-                        mk_mrf(id, &doc[mrf.range()]),
-                    )?;
+            match node.tag_name().name() {
+                "cell" => {
+                    let id = node.attribute("id").ok_or(Error::Nml {
+                        what: String::from("Cell has no id"),
+                    })?;
+                    ids.push(id.to_string());
+                    if mrf.tag_name().name() == "morphology" {
+                        write(
+                            format!("{}/mrf/{}.nml", bundle, id),
+                            mk_mrf(id, &doc[mrf.range()]),
+                        )?;
+                    }
                 }
+                "network" => {
+                }
+                _ => {}
             }
         }
         Ok(())
     })?;
 
     for id in &ids {
-        write(
-            &format!("{}/main.{}.py", bundle, id),
-            mk_main_py(lems, id, &ics)?,
-        )?;
+        write(&format!("{}/main.{}.py", bundle, id), mk_main_py(id)?)?;
     }
     Ok(())
 }
