@@ -9,7 +9,7 @@ use crate::{
             self, BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity,
             ChannelDensityNernst, ExtracellularProperties, InitMembPotential,
             IntracellularProperties, IntracellularPropertiesBody, MembraneProperties,
-            MembranePropertiesBody, Resistivity, Species, SpecificCapacitance, PulseGenerator
+            MembranePropertiesBody, PulseGenerator, Resistivity, Species, SpecificCapacitance,
         },
     },
     xml::XML,
@@ -46,9 +46,14 @@ pub fn export(lems: &LemsFile, nml: &[String], cell: &Option<&str>, pfx: &str) -
             }
             "pulseGenerator" => {
                 let ic: PulseGenerator = XML::from_node(node);
-                iclamps.insert(ic.id.to_string(), (norm(&ic.delay)?.parse::<f64>().unwrap(),
-                                                   norm(&ic.duration)?.parse::<f64>().unwrap(),
-                                                   norm(&ic.amplitude)?.parse::<f64>().unwrap()));
+                iclamps.insert(
+                    ic.id.to_string(),
+                    (
+                        norm(&ic.delay)?.parse::<f64>().unwrap(),
+                        norm(&ic.duration)?.parse::<f64>().unwrap(),
+                        norm(&ic.amplitude)?.parse::<f64>().unwrap(),
+                    ),
+                );
             }
             "cell" => {
                 if let Some(id) = node.attribute("id") {
