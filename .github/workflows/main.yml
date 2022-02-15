@@ -15,6 +15,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - run: bash bootstrap.sh          
       - uses: actions-rs/cargo@v1
         with:
           command: check
