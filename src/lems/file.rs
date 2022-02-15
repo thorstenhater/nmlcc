@@ -81,6 +81,11 @@ pub struct LemsFile {
 }
 
 impl LemsFile {
+    /// Pull LEMS from core definitions
+    pub fn core() -> Self {
+        Self::from_raw(&Lems::core()).unwrap()
+    }
+
     /// Pull LEMS from file
     pub fn from(dn: &[String], file: &[String]) -> Result<Self> {
         Self::from_raw(&Lems::from_file(dn, file)?)

@@ -4,11 +4,7 @@ use roxmltree::Document;
 
 #[test]
 fn simple_synapse() {
-    let lems = LemsFile::from(
-        &[String::from("ext/NeuroML2/NeuroML2CoreTypes")],
-        &[String::from("NeuroML2CoreTypes.xml")],
-    )
-    .unwrap();
+    let lems = LemsFile::core();
     let tree = Document::parse(r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
@@ -88,11 +84,7 @@ NET_RECEIVE(weight) {
 
 #[test]
 fn simple_gap_junction() {
-    let lems = LemsFile::from(
-        &[String::from("ext/NeuroML2/NeuroML2CoreTypes")],
-        &[String::from("NeuroML2CoreTypes.xml")],
-    )
-    .unwrap();
+    let lems = LemsFile::core();
     let tree = Document::parse(r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"

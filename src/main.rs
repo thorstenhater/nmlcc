@@ -82,7 +82,7 @@ fn main() -> Result<()> {
     let _guard = tracing::subscriber::set_global_default(collector);
 
     let opts = Cli::parse();
-    let mut lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
+    let mut lems = lems::file::LemsFile::core();
     match opts.cmd {
         Cmd::Nmodl {
             nml,

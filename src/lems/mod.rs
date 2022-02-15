@@ -8,7 +8,7 @@ use tracing::trace;
 
 use crate::{
     error::{Error, Result},
-    xml,
+    xml::XML,
 };
 
 fn lems_error<T: Into<String>>(what: T) -> Error {
@@ -46,7 +46,7 @@ impl Lems {
                         let doc = Document::parse(&xml)?;
                         let root = doc.root_element();
                         let raw: raw::Lems = match root.tag_name().name() {
-                            "Lems" => Ok(xml::XML::from_node(&doc.root_element())),
+                            "Lems" => Ok(XML::from_node(&doc.root_element())),
                             t => Err(lems_error(format!("Unknown doc kind {}", t))),
                         }?;
                         for item in raw.body {
@@ -72,5 +72,65 @@ impl Lems {
             }
         }
         Ok(result)
+    }
+
+    pub fn core() -> Self {
+        let mut result = Lems {
+            component_types: Vec::new(),
+            units: Vec::new(),
+            dimensions: Vec::new(),
+        };
+        // Skipped on purpose: Simulation.xml PyNN.xml
+        for (name, xml) in vec![
+            (
+                "NeuroML2CoreTypes.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/NeuroML2CoreTypes.xml"),
+            ),
+            (
+                "NeuroML2CoreCompTypes.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/NeuroMLCoreCompTypes.xml"),
+            ),
+            (
+                "NeuroML2CoreCompDimensions.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/NeuroMLCoreDimensions.xml"),
+            ),
+            (
+                "Cells.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/Cells.xml"),
+            ),
+            (
+                "Channels.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/Channels.xml"),
+            ),
+            (
+                "Inputs.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/Inputs.xml"),
+            ),
+            (
+                "Networks.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/Networks.xml"),
+            ),
+            (
+                "Synapses.xml",
+                include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/Synapses.xml"),
+            ),
+        ] {
+            trace!("Reading LEMS core def {}", name);
+            let doc = Document::parse(xml).expect("Cannot parse core");
+            let root = doc.root_element();
+            if root.tag_name().name() != "Lems" {
+                panic!("Core definition '{}' is not a Lems file.", name);
+            }
+            let raw: raw::Lems = XML::from_node(&doc.root_element());
+            for item in raw.body {
+                match item {
+                    raw::LemsBody::ComponentType(ct) => result.component_types.push(ct),
+                    raw::LemsBody::Unit(un) => result.units.push(un),
+                    raw::LemsBody::Dimension(dm) => result.dimensions.push(dm),
+                    _ => {}
+                }
+            }
+        }
+        result
     }
 }
