@@ -245,9 +245,10 @@ impl Sexp for Decor {
             Decor::Paint(r, i) => format!("(paint (region \"{}\") {})", r, i.to_sexp()),
             Decor::Place(l, p) => {
                 let (q, n) = match p {
-                    Placeable::IClamp(n, e) => {
-                        (format!("(current-clamp {} 0 0)", e.to_sexp()), n.to_string())
-                    }
+                    Placeable::IClamp(n, e) => (
+                        format!("(current-clamp {} 0 0)", e.to_sexp()),
+                        n.to_string(),
+                    ),
                 };
                 format!("(place {} {} \"{}\")", l.to_sexp(), q, n)
             }

@@ -119,8 +119,7 @@ fn export_template(nml: &[String], bundle: &str) -> Result<()> {
                         )?;
                     }
                 }
-                "network" => {
-                }
+                "network" => {}
                 _ => {}
             }
         }
