@@ -54,7 +54,7 @@ Casual benchmarking on a 2018 i5 MacBook Pro gives these results
     -   times are measured across `sim.run(...)`
     -   thus model building is included
 
-| ARB<sub>VECTORIZE</sub>= | **OFF** t<sub>wall</sub>/s | Speed-up | **ON** t<sub>wall</sub>/s | Speed-up |
+| ``ARB_VECTORIZE``        | **OFF** t<sub>wall</sub>/s | Speed-up | **ON** t<sub>wall</sub>/s | Speed-up |
 |--------------------------|----------------------------|----------|---------------------------|----------|
 | jnml                     | 13.266                     | 1.0      | 7.988                     | 1.0      |
 | nmlcc 0.2                | 5.934                      | 2.2      | 2.827                     | 2.8      |
