@@ -79,13 +79,10 @@ pub fn export(lems: &LemsFile, nml: &[String], cell: &Option<&str>, pfx: &str) -
     })?;
 
     for placing in placings.iter_mut() {
-        match placing {
-            Decor::Place(_, Placeable::IClamp(n, ref mut e)) => {
-                if let Some((d, l, a)) = iclamps.get(n) {
-                    *e = Envelope::Pulse(*d, *l, *a);
-                }
+        if let Decor::Place(_, Placeable::IClamp(n, ref mut e)) = placing {
+            if let Some((d, l, a)) = iclamps.get(n) {
+                *e = Envelope::Pulse(*d, *l, *a);
             }
-            _ => {}
         }
     }
 
