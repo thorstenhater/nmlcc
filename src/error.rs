@@ -27,3 +27,7 @@ pub enum Error {
     #[error("Parse error: {}", .what)]
     Parse { what: String },
 }
+
+pub fn nml2_error<T: Into<String>>(what: T) -> Error {
+    Error::Nml { what: what.into() }
+}

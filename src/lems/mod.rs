@@ -6,7 +6,10 @@ use std::path::PathBuf;
 use roxmltree::Document;
 use tracing::trace;
 
-use crate::{error::Error, xml, Result};
+use crate::{
+    error::{Error, Result},
+    xml,
+};
 
 fn lems_error<T: Into<String>>(what: T) -> Error {
     Error::Lems { what: what.into() }

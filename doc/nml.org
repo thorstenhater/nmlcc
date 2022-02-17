@@ -1,5 +1,8 @@
 #+TITLE: NeuroML2 From Whole Cloth
 
+Note: This file also exists in Markdown format in this repo, generated at an
+unspecified point in time with =pandoc -f org -t gfm -o nml.md nml.org=.
+
 * Introduction
 
 This document describes my current knowledge of NeuroML2 and in a way aims to
@@ -16,6 +19,9 @@ Despite its flaws, NeuroML2 is a valiant effort and an important feature to
 support.
 
 * NeuroML2 and LEMS
+
+*TL;DR*: NeuroML2 is a library of definitions written in LEMS, which is written
+in XML. All NeuroML2 is LEMS.
 
 Here I lay out the overall look and feel of NeuroML2, links to in-depth sections
 follow.
@@ -43,7 +49,8 @@ might look like this
   #+end_src
 - NML2 file
   #+begin_src xml
-  <ion_channel g="5 uS" />
+  <ion_channel id="ic1" g="5 uS"/>
+  <ion_channel id="ic2" g="42 uS"/>
   #+end_src
 
 The tag ~<ComponentType name="foo">~ introduces a new type, which can be
@@ -831,7 +838,6 @@ optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~
   - =explicitInput= ::
   - =inputList= ::
 
-
 *** Example
 
 #+begin_src xml
@@ -843,4 +849,87 @@ optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~
     <explicitInput target="hhpop[0]" input="pulseGen1"/>
     <explicitInput target="hhpop[0]" input="pulseGen2"/>
 </network>
+#+end_src
+
+* Concentration Models
+First, duplicate the ~ComponentType~ for reference with the usual simplifications
+#+begin_src xml
+<ComponentType name="concentrationModel">
+    <Exposure name="concentration" dimension="concentration"/>
+    <Exposure name="extConcentration" dimension="concentration"/>
+
+    <Requirement name="surfaceArea" dimension="area"/>
+    <Requirement name="initialConcentration" dimension="concentration"/>
+    <Requirement name="initialExtConcentration" dimension="concentration"/>
+
+    <Text name="ion"/>
+
+    <Dynamics>
+        <StateVariable name="concentration" exposure="concentration" dimension="concentration"/>
+        <StateVariable name="extConcentration" exposure="extConcentration" dimension="concentration"/>
+        <OnStart>
+            <StateAssignment variable="concentration" value="initialConcentration"/>
+            <StateAssignment variable="extConcentration" value="initialExtConcentration"/>
+        </OnStart>
+    </Dynamics>
+</ComponentType>
+
+
+<ComponentType name="decayingPoolConcentrationModel" extends="concentrationModel">
+    <Parameter name="restingConc" dimension="concentration"/>
+    <Parameter name="decayConstant" dimension="time"/>
+    <Parameter name="shellThickness" dimension="length"/>
+
+    <Constant name="Faraday" dimension="charge_per_mole" value="96485.3C_per_mol"/>
+    <Constant name="AREA_SCALE" dimension="area" value="1m2"/>
+    <Constant name="LENGTH_SCALE" dimension="length" value="1m"/>
+
+    <Requirement name="iCa" dimension="current"/>
+
+    <Dynamics>
+        <StateVariable name="concentration" exposure="concentration" dimension="concentration"/>
+        <StateVariable name="extConcentration" exposure="extConcentration" dimension="concentration"/>
+
+        <DerivedVariable name="effectiveRadius" dimension="length" value="LENGTH_SCALE * sqrt(surfaceArea/(AREA_SCALE * (4 * 3.14159)))"/>
+        <DerivedVariable name="innerRadius" dimension="length" value="effectiveRadius - shellThickness"/>
+
+        <DerivedVariable name="shellVolume" dimension="volume" value="(4 * (effectiveRadius * effectiveRadius * effectiveRadius) * 3.14159 / 3) - (4 * (innerRadius * innerRadius * innerRadius) * 3.14159 / 3)"/>
+
+        <TimeDerivative variable="concentration" value="iCa / (2 * Faraday * shellVolume) - ((concentration - restingConc) / decayConstant)"/>
+
+        <OnStart>
+            <StateAssignment variable="concentration" value="initialConcentration"/>
+            <StateAssignment variable="extConcentration" value="initialExtConcentration"/>
+        </OnStart>
+
+        <OnCondition test="concentration .lt. 0">
+            <StateAssignment variable="concentration" value="0"/>
+        </OnCondition>
+    </Dynamics>
+</ComponentType>
+
+<ComponentType name="fixedFactorConcentrationModel" extends="concentrationModel">
+    <Parameter name="restingConc" dimension="concentration"/>
+    <Parameter name="decayConstant" dimension="time"/>
+    <Parameter name="rho" dimension="rho_factor"/>
+
+    <Requirement name="iCa" dimension="current"/>
+    <Requirement name="surfaceArea" dimension="area"/>
+
+    <Dynamics>
+        <StateVariable name="concentration" exposure="concentration" dimension="concentration"/>
+        <StateVariable name="extConcentration" exposure="extConcentration" dimension="concentration"/>
+
+        <TimeDerivative variable="concentration" value="(iCa/surfaceArea) * rho - ((concentration - restingConc) / decayConstant)"/>
+
+        <OnStart>
+            <StateAssignment variable="concentration" value="initialConcentration"/>
+            <StateAssignment variable="extConcentration" value="initialExtConcentration"/>
+        </OnStart>
+
+        <OnCondition test="concentration .lt. 0">
+            <StateAssignment variable="concentration" value="0"/>
+        </OnCondition>
+    </Dynamics>
+</ComponentType>
 #+end_src
