@@ -20,10 +20,9 @@ use std::fs::write;
 use std::path::PathBuf;
 use tracing::info;
 
-pub fn export(lems: &LemsFile, nml: &[String], cell: &Option<&str>, pfx: &str) -> Result<()> {
-    std::fs::create_dir_all(&pfx)?;
+pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor>>> {
     let mut cells = Map::new();
-    let mut placings = Vec::new();
+    let mut placings: Vec<Decor> = Vec::new();
     let mut iclamps = Map::new();
 
     let norm = |v: &str| -> Result<String> {
@@ -57,18 +56,13 @@ pub fn export(lems: &LemsFile, nml: &[String], cell: &Option<&str>, pfx: &str) -
             }
             "cell" => {
                 if let Some(id) = node.attribute("id") {
-                    if let Some(cell) = cell {
-                        if id != *cell {
-                            return Ok(());
-                        }
-                    }
                     let mut result = Vec::new();
                     for bpp in node.descendants() {
                         if bpp.tag_name().name() != "biophysicalProperties" {
                             continue;
                         }
                         let prop: BiophysicalProperties = XML::from_node(&bpp);
-                        result.append(&mut acc(&prop, lems)?);
+                        result.append(&mut biophys(&prop, lems)?);
                     }
                     *cells.entry(id.to_string()).or_default() = result;
                 }
@@ -78,6 +72,7 @@ pub fn export(lems: &LemsFile, nml: &[String], cell: &Option<&str>, pfx: &str) -
         Ok(())
     })?;
 
+    // Fix iclamp <> envelope assoc
     for placing in placings.iter_mut() {
         if let Decor::Place(_, Placeable::IClamp(n, ref mut e)) = placing {
             if let Some((d, l, a)) = iclamps.get(n) {
@@ -86,16 +81,27 @@ pub fn export(lems: &LemsFile, nml: &[String], cell: &Option<&str>, pfx: &str) -
         }
     }
 
-    for (cell, mut result) in cells {
-        // TODO(TH, correctness): Need to match up cells and networks via populations here.
-        if true {
-            result.extend(placings.iter().cloned());
-            let mut file = PathBuf::from(pfx);
-            file.push(cell);
-            file.set_extension("acc");
-            info!("Writing ACC to {:?}", &file);
-            write(&file, result.to_sexp())?;
-        }
+    // TODO(TH, correctness): Need to match up cells and networks via populations here.
+    let mut result = Map::new();
+    for (cell, decor) in cells {
+        result
+            .entry(cell)
+            .or_insert(Vec::new())
+            .extend(decor.iter().chain(placings.iter()).cloned());
+    }
+    Ok(result)
+}
+
+pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
+    std::fs::create_dir_all(&pfx)?;
+
+    let cells = to_decor(lems, nml)?;
+    for (cell, decor) in cells {
+        let mut file = PathBuf::from(pfx);
+        file.push(cell);
+        file.set_extension("acc");
+        info!("Writing ACC to {:?}", &file);
+        write(&file, decor.to_sexp())?;
     }
     Ok(())
 }
@@ -273,7 +279,7 @@ impl Sexp for Vec<Decor> {
     }
 }
 
-pub fn acc(prop: &BiophysicalProperties, lems: &LemsFile) -> Result<Vec<Decor>> {
+pub fn biophys(prop: &BiophysicalProperties, lems: &LemsFile) -> Result<Vec<Decor>> {
     use BiophysicalPropertiesBody::*;
     let mut decor = Vec::new();
     for item in &prop.body {

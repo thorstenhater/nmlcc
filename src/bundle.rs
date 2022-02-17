@@ -28,7 +28,7 @@ pub fn export(lems: &LemsFile, nml: &[String], bundle: &str, use_super_mechs: bo
     if use_super_mechs {
         export_with_super_mechanisms(lems, nml, bundle)?;
     } else {
-        acc::export(lems, nml, &None, &format!("{}/acc", bundle))?;
+        acc::export(lems, nml, &format!("{}/acc", bundle))?;
     }
     Ok(())
 }
@@ -40,6 +40,7 @@ import arbor as A
 
 import subprocess as sp
 from pathlib import Path
+from time import perf_counter as pc
 
 # Auto-generated file, please copy to eg main.py
 
@@ -64,16 +65,35 @@ def mk_cat():
 
 morph, labels, decor = nml_load_cell()
 
+decor.discretization(A.cv_policy_every_segment())
+
 cell = A.cable_cell(morph, labels, decor)
 sim  = A.single_cell_model(cell)
 
 sim.properties.catalogue = mk_cat()
 
 # Add probes here (example below)
-# sim.probe('voltage', '<FIXME>', frequency=10)
+sim.probe('voltage', '(location 0 0.5)', frequency=10) # probe center of the root (likely the soma)
 
 # Now run the simulation
-sim.run(100, 0.0025)
+print('Running simulation for 1s...')
+t0 = pc()
+sim.run(1000, 0.0025)
+t1 = pc()
+print(f'Simulation done, took: {{t1-t0:.3f}}s')
+
+print('Trying to plot...')
+try:
+  import pandas as pd
+  import seaborn as sns
+
+  tr = sim.traces[0]
+  df = pd.DataFrame({{'t/ms': tr.time, 'U/mV': tr.value}})
+
+  sns.relplot(data=df, kind='line', x='t/ms', y='U/mV', ci=None).set_titles('Probe at (location 0 0.5)').savefig('{id}.pdf')
+  print('Ok, generated {id}.pdf')
+except:
+  print('Failure, are seaborn and matplotlib installed?')
 ",
         id = id
     ))
@@ -159,66 +179,68 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
             let id = node.attribute("id").ok_or(Error::Nml {
                 what: "Cell without id".to_string(),
             })?;
-            let mut ass = Vec::new();
             for bpp in node.descendants() {
-                if bpp.tag_name().name() != "biophysicalProperties" {
-                    continue;
-                }
-                let prop: BiophysicalProperties = XML::from_node(&bpp);
-                ass.append(&mut acc::acc(&prop, lems)?);
-                for item in &prop.body {
-                    if let membraneProperties(membrane) = item {
-                        for item in &membrane.body {
-                            if let channelDensity(ChannelDensity {
-                                ionChannel,
-                                condDensity,
-                                erev,
-                                segmentGroup,
-                                ..
-                            }) = item
-                            {
-                                let a = Assign::new(
-                                    ionChannel,
-                                    condDensity.as_deref().unwrap(),
-                                    erev.as_str(),
-                                )?;
-                                let region = if segmentGroup.is_empty() {
-                                    "all"
-                                } else {
-                                    segmentGroup
+                match bpp.tag_name().name() {
+                    "biophysicalProperties" => {
+                        let prop: BiophysicalProperties = XML::from_node(&bpp);
+                        for item in &prop.body {
+                            if let membraneProperties(membrane) = item {
+                                for item in &membrane.body {
+                                    if let channelDensity(ChannelDensity {
+                                        ionChannel,
+                                        condDensity,
+                                        erev,
+                                        segmentGroup,
+                                        ..
+                                    }) = item
+                                    {
+                                        let a = Assign::new(
+                                            ionChannel,
+                                            condDensity.as_deref().unwrap(),
+                                            erev.as_str(),
+                                        )?;
+                                        let region = if segmentGroup.is_empty() {
+                                            "all"
+                                        } else {
+                                            segmentGroup
+                                        }
+                                        .to_string();
+                                        sms.entry((id.to_string(), region)).or_default().push(a);
+                                    }
                                 }
-                                .to_string();
-                                sms.entry((id.to_string(), region)).or_default().push(a);
                             }
                         }
                     }
+                    _ => {}
                 }
             }
-
-            let path = format!("{}/acc/{}.acc", bundle, id);
-
-            let mut seen = Set::new();
-            let mut ass_sm = Vec::new();
-            for d in ass.into_iter() {
-                match d {
-                    acc::Decor::Paint(r, Paintable::Mech(_, _)) => {
-                        if !seen.contains(&r) {
-                            ass_sm.push(acc::Decor::Paint(
-                                r.to_string(),
-                                Paintable::Mech(format!("{}_{}", id, r), Map::new()),
-                            ));
-                            seen.insert(r.to_string());
-                        }
-                    }
-                    _ => ass_sm.push(d),
-                }
-            }
-
-            info!("Writing Super Mechanism ACC to {:?}", &path);
-            write(&path, ass_sm.to_sexp())?;
         }
         Ok(())
     })?;
+
+    let decor = acc::to_decor(lems, nml)?;
+    for (id, ass) in decor {
+        let path = format!("{}/acc/{}.acc", bundle, id);
+        let mut seen = Set::new();
+        let mut ass_sm = Vec::new();
+        for d in ass.into_iter() {
+            match d {
+                acc::Decor::Paint(r, Paintable::Mech(_, _)) => {
+                    if !seen.contains(&r) {
+                        ass_sm.push(acc::Decor::Paint(
+                            r.to_string(),
+                            Paintable::Mech(format!("{}_{}", id, r), Map::new()),
+                        ));
+                        seen.insert(r.to_string());
+                    }
+                }
+                _ => ass_sm.push(d),
+            }
+        }
+
+        info!("Writing Super Mechanism ACC to {:?}", &path);
+        write(&path, ass_sm.to_sexp())?;
+    }
 
     let mut instances = Vec::new();
     process_files(nml, |_, node| {
@@ -240,7 +262,8 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                     let ion = inst.attributes.get("species").cloned().unwrap_or_default();
                     // Set Parameters e, g
                     let g = lems.normalise_quantity(g)?;
-                    inst.parameters.insert(format!("{}_conductance", m), g);
+                    inst.component_type.parameters.push(String::from("conductance"));
+                    inst.parameters.insert(String::from("conductance"), g);
                     if ion.is_empty() {
                         let e = lems.normalise_quantity(e)?;
                         inst.parameters.insert(String::from("e"), e);
@@ -248,6 +271,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                     }
                     ions.entry(ion.clone()).or_default().push(m.clone());
                     coll.add(&inst, &Context::default(), None)?;
+                    eprintln!("{:?}", coll.parameters);
                 }
             }
         }
@@ -288,7 +312,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
         n.add_variables(&variables);
         let nmodl = nmodl::mk_nmodl(&n)?;
 
-        let path = format!("{}/cat/{}-{}.mod", bundle, id, reg);
+        let path = format!("{}/cat/{}_{}.mod", bundle, id, reg);
         info!(
             "Writing Super-Mechanism NMODL for cell '{}' region '{}' to {:?}",
             id, reg, &path
