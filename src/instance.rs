@@ -283,7 +283,7 @@ impl Collapsed {
         let ct = &inst.component_type;
         let mut ctx = ctx.clone();
         let nm = if add_name {
-            if let Some(n) = inst.id.as_deref().or(name.as_deref()) {
+            if let Some(n) = inst.id.as_deref().or_else(|| name.as_deref()) {
                 n
             } else {
                 info!("Found node without id, setting to 'Unknown'");

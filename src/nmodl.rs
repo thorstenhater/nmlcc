@@ -36,7 +36,7 @@ pub struct Nmodl {
     /// Settable parameters, with optional defaults
     parameters: Map<String, Option<Quantity>>,
     /// State variables
-    state: Vec<String>,
+    state: Set<String>,
     /// State initialisation
     init: Map<String, Stmnt>,
     /// State derivatives
@@ -105,7 +105,7 @@ impl Nmodl {
             .iter()
             .map(|(k, e)| (k.to_string(), Stmnt::Ass(k.to_string(), e.clone())))
             .collect();
-        let mut state = Vec::new();
+        let mut state = Set::new();
         let mut init = Map::new();
         let mut deriv = Map::new();
         let mut variables = Map::new();
@@ -113,7 +113,7 @@ impl Nmodl {
         for var in &coll.variables {
             let nm = var.name.to_string();
             if let VarKind::State(i, d) = &var.kind {
-                state.push(var.name.clone());
+                state.insert(var.name.clone());
                 if let Some(i) = i {
                     init.insert(nm.to_string(), Stmnt::Ass(nm.clone(), i.clone()));
                 }
@@ -242,6 +242,7 @@ impl Nmodl {
 
         let mut symbols: Set<_> = [
             String::from("v"),
+            String::from("area"),
             String::from("v_peer"),
             String::from("cai"),
         ]
@@ -297,6 +298,13 @@ impl Nmodl {
         }
         simplify(&mut self.outputs, &mut self.fixed, &self.keep);
     }
+    pub fn add_initials(&mut self, rhs: &Map<String, Stmnt>) {
+        for (k, v) in rhs {
+            self.init.insert(k.clone(), v.clone());
+            self.keep.insert(k.clone());
+        }
+        simplify(&mut self.init, &mut self.fixed, &self.keep);
+    }
 }
 
 pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
@@ -316,7 +324,10 @@ pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
 
 fn nmodl_state_block(n: &Nmodl) -> Result<String> {
     if !n.state.is_empty() {
-        Ok(format!("STATE {{ {} }}\n\n", n.state.join(" ")))
+        Ok(format!(
+            "STATE {{ {} }}\n\n",
+            n.state.iter().cloned().collect::<Vec<_>>().join(" ")
+        ))
     } else {
         Ok(String::new())
     }
@@ -481,7 +492,7 @@ fn nmodl_kinetic_block(n: &Nmodl) -> Result<String> {
         let row = row.iter().cloned().collect::<Vec<_>>().join(" + ");
         result.push_str(&format!("  CONSERVE {} = 1\n", row));
     }
-    result.push_str("}\n");
+    result.push_str("}\n\n");
     Ok(result)
 }
 
@@ -555,7 +566,7 @@ fn nmodl_recv_block(n: &Nmodl) -> Result<String> {
         let result = vec![
             String::from("NET_RECEIVE(weight) {"),
             evts,
-            String::from("}\n"),
+            String::from("}\n\n"),
         ];
         Ok(result.join("\n"))
     } else {
@@ -567,7 +578,7 @@ fn ion_species(coll: &Collapsed) -> Vec<String> {
     coll.attributes
         .iter()
         .filter_map(|(k, v)| {
-            if k.ends_with("species") {
+            if k.ends_with("species") || k == "ion" {
                 Some(v.as_deref().unwrap_or_default().to_string())
             } else {
                 None
@@ -680,41 +691,56 @@ fn print_dependency_chains(
     Ok(result.join("\n"))
 }
 
-pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
-    match instance.component_type.name.as_ref() {
-        "gapJunction" => {
-            let mut filter = filter.to_string();
-            let mut instance = instance.clone();
-            if !filter.is_empty() {
-                filter.push(',');
-            }
-            filter.push_str("+weight,+conductance");
-            // Gap Junctions need peer voltage, which is provided by Arbor
-            instance
-                .component_type
-                .variables
-                .retain(|v| v.name != "vpeer");
-            let mut coll = Collapsed::from_instance(&instance)?;
-            coll.parameters
-                .insert(String::from("weight"), Some(Quantity::parse("1")?));
-            let mut n = Nmodl::from(&coll, &filter)?;
-            // We know that we must write `i` and that it is in the variables
-            if let Some((k, v)) = n.variables.remove_entry("i") {
-                n.outputs.insert(k, v);
+pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String> {
+    let ty: &str = instance.component_type.name.as_ref();
+    match base {
+        "baseSynapse" => {
+            if ty == "gapJunction" {
+                let mut filter = filter.to_string();
+                let mut instance = instance.clone();
+                if !filter.is_empty() {
+                    filter.push(',');
+                }
+                filter.push_str("+weight,+conductance");
+                // Gap Junctions need peer voltage, which is provided by Arbor
+                instance
+                    .component_type
+                    .variables
+                    .retain(|v| v.name != "vpeer");
+                let mut coll = Collapsed::from_instance(&instance)?;
+                coll.parameters
+                    .insert(String::from("weight"), Some(Quantity::parse("1")?));
+                let mut n = Nmodl::from(&coll, &filter)?;
+                // We know that we must write `i` and that it is in the variables
+                if let Some((k, v)) = n.variables.remove_entry("i") {
+                    n.outputs.insert(k, v);
+                } else {
+                    return Err(nmodl_error("Gap Junction without defined current 'i'"));
+                }
+                n.kind = Kind::Junction;
+                mk_nmodl(&n)
             } else {
-                return Err(nmodl_error("Gap Junction without defined current 'i'"));
+                let filter = filter.to_string();
+                let instance = instance.clone();
+                let coll = Collapsed::from_instance(&instance)?;
+                let mut n = Nmodl::from(&coll, &filter)?;
+                // We know that we must write `i` and that it is in the variables
+                if let Some((k, v)) = n.variables.remove_entry("i") {
+                    n.outputs.insert(k, v);
+                } else {
+                    return Err(nmodl_error("Synapse without defined current 'i'"));
+                }
+                n.kind = Kind::Point;
+                mk_nmodl(&n)
             }
-            n.kind = Kind::Junction;
-            mk_nmodl(&n)
         }
-        "ionChannel" | "ionChannelHH" | "ionChannelKS" | "ionChannelPassive" => {
+        "baseIonChannel" => {
             let mut filter = filter.to_string();
             let mut instance = instance.clone();
             if !filter.is_empty() {
                 filter.push(',');
             }
             filter.push_str("+conductance");
-            // TODO non-specific ions need an extra parameter e
             if instance
                 .attributes
                 .keys()
@@ -750,21 +776,51 @@ pub fn to_nmodl(instance: &Instance, filter: &str) -> Result<String> {
             n.kind = Kind::Density;
             mk_nmodl(&n)
         }
-        // TODO(TH, robustness): concluding a synapse here is shaky. However. Below we filter on basechannel/basesynapse, so it might be ok?!
-        _ => {
+        "concentrationModel" => {
             let filter = filter.to_string();
             let instance = instance.clone();
             let coll = Collapsed::from_instance(&instance)?;
+            let ion = coll.attributes.get("ion").unwrap().as_deref().unwrap();
             let mut n = Nmodl::from(&coll, &filter)?;
-            // We know that we must write `i` and that it is in the variables
-            if let Some((k, v)) = n.variables.remove_entry("i") {
-                n.outputs.insert(k, v);
-            } else {
-                return Err(nmodl_error("Synapse without defined current 'i'"));
+            let xi = format!("{}i", ion);
+            let xo = format!("{}o", ion);
+            let ix = format!("i{}", ion);
+            let ic = String::from("concentration");
+            let ec = String::from("extConcentration");
+            let mut os = Map::new();
+            os.insert(xi.clone(), Stmnt::Ass(xi.clone(), Expr::Var(ic.clone())));
+            os.insert(xo.clone(), Stmnt::Ass(xo.clone(), Expr::Var(ec.clone())));
+            n.add_outputs(&os);
+            let mut is = Map::new();
+            is.insert(ic.clone(), Stmnt::Ass(ic, Expr::Var(xi)));
+            is.insert(ec.clone(), Stmnt::Ass(ec, Expr::Var(xo)));
+            n.add_initials(&is);
+            // Map variables iCa -> iX to compensate for NML2 mistakes
+            let fix = |ex: &Expr| -> Expr {
+                match ex {
+                    Expr::Var(x) if x == "iCa" => Expr::Var(ix.clone()),
+                    Expr::Var(x) if x == "surfaceArea" => Expr::Var("area".to_string()),
+                    _ => ex.clone(),
+                }
+            };
+            for stm in n.variables.values_mut() {
+                *stm = stm.map(&fix);
             }
-            n.kind = Kind::Point;
+            for stm in n.deriv.values_mut() {
+                *stm = stm.map(&fix);
+            }
+            for stm in n.init.values_mut() {
+                *stm = stm.map(&fix);
+            }
+            for stm in n.outputs.values_mut() {
+                *stm = stm.map(&fix);
+            }
             mk_nmodl(&n)
         }
+        _ => Err(nmodl_error(format!(
+            "Type {} deriving an expected base {}",
+            ty, base
+        ))),
     }
 }
 
@@ -809,18 +865,9 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
     }
 }
 
-pub fn export(
-    lems: &LemsFile,
-    nml: &[String],
-    ty: &Option<&str>,
-    filter: &str,
-    cat: &str,
-) -> Result<()> {
-    let tys = if let Some(ty) = ty {
-        vec![*ty]
-    } else {
-        vec!["baseIonChannel", "baseSynapse"]
-    };
+pub fn export(lems: &LemsFile, nml: &[String], filter: &str, cat: &str) -> Result<()> {
+    let tys = vec!["baseIonChannel", "baseSynapse", "concentrationModel"];
+
     process_files(nml, |_, node| {
         let tag = node.tag_name().name();
         for ty in &tys {
@@ -841,7 +888,7 @@ pub fn export(
                     instance.id.as_deref().unwrap(),
                     &path
                 );
-                write(&path, to_nmodl(&instance, filter)?)?;
+                write(&path, to_nmodl(&instance, filter, ty)?)?;
             }
         }
         Ok(())

@@ -28,10 +28,6 @@ enum Cmd {
     Nmodl {
         /// NeuroML2 compliant XML files
         nml: Vec<String>,
-        /// Base class to extract, if not given, a list of known Dynamics base
-        /// types will be tried, namely: baseSynapse, baseIonChannel
-        #[clap(short, long)]
-        r#type: Option<String>,
         /// Parameters to be retained/removed from NMODL; prefix with `-` to
         /// remove or `+` to retain, `*` matches all suffices, cannot be given
         /// as infix/prefix; eg --parameter='-*,+foo_*,-foo_bar_*' will retain
@@ -48,9 +44,6 @@ enum Cmd {
     Acc {
         /// NeuroML2 compliant XML files
         nml: Vec<String>,
-        /// Cell id to extract, if not given will visit _all_ cells.
-        #[clap(short, long)]
-        cell: Option<String>,
         /// Write ouput under this prefix
         #[clap(short, long, default_value = ".")]
         dir: String,
@@ -86,18 +79,17 @@ fn main() -> Result<()> {
     let _guard = tracing::subscriber::set_global_default(collector);
 
     let opts = Cli::parse();
-    let mut lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
+    let mut lems = lems::file::LemsFile::core();
     match opts.cmd {
         Cmd::Nmodl {
             nml,
-            r#type,
             parameter,
             dir,
         } => {
             get_runtime_types(&mut lems, &nml)?;
-            nmodl::export(&lems, &nml, &r#type.as_deref(), &parameter, &dir)?;
+            nmodl::export(&lems, &nml, &parameter, &dir)?;
         }
-        Cmd::Acc { nml, cell, dir } => acc::export(&lems, &nml, &cell.as_deref(), &dir)?,
+        Cmd::Acc { nml, dir } => acc::export(&lems, &nml, &dir)?,
         Cmd::Bundle {
             nml,
             dir,
