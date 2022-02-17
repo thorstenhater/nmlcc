@@ -86,7 +86,7 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
     for (cell, decor) in cells {
         result
             .entry(cell)
-            .or_insert(Vec::new())
+            .or_insert_with(Vec::new)
             .extend(decor.iter().chain(placings.iter()).cloned());
     }
     Ok(result)
