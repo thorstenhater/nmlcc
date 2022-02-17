@@ -180,38 +180,35 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                 what: "Cell without id".to_string(),
             })?;
             for bpp in node.descendants() {
-                match bpp.tag_name().name() {
-                    "biophysicalProperties" => {
-                        let prop: BiophysicalProperties = XML::from_node(&bpp);
-                        for item in &prop.body {
-                            if let membraneProperties(membrane) = item {
-                                for item in &membrane.body {
-                                    if let channelDensity(ChannelDensity {
+                if bpp.tag_name().name() == "biophysicalProperties" {
+                    let prop: BiophysicalProperties = XML::from_node(&bpp);
+                    for item in &prop.body {
+                        if let membraneProperties(membrane) = item {
+                            for item in &membrane.body {
+                                if let channelDensity(ChannelDensity {
+                                    ionChannel,
+                                    condDensity,
+                                    erev,
+                                    segmentGroup,
+                                    ..
+                                }) = item
+                                {
+                                    let a = Assign::new(
                                         ionChannel,
-                                        condDensity,
-                                        erev,
-                                        segmentGroup,
-                                        ..
-                                    }) = item
-                                    {
-                                        let a = Assign::new(
-                                            ionChannel,
-                                            condDensity.as_deref().unwrap(),
-                                            erev.as_str(),
-                                        )?;
-                                        let region = if segmentGroup.is_empty() {
-                                            "all"
-                                        } else {
-                                            segmentGroup
-                                        }
-                                        .to_string();
-                                        sms.entry((id.to_string(), region)).or_default().push(a);
+                                        condDensity.as_deref().unwrap(),
+                                        erev.as_str(),
+                                    )?;
+                                    let region = if segmentGroup.is_empty() {
+                                        "all"
+                                    } else {
+                                        segmentGroup
                                     }
+                                    .to_string();
+                                    sms.entry((id.to_string(), region)).or_default().push(a);
                                 }
                             }
                         }
                     }
-                    _ => {}
                 }
             }
         }
@@ -262,7 +259,9 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                     let ion = inst.attributes.get("species").cloned().unwrap_or_default();
                     // Set Parameters e, g
                     let g = lems.normalise_quantity(g)?;
-                    inst.component_type.parameters.push(String::from("conductance"));
+                    inst.component_type
+                        .parameters
+                        .push(String::from("conductance"));
                     inst.parameters.insert(String::from("conductance"), g);
                     if ion.is_empty() {
                         let e = lems.normalise_quantity(e)?;
@@ -306,7 +305,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                 outputs.insert(String::from("i"), Stmnt::Ass(String::from("i"), i));
             }
         }
-        let mut n = nmodl::Nmodl::from(&coll, "+*")?;
+        let mut n = nmodl::Nmodl::from(&coll, "-*")?;
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);
