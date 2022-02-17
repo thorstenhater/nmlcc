@@ -710,12 +710,21 @@ where multiple rates between the same two states were merged. Note that
 - ~gates_m_transitions_ft_rr = 0~
 - ~gates_m_transitions_ft_rf = 0~
 
-** On ~KineticScheme~
+** Question ~KineticScheme~
 ~KineticScheme~ seems to break the abstractions put in place. Looking at ~nodes~
 and ~edges~ which _must_ be of kind ~children~, otherwise the semantics would
 not work out. Similarly, both must be located directly under the scheme in the
 hierarchy. However, a ~select~ statement would have expressed the same thing
-more idiomatically.
+more idiomatically?!
+
+#+begin_src xml
+<KineticScheme name="ks"
+               nodes="states"
+               stateVariable="occupancy"
+               edges="transitions"
+               edgeSource="from" edgeTarget="to"
+               forwardRate="rf" reverseRate="rr"/>
+#+end_src
 
 * The Final Building Block
 
@@ -760,8 +769,7 @@ more idiomatically.
  ~condDensity~ added in ~channelDensityCond~ is identical to ~conductance~.
  Thus, we need to retain ~conductance~ and set it to the value of ~condDensity~.
 
-* Much Time Has Passed
-* Networks
+* * Networks
 
 Networks are important for us for both actual network support and simulation
 inputs. We note the following about the network layout in NML2.
@@ -793,15 +801,25 @@ location)= where =location= takes the form =(cell: id, segment: id, fraction:
 Target cells are _selected_ by the relative paths and an index, eg
 ~target=../pop0[0]~ addresses the population ~pop0~, one tag up from here, and
 picks cell zero from there. If ~pop0~ has a single member, the index is
-optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~
+optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~.
 
 *** Questions
 - Does ~[ix]~ query by id or offset?
-- What's the difference between ~pop/id/Cell~ and ~/pop[0]~?
-- Why do connections have to traverse the tree and do not work relative to their
-  pre/post populations? Seems counterintuitive.
+
+  It queries by offset into a flat array, like in ~population~.
+- What's the difference between ~pop/<id>/Cell~ and ~/pop[<index>]~?
+  - ~pop/<id>/Cell~ :: for ~populationList~ only. NB. in ~projection/connection~
+    entries the path is relative to ~projection~ *not* ~connection~.
+  - ~/pop[<index>]~ :: see above
+ - Why do connections have to traverse the tree and do not work relative to
+   their pre/post populations? Seems counterintuitive.
+
+  It is, but ~jLEMS~ just is that way.
 - How does Arbor translate segments into its internal rep? Can we directly use
   it like ~branch~?
+
+  We have ~(segment <id>)~ and can use ~(on-components (segment <id>)
+  <fraction>)~ to target locations.
 
 *** Example
 
@@ -874,7 +892,6 @@ First, duplicate the ~ComponentType~ for reference with the usual simplification
     </Dynamics>
 </ComponentType>
 
-
 <ComponentType name="decayingPoolConcentrationModel" extends="concentrationModel">
     <Parameter name="restingConc" dimension="concentration"/>
     <Parameter name="decayConstant" dimension="time"/>
@@ -933,3 +950,7 @@ First, duplicate the ~ComponentType~ for reference with the usual simplification
     </Dynamics>
 </ComponentType>
 #+end_src
+
+We remove the hard-coded ~iCa~ requirement and replace it ad-hoc with ~iX~ where
+~X~ is given in ~species~. Currently, concentration models *do not work in
+Arbor*, since they would require access to ~area~, which is not exposed.
