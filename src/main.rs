@@ -44,9 +44,6 @@ enum Cmd {
     Acc {
         /// NeuroML2 compliant XML files
         nml: Vec<String>,
-        /// Cell id to extract, if not given will visit _all_ cells.
-        #[clap(short, long)]
-        cell: Option<String>,
         /// Write ouput under this prefix
         #[clap(short, long, default_value = ".")]
         dir: String,
@@ -82,7 +79,7 @@ fn main() -> Result<()> {
     let _guard = tracing::subscriber::set_global_default(collector);
 
     let opts = Cli::parse();
-    let mut lems = lems::file::LemsFile::from(&opts.include_dir, &opts.core)?;
+    let mut lems = lems::file::LemsFile::core();
     match opts.cmd {
         Cmd::Nmodl {
             nml,
@@ -92,7 +89,7 @@ fn main() -> Result<()> {
             get_runtime_types(&mut lems, &nml)?;
             nmodl::export(&lems, &nml, &parameter, &dir)?;
         }
-        Cmd::Acc { nml, cell, dir } => acc::export(&lems, &nml, &cell.as_deref(), &dir)?,
+        Cmd::Acc { nml, dir } => acc::export(&lems, &nml, &dir)?,
         Cmd::Bundle {
             nml,
             dir,
