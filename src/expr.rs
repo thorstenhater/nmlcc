@@ -15,7 +15,7 @@ impl Quantity {
         if let Ok((_, result)) = parse::quantity(input) {
             Ok(result)
         } else {
-            Err(parse_error(format!("Could not parse {}", input)))
+            Err(parse_error(format!("Could not parse quantity '{}'", input)))
         }
     }
 }
@@ -62,7 +62,7 @@ impl Expr {
         if let Ok((_, result)) = parse::expr(input) {
             Ok(result.simplify())
         } else {
-            Err(parse_error(format!("Could not parse {}", input)))
+            Err(parse_error(format!("Could not parse expression '{}'", input)))
         }
     }
 
@@ -442,7 +442,7 @@ mod parse {
 
     fn sqrt(input: &str) -> IResult<&str, Expr> {
         let (input, e) = preceded(tag("sqrt"), parenthised)(input)?;
-        Ok((input, Expr::Exp(Box::new(e))))
+        Ok((input, Expr::Sqrt(Box::new(e))))
     }
 
     fn atom(input: &str) -> IResult<&str, Expr> {

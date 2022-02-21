@@ -94,6 +94,8 @@ impl Instance {
                 attributes.insert(key, val.to_string());
             } else if "id" == key || "type" == key {
             } else {
+                eprintln!("{:?}", component_type.attributes);
+                eprintln!("{:?}", component_type.parameters);
                 return Err(nml2_error(format!(
                     "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
                     key, val, node

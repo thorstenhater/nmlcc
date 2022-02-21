@@ -223,23 +223,6 @@ impl Nmodl {
             Stmnt::Ass(String::from("vpeer"), Expr::Var(String::from("v_peer"))),
         );
 
-        let keep = outputs
-            .keys()
-            .chain(outputs.keys())
-            .chain(deriv.keys())
-            .chain(init.keys())
-            .chain(events.keys())
-            .chain(rates.keys())
-            .cloned()
-            .collect();
-
-        simplify(&mut variables, &mut fixed, &keep);
-        simplify(&mut outputs, &mut fixed, &keep);
-        simplify(&mut init, &mut fixed, &keep);
-        simplify(&mut deriv, &mut fixed, &keep);
-        simplify(&mut events, &mut fixed, &keep);
-        simplify(&mut rates, &mut fixed, &keep);
-
         let mut symbols: Set<_> = [
             String::from("v"),
             String::from("area"),
@@ -259,6 +242,24 @@ impl Nmodl {
         symbols.extend(parameters.iter().map(|p: (&String, _)| p.0.to_string()));
         symbols.extend(constants.iter().map(|p: (&String, _)| p.0.to_string()));
         symbols.extend(state.iter().cloned());
+
+        let keep = outputs
+            .keys()
+            .chain(outputs.keys())
+            .chain(deriv.keys())
+            .chain(init.keys())
+            .chain(events.keys())
+            .chain(rates.keys())
+            .chain(symbols.iter())
+            .cloned()
+            .collect();
+
+        simplify(&mut variables, &mut fixed, &keep);
+        simplify(&mut outputs, &mut fixed, &keep);
+        simplify(&mut init, &mut fixed, &keep);
+        simplify(&mut deriv, &mut fixed, &keep);
+        simplify(&mut events, &mut fixed, &keep);
+        simplify(&mut rates, &mut fixed, &keep);
 
         let states = coll.states.clone();
 
@@ -496,7 +497,41 @@ fn nmodl_kinetic_block(n: &Nmodl) -> Result<String> {
     Ok(result)
 }
 
+fn read_variable(n: &Nmodl) -> Result<Set<String>> {
+    let variables = n.variables.iter()
+                               .chain(n.init.iter())
+                               .chain(n.rates.iter())
+                               .chain(n.deriv.iter())
+                               .chain(n.outputs.iter())
+                               .map(|(k, v)| (k.clone(), v.clone()))
+                               .collect::<Map<_,_>>();
+    let deps = find_dependencies(&variables);
+        let mut todo = n.outputs.iter()
+                            .chain(n.init.iter())
+                            .chain(n.rates.iter())
+                            .chain(n.deriv.iter())
+                            .chain(n.outputs.iter())
+                            .map(|p| p.0.to_string())
+                            .collect::<Vec<_>>();
+    let mut result = Set::new();
+    while let Some(v) = todo.pop() {
+        if let Some(us) = deps.get(&v) {
+            for u in us {
+                if !result.contains(u) {
+                    todo.push(u.clone());
+                }
+                result.insert(u.clone());
+            }
+        }
+    }
+    Ok(result)
+}
+
 fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
+    let read = read_variable(n)?;
+    let mut ions = n.species.iter().cloned().collect::<Set<_>>();
+    ions.insert(String::from("ca"));
+
     let kind = match &n.kind {
         Kind::Density => "SUFFIX",
         Kind::Point => "POINT_PROCESS",
@@ -506,17 +541,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         String::from("NEURON {\n"),
         format!("  {} {}\n", kind, n.suffix),
     ];
-    let mut read = Set::new();
-    for roots in &[&n.outputs, &n.init, &n.rates, &n.deriv] {
-        for v in find_dependencies(roots).values() {
-            read.extend(v.iter().cloned());
-        }
-    }
     let write = n.outputs.keys().collect::<Set<_>>();
-
-    let mut ions = n.species.iter().cloned().collect::<Set<_>>();
-    ions.insert(String::from("ca"));
-
     if write.contains(&String::from("i"))
         && (ions.contains(&String::new()) || n.kind == Kind::Junction || n.kind == Kind::Point)
     {
@@ -893,4 +918,25 @@ pub fn export(lems: &LemsFile, nml: &[String], filter: &str, cat: &str) -> Resul
         }
         Ok(())
     })
+}
+
+fn assign(v: &str, e: &str) -> Result<(String, Stmnt)> {
+    let e = Expr::parse(e)?;
+    Ok((v.to_string(), Stmnt::Ass(v.to_string(), e)))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_dependencies() {
+        assert!(find_dependencies(&Map::new()).is_empty());
+        let ds = [assign("x", "y * z").unwrap()].into_iter().collect::<Map<_, _>>();
+        let vs = ["y".to_string(), "z".to_string()].into_iter().collect::<Set<_>>();
+        assert_eq!(find_dependencies(&ds).get("x"), Some(&vs));
+        let ds = [assign("x", "(1 + (0.5 * y^-1)^4.8)^-1").unwrap()].into_iter().collect::<Map<_, _>>();
+        let vs = ["y".to_string()].into_iter().collect::<Set<_>>();
+        assert_eq!(find_dependencies(&ds).get("x"), Some(&vs));
+    }
 }

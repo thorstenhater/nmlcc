@@ -31,8 +31,8 @@ fn normalise_quantity(
         if let Some(v) = units.get(u) {
             if let Some(w) = blessed.get(&v.dimension) {
                 // We are scared by those
-                assert!(v.offset == 0.0);
-                assert!(w.offset == 0.0);
+                assert!(v.offset == 0.0 || (v.scale == 1.0 && v.power == 0));
+                assert!(w.offset == 0.0 || (w.scale == 1.0 && w.power == 0));
                 // Compute conversion
                 // f v.scale 10^v.power = w.scale 10^w.power
                 // => f = 10^(w.power - v.power)
@@ -223,6 +223,12 @@ impl LemsFile {
                     result.parameters.push(p.clone());
                 }
             }
+            for p in &ty.attributes {
+                if !result.attributes.contains(p) {
+                    result.attributes.push(p.clone());
+                }
+            }
+
             for p in &ty.variables {
                 if !result.variables.contains(p) {
                     result.variables.push(p.clone());

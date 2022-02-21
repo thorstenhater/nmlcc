@@ -142,6 +142,7 @@ impl Paintable {
             Paintable::Vm(v) => Paintable::Vm(norm(v)?),
             Paintable::Cm(v) => Paintable::Cm(norm(v)?),
             Paintable::Er(i, v) => Paintable::Er(i.clone(), norm(v)?),
+            Paintable::Em(i, m) if m == "nernst" => Paintable::Em(i.clone(), m.clone()),
             Paintable::Em(i, m) => Paintable::Em(i.clone(), norm(m)?),
             Paintable::Mech(m, ps) => {
                 let mut ps = ps.clone();
@@ -349,6 +350,7 @@ fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
                 }
                 result.push(Decor::new(
                     "",
+                    // TODO This is poison
                     Paintable::Em(ion.to_string(), "nernst".to_string()),
                     false,
                 ));
