@@ -116,9 +116,8 @@ replace `nmlcc` with `cargo run -- [args]` instead.
 
 ## General Options
 
-`-v/--verbose`  
-Provide more output, defaults to warnings only, `-v` escalates to `INFO` and
-`-vv` to `TRACE`.
+- `-v/--verbose`: Provide more output, defaults to warnings only, `-v` escalates
+  to `INFO` and `-vv` to `TRACE`.
 
 ## Generate `NMODL` from NeuroML2 Dynamics
 
