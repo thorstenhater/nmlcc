@@ -62,7 +62,10 @@ impl Expr {
         if let Ok((_, result)) = parse::expr(input) {
             Ok(result.simplify())
         } else {
-            Err(parse_error(format!("Could not parse expression '{}'", input)))
+            Err(parse_error(format!(
+                "Could not parse expression '{}'",
+                input
+            )))
         }
     }
 

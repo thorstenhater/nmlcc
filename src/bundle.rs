@@ -1,5 +1,5 @@
 use std::fs::{create_dir_all, write};
-use tracing::info;
+use tracing::{info, trace};
 
 use crate::acc::Paintable;
 use crate::expr::Stmnt;
@@ -117,6 +117,7 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
 }
 
 fn export_template(nml: &[String], bundle: &str) -> Result<()> {
+    trace!("Creating bundle {}", bundle);
     create_dir_all(&bundle)?;
     create_dir_all(&format!("{}/mrf", bundle))?;
     create_dir_all(&format!("{}/acc", bundle))?;
@@ -133,6 +134,7 @@ fn export_template(nml: &[String], bundle: &str) -> Result<()> {
                     })?;
                     ids.push(id.to_string());
                     if mrf.tag_name().name() == "morphology" {
+                        trace!("Writing morphology to {}/mrf/{}", bundle, id);
                         write(
                             format!("{}/mrf/{}.nml", bundle, id),
                             mk_mrf(id, &doc[mrf.range()]),
@@ -147,6 +149,7 @@ fn export_template(nml: &[String], bundle: &str) -> Result<()> {
     })?;
 
     for id in &ids {
+        trace!("Writing main.{}.py", id);
         write(&format!("{}/main.{}.py", bundle, id), mk_main_py(id)?)?;
     }
     Ok(())

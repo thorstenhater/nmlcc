@@ -114,6 +114,12 @@ Arbor single cell model, take a look at the `bundle` exporter
 **Note** we use `nmlcc` as if calling the tool directly, when using `cargo`,
 replace `nmlcc` with `cargo run -- [args]` instead.
 
+## General Options
+
+`-v/--verbose`  
+Provide more output, defaults to warnings only, `-v` escalates to `INFO` and
+`-vv` to `TRACE`.
+
 ## Generate `NMODL` from NeuroML2 Dynamics
 
 `nmlcc nmodl <options> <input.nml ...>` generates NMODL files that can be
@@ -198,10 +204,6 @@ stimuli as well.
 
 ### Options
 
-`--cell=<id>`  
-selects a cell for export by NML2 id, if not given all cells will be
-processed
-
 `--dir=<dir>`  
 store ouput under this directory, defaults to current directory.
 
@@ -221,9 +223,15 @@ $> cat hhcell.acc
     (default (membrane-capacitance 1))
     (default (membrane-potential -65.4000015258789))
     (default (axial-resistivity 0.029999999329447746))))
+
 ```
 
 ## Producing a Ready-to-Run Bundle from NML2
+
+**Note**: `bundle` accepts a *single* NML2 file instead of a list like the
+remainder of commands and expects to find at least a `cell` instance and
+preferably a `network`. If no `network` is found, some settings will not be
+available, eg adding ion species, concentration models, and temperature.
 
 `nmlcc bundle <input.nml> <output>` combines the last two commands into a
 convenient package. The NML2 file `<input.nml>` must contain all morphologies
@@ -251,10 +259,13 @@ template python script, one per `id`, to
 3. Connect stimuli, currently `PulseGenerator` only
 4. Construct and execute a simulation of 1000ms
 
-You will need to fill in a few bits, marked `<FIXME>`, namely
-- Probes to measure observables, an example is provided
-- Extraction of measurement traces
-- Tweak simulation time `t` and `dt`
+You will want to tweak in a few settings
+- Probes to measure observables, by default the membrane potential at the soma
+  is probed.
+- Extraction of measurement traces, by default we try to import `seaborn` and
+  `matplotlib` and plot the soma probe.
+- Simulation settings; defaults are time `t=1000ms` and `dt=0.005ms`.
+
 
 ### Options
 
@@ -273,6 +284,7 @@ problem.
   - networks
   - simulations
   - cells other than the multi-compartment `<cell>` kind
+- See also our issue tracker.
 
 # Bootstrapping the Compiler
 

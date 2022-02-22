@@ -10,14 +10,11 @@ use nml2::{
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
-#[clap(version = "0.2.0", author = "t.hater@fz-juelich.de")]
+#[clap(version = "0.4.1-dev", author = "t.hater@fz-juelich.de")]
 struct Cli {
-    /// Path to NMLCoreTypes
-    #[clap(short, long, default_value = "ext/NeuroML2/NeuroML2CoreTypes")]
-    include_dir: Vec<String>,
-    /// Toplevel CoreType definition file
-    #[clap(short, long, default_value = "NeuroML2CoreTypes.xml")]
-    core: Vec<String>,
+    /// Verbosity level, defaults to 'WARN'.
+    #[clap(short, long, parse(from_occurrences))]
+    verbose: usize,
     #[clap(subcommand)]
     cmd: Cmd,
 }
@@ -70,16 +67,26 @@ fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
     })
 }
 
-fn main() -> Result<()> {
+fn set_collector(v: usize) -> std::result::Result<(), tracing::dispatcher::SetGlobalDefaultError> {
+    let lvl = match v {
+        0 => tracing::Level::WARN,
+        1 => tracing::Level::INFO,
+        _ => tracing::Level::TRACE,
+    };
     let collector = tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(lvl)
         .with_target(false)
         .compact()
         .finish();
-    let _guard = tracing::subscriber::set_global_default(collector);
+    tracing::subscriber::set_global_default(collector)
+}
 
+fn main() -> Result<()> {
     let opts = Cli::parse();
+    let _g = set_collector(opts.verbose);
+
     let mut lems = lems::file::LemsFile::core();
+
     match opts.cmd {
         Cmd::Nmodl {
             nml,
@@ -89,13 +96,16 @@ fn main() -> Result<()> {
             get_runtime_types(&mut lems, &nml)?;
             nmodl::export(&lems, &nml, &parameter, &dir)?;
         }
-        Cmd::Acc { nml, dir } => acc::export(&lems, &nml, &dir)?,
+        Cmd::Acc { nml, dir } => {
+            get_runtime_types(&mut lems, &nml)?;
+            acc::export(&lems, &nml, &dir)?;
+        }
         Cmd::Bundle {
             nml,
             dir,
             super_mechanisms,
         } => {
-            get_runtime_types(&mut lems, &[nml.to_string()])?;
+            get_runtime_types(&mut lems, &[nml.clone()])?;
             bundle::export(&lems, &[nml], &dir, super_mechanisms)?;
         }
     }

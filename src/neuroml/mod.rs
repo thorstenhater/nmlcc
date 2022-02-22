@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tracing::trace;
 
 use crate::{
-    error::{Error, Result},
+    error::{nml2_error, Error, Result},
     Set,
 };
 
@@ -24,7 +24,8 @@ where
         }
         trace!("Reading NML2 file {:?}", nml);
         seen.insert(nml.clone());
-        let xml = std::fs::read_to_string(&nml)?;
+        let xml = std::fs::read_to_string(&nml)
+            .map_err(|_| nml2_error(format!("Could not read NML2 file '{}'.", nml.display())))?;
         let tree = roxmltree::Document::parse(&xml)?;
         if tree.root_element().tag_name().name() != "neuroml" {
             return Err(Error::Nml {
@@ -35,10 +36,16 @@ where
             f(nml.to_str().unwrap(), &node)?;
             if node.tag_name().name() == "include" {
                 if let Some(fd) = node.attribute("href") {
-                    let mut nml = nml.parent().unwrap().to_path_buf();
-                    nml.push(fd);
-                    nml = nml.canonicalize()?;
-                    todo.push(nml);
+                    let mut nxt = nml.parent().unwrap().to_path_buf();
+                    nxt.push(fd);
+                    nxt = nxt.canonicalize().map_err(|_| {
+                        nml2_error(format!(
+                            "Unknown file '{}', included by '{}'.",
+                            nxt.display(),
+                            nml.display()
+                        ))
+                    })?;
+                    todo.push(nxt);
                 }
             }
         }

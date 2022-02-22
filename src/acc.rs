@@ -18,7 +18,7 @@ use crate::{
 
 use std::fs::write;
 use std::path::PathBuf;
-use tracing::info;
+use tracing::{info, trace};
 
 pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor>>> {
     let mut cells = Map::new();
@@ -93,6 +93,7 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
 }
 
 pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
+    trace!("Creating path {}", pfx);
     std::fs::create_dir_all(&pfx)?;
 
     let cells = to_decor(lems, nml)?;

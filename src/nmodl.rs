@@ -132,10 +132,7 @@ impl Nmodl {
                     init = true;
                     d.clone()
                 } else {
-                    warn!(
-                        "Variable '{}' default case undefined, assuming zero.",
-                        var.name
-                    );
+                    warn!("Variable '{}' default case undefined, assuming zero.", nm);
                     Expr::F64(0.0)
                 };
                 let mut res = Stmnt::Ass(nm.clone(), d);
@@ -145,9 +142,9 @@ impl Nmodl {
                     res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(res));
                 }
                 if !init {
-                    return Err(nml2_error(format!("Variable '{}' undefined.", var.name)));
+                    return Err(nml2_error(format!("Variable '{}' undefined.", nm)));
                 }
-                variables.insert(var.name.clone(), res);
+                variables.insert(nm, res);
             }
         }
 
@@ -214,14 +211,7 @@ impl Nmodl {
             ));
         }
 
-        variables.insert(
-            String::from("caConc"),
-            Stmnt::Ass(String::from("caConc"), Expr::Var(String::from("cai"))),
-        );
-        variables.insert(
-            String::from("vpeer"),
-            Stmnt::Ass(String::from("vpeer"), Expr::Var(String::from("v_peer"))),
-        );
+        variables.extend([assign("caConc", "cai")?, assign("vpeer", "v_peer")?].into_iter());
 
         let mut symbols: Set<_> = [
             String::from("v"),
@@ -498,21 +488,25 @@ fn nmodl_kinetic_block(n: &Nmodl) -> Result<String> {
 }
 
 fn read_variable(n: &Nmodl) -> Result<Set<String>> {
-    let variables = n.variables.iter()
-                               .chain(n.init.iter())
-                               .chain(n.rates.iter())
-                               .chain(n.deriv.iter())
-                               .chain(n.outputs.iter())
-                               .map(|(k, v)| (k.clone(), v.clone()))
-                               .collect::<Map<_,_>>();
+    let variables = n
+        .variables
+        .iter()
+        .chain(n.init.iter())
+        .chain(n.rates.iter())
+        .chain(n.deriv.iter())
+        .chain(n.outputs.iter())
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect::<Map<_, _>>();
     let deps = find_dependencies(&variables);
-        let mut todo = n.outputs.iter()
-                            .chain(n.init.iter())
-                            .chain(n.rates.iter())
-                            .chain(n.deriv.iter())
-                            .chain(n.outputs.iter())
-                            .map(|p| p.0.to_string())
-                            .collect::<Vec<_>>();
+    let mut todo = n
+        .outputs
+        .iter()
+        .chain(n.init.iter())
+        .chain(n.rates.iter())
+        .chain(n.deriv.iter())
+        .chain(n.outputs.iter())
+        .map(|p| p.0.to_string())
+        .collect::<Vec<_>>();
     let mut result = Set::new();
     while let Some(v) = todo.pop() {
         if let Some(us) = deps.get(&v) {
@@ -782,21 +776,14 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             let coll = Collapsed::from_instance(&instance)?;
             let mut n = Nmodl::from(&coll, &filter)?;
             for ion in &n.species {
-                let ik = format!("i{}", ion);
-                let ix = Stmnt::Ass(
-                    ik.clone(),
-                    Expr::parse(&format!("g*(v - e{})", ion)).unwrap(),
-                );
+                let (ik, ix) = assign(&format!("i{}", ion), &format!("g*(v - e{})", ion))?;
                 if ion.is_empty() {
-                    n.variables.insert(
-                        String::from("g"),
-                        Stmnt::Ass(String::from("g"), Expr::Var(String::from("conductance"))),
-                    );
+                    let (k, v) = assign("g", "conductance")?;
+                    n.variables.insert(k, v);
                 }
                 n.outputs.insert(ik.clone(), ix);
-                let ki = format!("{}conc", ion);
-                let xi = Expr::Var(format!("{}i", ion));
-                n.variables.insert(ki.clone(), Stmnt::Ass(ki, xi));
+                let (ki, xi) = assign(&format!("{}conc", ion), &format!("{}i", ion))?;
+                n.variables.insert(ki, xi);
             }
             n.kind = Kind::Density;
             mk_nmodl(&n)
@@ -812,14 +799,9 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             let ix = format!("i{}", ion);
             let ic = String::from("concentration");
             let ec = String::from("extConcentration");
-            let mut os = Map::new();
-            os.insert(xi.clone(), Stmnt::Ass(xi.clone(), Expr::Var(ic.clone())));
-            os.insert(xo.clone(), Stmnt::Ass(xo.clone(), Expr::Var(ec.clone())));
-            n.add_outputs(&os);
-            let mut is = Map::new();
-            is.insert(ic.clone(), Stmnt::Ass(ic, Expr::Var(xi)));
-            is.insert(ec.clone(), Stmnt::Ass(ec, Expr::Var(xo)));
-            n.add_initials(&is);
+            n.add_outputs(&[assign(&xi, &ic)?, assign(&xo, &ec)?].into_iter().collect());
+            n.add_initials(&[assign(&ic, &xi)?, assign(&ec, &xo)?].into_iter().collect());
+
             // Map variables iCa -> iX to compensate for NML2 mistakes
             let fix = |ex: &Expr| -> Expr {
                 match ex {
@@ -932,10 +914,16 @@ mod test {
     #[test]
     fn test_dependencies() {
         assert!(find_dependencies(&Map::new()).is_empty());
-        let ds = [assign("x", "y * z").unwrap()].into_iter().collect::<Map<_, _>>();
-        let vs = ["y".to_string(), "z".to_string()].into_iter().collect::<Set<_>>();
+        let ds = [assign("x", "y * z").unwrap()]
+            .into_iter()
+            .collect::<Map<_, _>>();
+        let vs = ["y".to_string(), "z".to_string()]
+            .into_iter()
+            .collect::<Set<_>>();
         assert_eq!(find_dependencies(&ds).get("x"), Some(&vs));
-        let ds = [assign("x", "(1 + (0.5 * y^-1)^4.8)^-1").unwrap()].into_iter().collect::<Map<_, _>>();
+        let ds = [assign("x", "(1 + (0.5 * y^-1)^4.8)^-1").unwrap()]
+            .into_iter()
+            .collect::<Map<_, _>>();
         let vs = ["y".to_string()].into_iter().collect::<Set<_>>();
         assert_eq!(find_dependencies(&ds).get("x"), Some(&vs));
     }
