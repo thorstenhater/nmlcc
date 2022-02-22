@@ -133,46 +133,52 @@ into an NMODL file
 - `ionChannelHH`, `ionChannel`, and `ionChannelKS` become conductance based
   mechanisms producing an ionic current.
 - `concentrationModel` becomes a density mechanism writing internal and external
-  ion concentrations. **In contrast to NML2 native models `nmlcc` replaces the
-  `Ca` ion with the one speficied by the `species` attribute.**
+  ion concentrations. 
   
 File names will be chosen as `<id>.mod` where the `id` is the NML2 `id`
 designator.
 
+### `ConcentrationModel` Support 
+
+In contrast to NML2 native models `nmlcc` replaces the `Ca` ion with the one
+speficied by the `species` attribute. 
+
+More importantly, Arbor does **not** suppport the `area` attribute, since its
+internal model is one of densities already. Thus statements like this (here
+`fixedFactorConcentrationModel` from `CoreTypes.xml`) 
+``` xml
+<TimeDerivative variable="concentration" 
+                value="1e-9*phi*(iCa/surfaceArea) - (concentration - restingConc)*beta"/>
+```
+are redundant, since `iCa` is already normalised to the area. Thus, if you
+intend to run these kinds of models in Arbor, you will need to adjust your NML2
+models.
+
 ### Options
 
-`--dir=<dir>`  
-store ouput under this directory, defaults to current directory.
-
-`--parameter=+p,-q,..`  
-will choose parameters to retain as tweakable, defaults to `+*` keeping
-all
-
-- `-q` excludes parameter `q` from the final list, unless overridden
-- `+p` similarly, will add `p`
-- a selector can **end** on wildcard `*` to select all suffixes
-    - a wildcard anywhere else will be considered a literal `*`
-      character
-    - wildcards must be ordered from least to most specific, ie `foo_bar_*`
-      must come **after** `foo_*` to have effect
-- consequently, `-q_*,+q_a_*,-q_a_b` will remove all parameters starting with
-  `q_`, except if they start with `q_a`, but remove `q_a_b`.
-- when compiling channels derived from the following base types, we
-  will alter the parameter list slightly in order to play nicely with
-  export to ACC
-  `baseIonChannel`  
-  `+conductance`, if non-specific currents are used `+conductance,+e`
-
-  `baseVoltageDepSynapse`  
-  `+gbase,+erev`
-
-  `gapJunction`  
-  `+weight,+conductance`
+- `--dir=<dir>`: store ouput under this directory, defaults to current directory.
+- `--parameter=+p,-q,..`: will choose parameters to retain as tweakable, defaults to `+*` keeping all
+    - `-q` excludes parameter `q` from the final list, unless overridden
+    - `+p` similarly, will add `p`
+    - a selector can **end** on wildcard `*` to select all suffixes
+        - a wildcard anywhere else will be considered a literal `*`
+          character
+        - wildcards must be ordered from least to most specific, ie `foo_bar_*`
+          must come **after** `foo_*` to have effect
+    - consequently, `-q_*,+q_a_*,-q_a_b` will remove all parameters starting with
+      `q_`, except if they start with `q_a`, but remove `q_a_b`.
+    - when compiling channels derived from the following base types, we
+      will alter the parameter list slightly in order to play nicely with
+      export to ACC
+      - `baseIonChannel`: `+conductance`, if non-specific currents are used `+conductance,+e`
+      - `baseVoltageDepSynapse`: `+gbase,+erev`
+      - `gapJunction`: `+weight,+conductance`
+      - `concentrationModel`: no adjustments made
 
 ### Example: Export a Simple Exponential Synapse
 
 ``` shell
-$> nmlcc nmodl --type=gapJunction --parameter='-*' example/nml-gap-junction.xml
+$> nmlcc nmodl --parameter='-*' example/nml-gap-junction.xml
 $> cat gj1.mod
 NEURON {
   JUNCTION gj1
@@ -204,8 +210,7 @@ stimuli as well.
 
 ### Options
 
-`--dir=<dir>`  
-store ouput under this directory, defaults to current directory.
+- `--dir=<dir>`: store ouput under this directory, defaults to current directory.
 
 ### Example: Fetch Parameter Assignments from a Simple Cell Model
 
@@ -233,32 +238,23 @@ preferably a `network`. If no `network` is found, some settings will not be
 available, eg adding ion species, concentration models, and temperature.
 
 `nmlcc bundle <input.nml> <output>` combines the last two commands into a
-convenient package. The NML2 file `<input.nml>` must contain all morphologies
-needed for the relevant cells, prerably it should a complete `<network>`
-definition. The bundle exporter generates a directory `<output>` and fills it
-like follows (`id` refers to the NML `id` attribute found on the `cell`
-component)
+convenient package and adds another layer on top. The NML2 file `<input.nml>`
+must contain all morphologies needed for the relevant cells, prerably it should
+a complete `<network>` definition. The bundle exporter generates a directory
+`<output>` and fills it like follows (`id` refers to the NML `id` attribute
+found on the `cell` component):
+- `acc/*.acc`: ACC files, one per cell found in `<input.nml>`, named `<id>.acc`.
+- `cat/*.nmodl`: NMODL files, one per `ComponentType` derived from either
+  `baseIonChannel` or `baseSynapse`, with parameter filters set to `-*`.
+- `mrf/*.nml`: NML2 files containing extracted morphologies, one per `cell`,
+  stored as `<id>.nml`
+- `main.<id>.py`: template python script, one per `id`, to
+    1. Build and install the catalogue from the NMODL file.
+    2. Load the morphologies, parameter assignments, and labels.
+    3. Connect stimuli, currently `PulseGenerator` only.
+    4. Construct and execute a simulation.
 
-`acc/*.acc`  
-ACC files, one per cell found in `<input.nml>`, named `<id>.acc`.
-
-`cat/*.nmodl`  
-NMODL files, one per `ComponentType` derived from either
-`baseIonChannel` or `baseSynapse`, with parameter filters set to `-*`.
-
-`mrf/*.nml`  
-NML2 files containing extracted morphologies, one per `cell`, stored as
-`<id>.nml`
-
-`main.<id>.py`  
-template python script, one per `id`, to
-
-1. Build and install the catalogue from the NMODL file.
-2. Load the morphologies, parameter assignments, and labels.
-3. Connect stimuli, currently `PulseGenerator` only.
-4. Construct and execute a simulation.
-
-You will want to tweak a few settings
+After running the exporter, you will want to tweak a few settings
 - Probes to measure observables, by default the membrane potential at the soma
   is probed.
 - Extraction of measurement traces, by default we try to import `seaborn` and
