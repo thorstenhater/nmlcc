@@ -264,10 +264,9 @@ After running the exporter, you will want to tweak a few settings
 
 ### Options
 
-`--super-mechanisms`  
-try to produce combined ion-channels per segment group while inlining
-all parameters. Can give a \~20-30% speed boost depending on your
-problem.
+- `--super-mechanisms`: try to produce combined ion-channels per segment group
+  while inlining all parameters. Can give a \~20-30% speed boost depending on your
+  problem.
 
 # Current Limitations
 
