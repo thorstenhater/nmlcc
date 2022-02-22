@@ -175,7 +175,7 @@ all
 $> nmlcc nmodl --type=gapJunction --parameter='-*' example/nml-gap-junction.xml
 $> cat gj1.mod
 NEURON {
-  SUFFIX gj1
+  JUNCTION gj1
   NONSPECIFIC_CURRENT i
   RANGE weight, conductance
 }
@@ -223,7 +223,6 @@ $> cat hhcell.acc
     (default (membrane-capacitance 1))
     (default (membrane-potential -65.4000015258789))
     (default (axial-resistivity 0.029999999329447746))))
-
 ```
 
 ## Producing a Ready-to-Run Bundle from NML2
@@ -256,10 +255,10 @@ template python script, one per `id`, to
 
 1. Build and install the catalogue from the NMODL file.
 2. Load the morphologies, parameter assignments, and labels.
-3. Connect stimuli, currently `PulseGenerator` only
-4. Construct and execute a simulation of 1000ms
+3. Connect stimuli, currently `PulseGenerator` only.
+4. Construct and execute a simulation.
 
-You will want to tweak in a few settings
+You will want to tweak a few settings
 - Probes to measure observables, by default the membrane potential at the soma
   is probed.
 - Extraction of measurement traces, by default we try to import `seaborn` and
@@ -310,13 +309,10 @@ which will
 
 By default the following definitions are used
 
-NML2  
-`development` branch; XSD `v2.2`
+- NML2: `development` branch; XSD `v2.2`
+- LEMS: `development` branch; XSD `v0.7.6`
 
-LEMS  
-`development` branch; XSD `v0.7.6`
-
-Afterwards, you will need to re-compile the `nmlcc` binary (`cargo build` or
-`cargo run`). Note that the core definitions found in
+After adjusting the schemata or data model, you will need to re-compile the
+`nmlcc` binary (`cargo build`). Note that the core definitions found in
 `ext/NeuroML2/NeuroML2CoreTypes` are embedded into the `nmlcc` binary. This
 allows for moving it around without keeping track of NML2 definition.
