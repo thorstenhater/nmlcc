@@ -151,7 +151,7 @@ internal model is one of densities already. Thus statements like this (here
 ```
 are redundant, since `iCa` is already normalised to the area. Thus, if you
 intend to run these kinds of models in Arbor, you will need to adjust your NML2
-models.
+models. However, `nmlcc` *does export* `surfaceArea` as area, so 
 
 ### Options
 

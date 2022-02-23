@@ -25,6 +25,8 @@ pub enum Kind {
 
 #[derive(Debug, Clone)]
 pub struct Nmodl {
+    /// List of known ions, defaults to Na, K, Ca
+    pub known_ions: Vec<String>,
     /// Kind
     pub kind: Kind,
     /// Suffix
@@ -91,7 +93,8 @@ fn apply_filter(filter: &str, keys: &Set<String>) -> Set<String> {
 }
 
 impl Nmodl {
-    pub fn from(coll: &Collapsed, filter: &str) -> Result<Self> {
+    pub fn from(coll: &Collapsed, known_ions: &[String], filter: &str) -> Result<Self> {
+        let known_ions = known_ions.to_vec();
         let kind = Kind::Density;
         let suffix = coll
             .name
@@ -254,6 +257,7 @@ impl Nmodl {
         let states = coll.states.clone();
 
         Ok(Nmodl {
+            known_ions,
             kind,
             suffix,
             symbols,
@@ -536,36 +540,46 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         format!("  {} {}\n", kind, n.suffix),
     ];
     let write = n.outputs.keys().collect::<Set<_>>();
-    if write.contains(&String::from("i"))
-        && (ions.contains(&String::new()) || n.kind == Kind::Junction || n.kind == Kind::Point)
-    {
+    for ion in &ions {
+        let xi = format!("{}i", ion);
+        let ix = format!("i{}", ion);
+        let xo = format!("{}o", ion);
+        let ex = format!("e{}", ion);
+
+        if n.known_ions.contains(&ion) {
+            let mut usage = format!("  USEION {}", ion);
+            let mut used = false;
+            if write.contains(&format!("i{}", ion)) {
+                usage = format!("{} WRITE i{}", usage, ion);
+                used = true;
+            }
+            let mut sep = "READ";
+            for r in &[xi, xo, ix, ex] {
+                if read.contains(r) {
+                    usage = format!("{} {} {}", usage, sep, r);
+                    used = true;
+                    sep = ",";
+                }
+            }
+            usage.push('\n');
+            if used {
+                result.push(usage);
+            }
+        }
+    }
+
+
+    if n.kind == Kind::Density {
+        for ion in &ions {
+            let ix = format!("i{}", ion);
+            if write.contains(&ix) && !n.known_ions.contains(ion) {
+                result.push(format!("  NONSPECIFIC_CURRENT {}\n", ix));
+            }
+        }
+    } else if n.kind == Kind::Junction || n.kind == Kind::Point {
         result.push(String::from("  NONSPECIFIC_CURRENT i\n"));
     }
 
-    for ion in ions {
-        if !ion.is_empty() {
-            let w = if write.contains(&format!("i{}", ion)) {
-                format!(" WRITE i{}", ion)
-            } else {
-                String::new()
-            };
-            let mut r = vec![
-                format!("{}i", ion),
-                format!("i{}", ion),
-                format!("{}o", ion),
-                format!("e{}", ion),
-            ];
-            r.retain(|v| read.contains(v));
-            let r = if !r.is_empty() {
-                format!(" READ {}", r.join(", "))
-            } else {
-                String::new()
-            };
-            if !w.is_empty() || !r.is_empty() {
-                result.push(format!("  USEION {}{}{}\n", ion, r, w));
-            }
-        };
-    }
     if !n.parameters.is_empty() {
         let rs = n.parameters.keys().cloned().collect::<Vec<_>>();
         result.push(format!("  RANGE {}\n", rs.join(", ")));
@@ -711,6 +725,9 @@ fn print_dependency_chains(
 }
 
 pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String> {
+    let known_ions = vec![String::from("ca"),
+                          String::from("k"),
+                          String::from("na"),];
     let ty: &str = instance.component_type.name.as_ref();
     match base {
         "baseSynapse" => {
@@ -729,7 +746,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
                 let mut coll = Collapsed::from_instance(&instance)?;
                 coll.parameters
                     .insert(String::from("weight"), Some(Quantity::parse("1")?));
-                let mut n = Nmodl::from(&coll, &filter)?;
+                let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
                     n.outputs.insert(k, v);
@@ -742,7 +759,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
                 let filter = filter.to_string();
                 let instance = instance.clone();
                 let coll = Collapsed::from_instance(&instance)?;
-                let mut n = Nmodl::from(&coll, &filter)?;
+                let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
                     n.outputs.insert(k, v);
@@ -755,34 +772,30 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
         }
         "baseIonChannel" => {
             let mut filter = filter.to_string();
-            let mut instance = instance.clone();
+            let instance = instance.clone();
             if !filter.is_empty() {
                 filter.push(',');
             }
             filter.push_str("+conductance");
-            if instance
-                .attributes
-                .keys()
-                .filter(|s| s.ends_with("species"))
-                .count()
-                == 0
-            {
-                instance
-                    .parameters
-                    .insert(String::from("e"), Quantity::parse("0 mV")?);
-                instance.component_type.parameters.push(String::from("e"));
-                filter.push_str(",+e");
-            }
             let coll = Collapsed::from_instance(&instance)?;
-            let mut n = Nmodl::from(&coll, &filter)?;
+            let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
+            // let mut nonspecific = Vec::new();
             for ion in &n.species {
-                let (ik, ix) = assign(&format!("i{}", ion), &format!("g*(v - e{})", ion))?;
-                if ion.is_empty() {
-                    let (k, v) = assign("g", "conductance")?;
-                    n.variables.insert(k, v);
+                let ex = format!("e{}", ion);
+                let gx = format!("g{}", ion);
+                let ix = format!("i{}", ion);
+                let xi = format!("{}i", ion);
+                if known_ions.contains(ion) {
+                    let (ki, xi) = assign(&format!("{}conc", ion), &xi)?;
+                    n.variables.insert(ki, xi);
+                } else {
+                    n.parameters.insert(ex.clone(), Some(Quantity::parse("0 mV")?));
                 }
+                let (k, v) = assign(&gx, "conductance")?;
+                n.variables.insert(k, v);
+                let (ik, ix) = assign(&ix, &format!("{}*(v - {})", gx, ex))?;
                 n.outputs.insert(ik.clone(), ix);
-                let (ki, xi) = assign(&format!("{}conc", ion), &format!("{}i", ion))?;
+                let (ki, xi) = assign(&format!("{}conc", ion), &xi)?;
                 n.variables.insert(ki, xi);
             }
             n.kind = Kind::Density;
@@ -793,7 +806,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             let instance = instance.clone();
             let coll = Collapsed::from_instance(&instance)?;
             let ion = coll.attributes.get("ion").unwrap().as_deref().unwrap();
-            let mut n = Nmodl::from(&coll, &filter)?;
+            let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
             let xi = format!("{}i", ion);
             let xo = format!("{}o", ion);
             let ix = format!("i{}", ion);

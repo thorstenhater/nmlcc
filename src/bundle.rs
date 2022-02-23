@@ -308,7 +308,12 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                 outputs.insert(String::from("i"), Stmnt::Ass(String::from("i"), i));
             }
         }
-        let mut n = nmodl::Nmodl::from(&coll, "-*")?;
+        // TODO we might want to extend this when finding <species>.
+        let known_ions = vec![String::from("ca"),
+                              String::from("k"),
+                              String::from("na"),];
+
+        let mut n = nmodl::Nmodl::from(&coll, &known_ions, "-*")?;
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);

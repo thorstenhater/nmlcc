@@ -299,6 +299,10 @@ pub fn biophys(prop: &BiophysicalProperties, lems: &LemsFile) -> Result<Vec<Deco
 }
 
 fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
+    let known_ions = vec![String::from("ca"),
+                          String::from("k"),
+                          String::from("na"),];
+
     use MembranePropertiesBody::*;
     let mut result = Vec::new();
     for item in &membrane.body {
@@ -319,14 +323,14 @@ fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
                 }
-                if ion != "non_specific" {
+                if known_ions.contains(ion) {
                     result.push(Decor::new(
                         segmentGroup,
                         Paintable::Er(ion.to_string(), erev.to_string()),
                         false,
                     ));
                 } else {
-                    gs.insert(String::from("e"), erev.to_string());
+                    gs.insert(format!("e{}", ion), erev.to_string());
                 }
                 result.push(Decor::new(
                     segmentGroup,
