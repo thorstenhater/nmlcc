@@ -546,7 +546,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         let xo = format!("{}o", ion);
         let ex = format!("e{}", ion);
 
-        if n.known_ions.contains(&ion) {
+        if n.known_ions.contains(ion) {
             let mut usage = format!("  USEION {}", ion);
             let mut used = false;
             if write.contains(&format!("i{}", ion)) {
@@ -567,7 +567,6 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
             }
         }
     }
-
 
     if n.kind == Kind::Density {
         for ion in &ions {
@@ -725,9 +724,7 @@ fn print_dependency_chains(
 }
 
 pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String> {
-    let known_ions = vec![String::from("ca"),
-                          String::from("k"),
-                          String::from("na"),];
+    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
     let ty: &str = instance.component_type.name.as_ref();
     match base {
         "baseSynapse" => {
@@ -789,7 +786,8 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
                     let (ki, xi) = assign(&format!("{}conc", ion), &xi)?;
                     n.variables.insert(ki, xi);
                 } else {
-                    n.parameters.insert(ex.clone(), Some(Quantity::parse("0 mV")?));
+                    n.parameters
+                        .insert(ex.clone(), Some(Quantity::parse("0 mV")?));
                 }
                 let (k, v) = assign(&gx, "conductance")?;
                 n.variables.insert(k, v);

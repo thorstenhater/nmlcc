@@ -299,9 +299,7 @@ pub fn biophys(prop: &BiophysicalProperties, lems: &LemsFile) -> Result<Vec<Deco
 }
 
 fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
-    let known_ions = vec![String::from("ca"),
-                          String::from("k"),
-                          String::from("na"),];
+    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
 
     use MembranePropertiesBody::*;
     let mut result = Vec::new();
