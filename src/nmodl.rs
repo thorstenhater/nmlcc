@@ -776,10 +776,9 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             filter.push_str("+conductance");
             let coll = Collapsed::from_instance(&instance)?;
             let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
-            // let mut nonspecific = Vec::new();
             for ion in &n.species {
                 let ex = format!("e{}", ion);
-                let gx = format!("g{}", ion);
+                let gx = String::from("g");
                 let ix = format!("i{}", ion);
                 let xi = format!("{}i", ion);
                 if known_ions.contains(ion) {
@@ -789,8 +788,12 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
                     n.parameters
                         .insert(ex.clone(), Some(Quantity::parse("0 mV")?));
                 }
-                let (k, v) = assign(&gx, "conductance")?;
-                n.variables.insert(k, v);
+                if !n.variables.contains_key(&gx) {
+                    // to catch extensions of passiveChannels
+                    let (g, v) = assign(&gx, "conductance")?;
+                    n.variables.insert(g, v);
+                }
+                // NML ion channnels write out conductivities, but NMODL deals in currents.
                 let (ik, ix) = assign(&ix, &format!("{}*(v - {})", gx, ex))?;
                 n.outputs.insert(ik.clone(), ix);
                 let (ki, xi) = assign(&format!("{}conc", ion), &xi)?;

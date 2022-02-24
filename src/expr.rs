@@ -74,7 +74,7 @@ impl Expr {
             Expr::F64(x) => format!("{}", x),
             Expr::Var(x) => x.to_string(),
             Expr::Exp(x) => format!("exp({})", x.print_to_string()),
-            Expr::Sqrt(x) => format!("Sqrt({})", x.print_to_string()),
+            Expr::Sqrt(x) => format!("({})^0.5", x.print_to_string()), // NB. () needed since we want to call sqrt(...)
             Expr::Add(xs) => xs
                 .iter()
                 .map(|x| x.print_to_string())
