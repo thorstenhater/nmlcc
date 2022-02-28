@@ -1,5 +1,5 @@
 use roxmltree::Node;
-use tracing::{info, trace};
+use tracing::{info, trace, warn};
 
 use crate::{
     error::{nml2_error, Result},
@@ -94,8 +94,6 @@ impl Instance {
                 attributes.insert(key, val.to_string());
             } else if "id" == key || "type" == key {
             } else {
-                eprintln!("{:?}", component_type.attributes);
-                eprintln!("{:?}", component_type.parameters);
                 return Err(nml2_error(format!(
                     "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
                     key, val, node
@@ -105,20 +103,26 @@ impl Instance {
         let id = xml.attribute("id").map(|s| s.to_string());
         let mut children = Map::new();
         let mut child = Map::new();
-        for node in xml.children() {
+        'a: for node in xml.children() {
             let nm = node.tag_name().name();
+            if nm.is_empty() {
+                continue 'a;
+            }
+            let ty = node.attribute("type").unwrap_or(nm);
             if component_type.child.contains_key(nm) {
                 child.insert(nm.to_string(), Instance::new(lems, &node)?);
-            } else {
-                for (n, t) in &component_type.children {
-                    if lems.derived_from(nm, t) {
-                        children
-                            .entry(n.to_string())
-                            .or_insert_with(Vec::new)
-                            .push(Instance::new(lems, &node)?);
-                    }
+                continue 'a;
+            }
+            for (n, t) in &component_type.children {
+                if lems.derived_from(ty, t) {
+                    children
+                        .entry(n.to_string())
+                        .or_insert_with(Vec::new)
+                        .push(Instance::new(lems, &node)?);
+                    continue 'a;
                 }
             }
+            warn!("No idea where to put item {} of type {} in {:?}", nm, ty, id);
         }
         Ok(Instance {
             component_type,
@@ -380,6 +384,7 @@ impl Collapsed {
                     }
                     SelectBy::Product => {
                         if ms.is_empty() {
+                            trace!("No instances found for name={} select={:?} via {:?} among {:?}", v.name, ps, by, ks);
                             Expr::F64(1.0)
                         } else {
                             Expr::Mul(ms)
@@ -587,6 +592,8 @@ impl ComponentType {
                 b => trace!("Ignoring {:?}", b),
             }
         }
+
+        trace!("Type {} children={:?} child={:?}", name, children, child);
 
         Ok(Self {
             name,

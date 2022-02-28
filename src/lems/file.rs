@@ -239,3 +239,14 @@ impl LemsFile {
         Ok(result)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn core_deriving() {
+        let core = LemsFile::core();
+        assert!(core.derived_from("q10Fixed", "baseQ10Settings"));
+    }
+}

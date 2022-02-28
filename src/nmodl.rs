@@ -219,6 +219,7 @@ impl Nmodl {
         let mut symbols: Set<_> = [
             String::from("v"),
             String::from("area"),
+            String::from("diameter"),
             String::from("v_peer"),
             String::from("cai"),
         ]
@@ -527,6 +528,9 @@ fn read_variable(n: &Nmodl) -> Result<Set<String>> {
 
 fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
     let read = read_variable(n)?;
+    if read.contains("area") {
+        return Err(nmodl_error("'Area' is not supported in Arbor; check if the model can use 'diam' instead."));
+    }
     let mut ions = n.species.iter().cloned().collect::<Set<_>>();
     ions.insert(String::from("ca"));
 
