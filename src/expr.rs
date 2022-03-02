@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::error::{Error, Result};
 
 fn parse_error<T: Into<String>>(what: T) -> Error {
@@ -123,7 +125,7 @@ impl Expr {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Stmnt {
-    Ift(Boolean, Box<Stmnt>, Box<Stmnt>),
+    Ift(Boolean, Box<Stmnt>, Box<Option<Stmnt>>),
     Ass(String, Expr),
 }
 
@@ -134,10 +136,10 @@ impl Stmnt {
             Stmnt::Ift(c, t, e) => {
                 let c = c.simplify();
                 let t = t.simplify();
-                let e = e.simplify();
+                let e = e.deref().as_ref().map(|i| i.simplify());
                 match c {
                     Boolean::Lit(true) => t,
-                    Boolean::Lit(false) => e,
+                    Boolean::Lit(false) => e.unwrap(),
                     _ => Stmnt::Ift(c, Box::new(t), Box::new(e)),
                 }
             }
@@ -149,27 +151,48 @@ impl Stmnt {
             Stmnt::Ass(n, e) => {
                 format!("{:width$}{} = {}", "", n, e.print_to_string(), width = ind)
             }
-            Stmnt::Ift(c, t, f) => format!(
-                "{:width$}if ({}) {{
+            Stmnt::Ift(c, t, f) => {
+                if let Some(f) = f.deref() {
+                    format!(
+                        "{:width$}if ({}) {{
 {}
 {:width$}}} else {{
 {}
 {:width$}}}",
-                " ",
-                c.print_to_string(),
-                t.print_to_string(ind + 2),
-                " ",
-                f.print_to_string(ind + 2),
-                " ",
-                width = ind
-            ),
+                        " ",
+                        c.print_to_string(),
+                        t.print_to_string(ind + 2),
+                        " ",
+                        f.print_to_string(ind + 2),
+                        " ",
+                        width = ind
+                    )
+                } else {
+                    format!(
+                        "{:width$}if ({}) {{
+{}
+{:width$}}}",
+                        " ",
+                        c.print_to_string(),
+                        t.print_to_string(ind + 2),
+                        " ",
+                        width = ind
+                    )
+                }
+            }
         }
     }
 
     pub fn map(&self, f: &impl Fn(&Expr) -> Expr) -> Stmnt {
         match self {
             Stmnt::Ass(s, e) => Stmnt::Ass(s.to_string(), e.map(f)),
-            Stmnt::Ift(c, t, e) => Stmnt::Ift(c.map(f), Box::new(t.map(f)), Box::new(e.map(f))),
+            Stmnt::Ift(c, t, e) => {
+                if let Some(e) = e.as_ref() {
+                    Stmnt::Ift(c.map(f), Box::new(t.map(f)), Box::new(Some(e.map(f))))
+                } else {
+                    Stmnt::Ift(c.map(f), Box::new(t.map(f)), Box::new(None))
+                }
+            }
         }
     }
 
@@ -179,7 +202,9 @@ impl Stmnt {
             Stmnt::Ift(c, t, e) => {
                 c.fold(acc, f);
                 t.fold(acc, f);
-                e.fold(acc, f);
+                if let Some(i) = e.as_ref() {
+                    i.fold(acc, f);
+                }
             }
         }
     }

@@ -122,7 +122,10 @@ impl Instance {
                     continue 'a;
                 }
             }
-            warn!("No idea where to put item {} of type {} in {:?}", nm, ty, id);
+            warn!(
+                "No idea where to put item {} of type {} in {:?}",
+                nm, ty, id
+            );
         }
         Ok(Instance {
             component_type,
@@ -143,6 +146,7 @@ pub struct Collapsed {
     pub constants: Map<String, Quantity>,
     pub parameters: Map<String, Option<Quantity>>,
     pub attributes: Map<String, Option<String>>,
+    pub conditions: Vec<(String, Boolean, Expr)>,
     pub events: Vec<(String, Expr)>,
     pub kinetic: Vec<Kinetic>,
     pub transitions: Vec<(String, String, String, String)>,
@@ -157,6 +161,7 @@ impl Collapsed {
             variables: Vec::new(),
             constants: Map::new(),
             parameters: Map::new(),
+            conditions: Vec::new(),
             attributes: Map::new(),
             events: Vec::new(),
             kinetic: Vec::new(),
@@ -349,6 +354,13 @@ impl Collapsed {
             });
         }
 
+        for (name, test, val) in &ct.conditions {
+            let name = ctx.add_prefix(name);
+            let test = ctx.rename_bool(test);
+            let val = ctx.rename_expr(val);
+            result.conditions.push((name, test, val));
+        }
+
         // Merge children by prefixing w/ children and id
         for (n, cs) in &inst.children {
             ctx.enter(n, &Vec::new());
@@ -384,7 +396,13 @@ impl Collapsed {
                     }
                     SelectBy::Product => {
                         if ms.is_empty() {
-                            trace!("No instances found for name={} select={:?} via {:?} among {:?}", v.name, ps, by, ks);
+                            trace!(
+                                "No instances found for name={} select={:?} via {:?} among {:?}",
+                                v.name,
+                                ps,
+                                by,
+                                ks
+                            );
                             Expr::F64(1.0)
                         } else {
                             Expr::Mul(ms)
@@ -530,6 +548,8 @@ pub struct ComponentType {
     pub exposures: Map<String, String>,
     /// variables, taken from the <Dynamics> block
     pub variables: Vec<Variable>,
+    /// conditional state assignments
+    pub conditions: Vec<(String, Boolean, Expr)>,
     /// parameters
     pub parameters: Vec<String>,
     /// attributes (non-numerical parameters?)
@@ -552,6 +572,7 @@ impl ComponentType {
         let mut children = Map::new();
         let mut exposures = Map::new();
         let mut variables = Vec::new();
+        let mut conditions = Vec::new();
         let mut parameters = Vec::new();
         let mut attributes = Vec::new();
         let mut constants = Map::new();
@@ -581,7 +602,13 @@ impl ComponentType {
                     attributes.push(t.name.to_string());
                 }
                 Dynamics(d) => {
-                    lems_dynamics(d, &mut variables, &mut events, &mut kinetic)?;
+                    lems_dynamics(
+                        d,
+                        &mut variables,
+                        &mut conditions,
+                        &mut events,
+                        &mut kinetic,
+                    )?;
                 }
                 Link(t) => {
                     links.insert(t.name.to_string(), t.r#type.to_string());
@@ -602,6 +629,7 @@ impl ComponentType {
             children,
             exposures,
             variables,
+            conditions,
             constants,
             parameters,
             attributes,
@@ -616,6 +644,7 @@ impl ComponentType {
 fn lems_dynamics(
     dynamics: &lems::raw::Dynamics,
     variables: &mut Vec<Variable>,
+    conditions: &mut Vec<(String, Boolean, Expr)>,
     events: &mut Vec<(String, Expr)>,
     kinetic: &mut Vec<Kinetic>,
 ) -> Result<()> {
@@ -690,6 +719,33 @@ fn lems_dynamics(
                             }) = it
                             {
                                 events.push((a.variable.to_string(), Expr::parse(&a.value)?));
+                            } else {
+                                return Err(nml2_error(format!(
+                                    "Must be a StateVar: {}",
+                                    a.variable
+                                )));
+                            }
+                        }
+                        b => trace!("Ignoring {:?}", b),
+                    }
+                }
+            }
+            OnCondition(v) => {
+                use lems::raw::OnConditionBody::*;
+                for b in &v.body {
+                    match b {
+                        StateAssignment(a) => {
+                            let it = variables.iter().find(|x| x.name == a.variable);
+                            if let Some(Variable {
+                                kind: VarKind::State(_, _),
+                                ..
+                            }) = it
+                            {
+                                conditions.push((
+                                    a.variable.to_string(),
+                                    Boolean::parse(&v.test)?,
+                                    Expr::parse(&a.value)?,
+                                ));
                             } else {
                                 return Err(nml2_error(format!(
                                     "Must be a StateVar: {}",

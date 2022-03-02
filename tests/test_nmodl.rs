@@ -136,7 +136,6 @@ BREAKPOINT {
     );
 }
 
-
 #[test]
 fn simple_ion_channel() {
     let lems = LemsFile::core();

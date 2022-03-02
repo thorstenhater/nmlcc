@@ -58,6 +58,7 @@ pub struct Nmodl {
     states: Vec<Set<String>>,
     fixed: Map<String, Expr>,
     keep: Set<String>,
+    conditions: Map<String, Vec<Stmnt>>,
 }
 
 fn apply_filter(filter: &str, keys: &Set<String>) -> Set<String> {
@@ -112,6 +113,7 @@ impl Nmodl {
         let mut init = Map::new();
         let mut deriv = Map::new();
         let mut variables = Map::new();
+        let mut conditions = Map::new();
         let mut rates = Map::new();
         for var in &coll.variables {
             let nm = var.name.to_string();
@@ -142,7 +144,7 @@ impl Nmodl {
                 let mut cs = cs.clone();
                 while let Some((c, e)) = cs.pop() {
                     init = true;
-                    res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(res));
+                    res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(Some(res)));
                 }
                 if !init {
                     return Err(nml2_error(format!("Variable '{}' undefined.", nm)));
@@ -255,6 +257,18 @@ impl Nmodl {
         simplify(&mut events, &mut fixed, &keep);
         simplify(&mut rates, &mut fixed, &keep);
 
+        for (nm, ts, ex) in &coll.conditions {
+            let ass = Stmnt::Ift(
+                ts.clone(),
+                Box::new(Stmnt::Ass(nm.clone(), ex.clone())),
+                Box::new(None),
+            );
+            conditions
+                .entry(nm.clone())
+                .or_insert_with(Vec::new)
+                .push(ass);
+        }
+
         let states = coll.states.clone();
 
         Ok(Nmodl {
@@ -276,6 +290,7 @@ impl Nmodl {
             states,
             fixed,
             keep,
+            conditions,
         })
     }
 
@@ -415,6 +430,11 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
     if !deps.is_empty() {
         result.push(deps);
     }
+    for vs in n.conditions.values() {
+        for v in vs {
+            result.push(v.print_to_string(2));
+        }
+    }
     result.push(currents);
     result.push(String::from("}\n\n"));
     Ok(result.join("\n"))
@@ -529,7 +549,9 @@ fn read_variable(n: &Nmodl) -> Result<Set<String>> {
 fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
     let read = read_variable(n)?;
     if read.contains("area") {
-        return Err(nmodl_error("'Area' is not supported in Arbor; check if the model can use 'diam' instead."));
+        return Err(nmodl_error(
+            "'Area' is not supported in Arbor; check if the model can use 'diam' instead.",
+        ));
     }
     let mut ions = n.species.iter().cloned().collect::<Set<_>>();
     ions.insert(String::from("ca"));
@@ -779,6 +801,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             }
             filter.push_str("+conductance");
             let coll = Collapsed::from_instance(&instance)?;
+            eprintln!("cond={:?}", coll.parameters);
             let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
             for ion in &n.species {
                 let ex = format!("e{}", ion);
