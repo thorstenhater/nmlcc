@@ -221,7 +221,7 @@ impl Nmodl {
         let mut symbols: Set<_> = [
             String::from("v"),
             String::from("area"),
-            String::from("diameter"),
+            String::from("diam"),
             String::from("v_peer"),
             String::from("cai"),
         ]
@@ -441,11 +441,18 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
 }
 
 fn nmodl_param_block(n: &Nmodl) -> Result<String> {
-    if n.parameters.is_empty() {
+    let mut ps = n.parameters.clone();
+    let read = read_variable(n)?;
+    for p in ["diam"] {
+        if read.contains(p) {
+            ps.insert(p.to_string(), None);
+        }
+    }
+    if ps.is_empty() {
         return Ok(String::new());
     }
     let mut result = vec![String::from("PARAMETER {")];
-    for (k, v) in &n.parameters {
+    for (k, v) in ps.into_iter() {
         let mut ln = format!("  {}", k);
         if let Some(v) = v {
             ln.push_str(&format!(" = {}", v.value));
@@ -565,7 +572,11 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         String::from("NEURON {\n"),
         format!("  {} {}\n", kind, n.suffix),
     ];
-    let write = n.outputs.keys().collect::<Set<_>>();
+    let mut write = n.outputs.keys().cloned().collect::<Set<_>>();
+    for k in n.deriv.keys() {
+        let s = &k[..k.len() - 1];
+        write.insert(s.to_string());
+    }
     for ion in &ions {
         let xi = format!("{}i", ion);
         let ix = format!("i{}", ion);
@@ -573,22 +584,33 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         let ex = format!("e{}", ion);
 
         if n.known_ions.contains(ion) {
-            let mut usage = format!("  USEION {}", ion);
             let mut used = false;
-            if write.contains(&format!("i{}", ion)) {
-                usage = format!("{} WRITE i{}", usage, ion);
-                used = true;
-            }
-            let mut sep = "READ";
-            for r in &[xi, xo, ix, ex] {
-                if read.contains(r) {
-                    usage = format!("{} {} {}", usage, sep, r);
-                    used = true;
-                    sep = ",";
+            let mut rs = Vec::new();
+            let mut ws = Vec::new();
+            for q in [xi, xo, ex, ix] {
+                let w = write.contains(&q);
+                let r = read.contains(&q);
+                used |= w || r;
+                if w {
+                    ws.push(q.clone());
+                }
+                if r && !w {
+                    rs.push(q.clone());
                 }
             }
-            usage.push('\n');
             if used {
+                let ws = if !ws.is_empty() {
+                    format!(" WRITE {}", ws.join(", "))
+                } else {
+                    String::new()
+                };
+                let rs = if !rs.is_empty() {
+                    format!(" READ {}", rs.join(", "))
+                } else {
+                    String::new()
+                };
+                let usage = format!("  USEION {}{}{}\n", ion, ws, rs);
+
                 result.push(usage);
             }
         }
@@ -801,7 +823,6 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             }
             filter.push_str("+conductance");
             let coll = Collapsed::from_instance(&instance)?;
-            eprintln!("cond={:?}", coll.parameters);
             let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
             for ion in &n.species {
                 let ex = format!("e{}", ion);
@@ -830,27 +851,48 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             mk_nmodl(&n)
         }
         "concentrationModel" => {
-            let filter = filter.to_string();
+            let mut filter = filter.to_string();
             let instance = instance.clone();
-            let coll = Collapsed::from_instance(&instance)?;
+            let mut coll = Collapsed::from_instance(&instance)?;
             let ion = coll.attributes.get("ion").unwrap().as_deref().unwrap();
+            if !filter.is_empty() {
+                filter.push(',');
+            }
+            filter.push_str("+initialConcentration");
+            coll.parameters.insert(
+                String::from("initialConcentration"),
+                Some(Quantity::parse("0 mM")?),
+            );
             let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
             let xi = format!("{}i", ion);
             let xo = format!("{}o", ion);
-            let ix = format!("i{}", ion);
-            let ic = String::from("concentration");
-            let ec = String::from("extConcentration");
-            n.add_outputs(&[assign(&xi, &ic)?, assign(&xo, &ec)?].into_iter().collect());
-            n.add_initials(&[assign(&ic, &xi)?, assign(&ec, &xo)?].into_iter().collect());
+            let dxi = format!("{}i'", ion);
+            let dxo = format!("{}o'", ion);
 
-            // Map variables iCa -> iX to compensate for NML2 mistakes
+            let ic = "concentration";
+            let ec = "extConcentration";
+            let dic = "concentration'";
+            let dec = "extConcentration'";
+
+            if !n.outputs.contains_key(ec) && !n.deriv.contains_key(dec) {
+                n.init.remove(ec);
+                n.state.remove(ec);
+            }
+            if !n.outputs.contains_key(ic) && !n.deriv.contains_key(dic) {
+                n.init.remove(ic);
+                n.state.remove(ic);
+            }
+
+            let ica = Expr::parse("-0.01*ica*surfaceArea")?;
             let fix = |ex: &Expr| -> Expr {
                 match ex {
-                    Expr::Var(x) if x == "iCa" => Expr::Var(ix.clone()),
-                    Expr::Var(x) if x == "surfaceArea" => Expr::Var("area".to_string()),
+                    Expr::Var(x) if x == "iCa" => ica.clone(),
+                    Expr::Var(x) if x == ic => Expr::Var(xi.clone()),
+                    Expr::Var(x) if x == ec => Expr::Var(xo.clone()),
                     _ => ex.clone(),
                 }
             };
+
             for stm in n.variables.values_mut() {
                 *stm = stm.map(&fix);
             }
@@ -862,6 +904,43 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             }
             for stm in n.outputs.values_mut() {
                 *stm = stm.map(&fix);
+            }
+            for stms in n.conditions.values_mut() {
+                for stm in stms {
+                    *stm = stm.map(&fix);
+                    *stm = stm.set_name(ic, &xi);
+                }
+            }
+            if let Some(v) = n.outputs.remove(ic) {
+                n.outputs.insert(xi.clone(), v.set_name(ic, &xi));
+            }
+            if let Some(v) = n.init.remove(ic) {
+                n.init.insert(xi.clone(), v.set_name(ic, &xi));
+            }
+            if let Some(v) = n.deriv.remove(dic) {
+                n.deriv.insert(dxi.clone(), v.set_name(dic, &dxi));
+            }
+            if let Some(vs) = n.conditions.remove(ic) {
+                n.conditions.insert(xi.clone(), vs);
+            }
+            if let Some(v) = n.outputs.remove(ec) {
+                n.outputs.insert(xo.clone(), v.set_name(ec, &xo));
+            }
+            if let Some(v) = n.init.remove(ec) {
+                n.init.insert(xo.clone(), v.set_name(ec, &xo));
+            }
+            if let Some(v) = n.deriv.remove(dec) {
+                n.deriv.insert(dxo.clone(), v.set_name(dec, &dxo));
+            }
+            if let Some(vs) = n.conditions.remove(ec) {
+                n.conditions.insert(xo.clone(), vs);
+            }
+
+            if n.state.remove(ic) {
+                n.state.insert(xi.clone());
+            }
+            if n.state.remove(ec) {
+                n.state.insert(xo.clone());
             }
             mk_nmodl(&n)
         }

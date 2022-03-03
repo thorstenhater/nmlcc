@@ -146,6 +146,19 @@ impl Stmnt {
         }
     }
 
+    pub fn set_name(&self, from: &str, to: &str) -> Self {
+        match self {
+            Stmnt::Ass(s, e) if s == from => Stmnt::Ass(to.to_string(), e.clone()),
+            Stmnt::Ift(c, t, e) => {
+                let c = c.clone();
+                let t = t.set_name(from, to);
+                let e = e.deref().as_ref().map(|i| i.set_name(from, to));
+                Stmnt::Ift(c, Box::new(t), Box::new(e))
+            }
+            _ => self.clone(),
+        }
+    }
+
     pub fn print_to_string(&self, ind: usize) -> String {
         match self {
             Stmnt::Ass(n, e) => {
