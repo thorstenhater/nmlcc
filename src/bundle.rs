@@ -19,11 +19,17 @@ use crate::{
     Map, Set,
 };
 
-pub fn export(lems: &LemsFile, nml: &[String], bundle: &str, use_super_mechs: bool) -> Result<()> {
+pub fn export(
+    lems: &LemsFile,
+    nml: &[String],
+    bundle: &str,
+    use_super_mechs: bool,
+    ions: &[String],
+) -> Result<()> {
     export_template(nml, bundle)?;
 
     // We always export these to keep synapse etc alive
-    nmodl::export(lems, nml, "-*", &format!("{}/cat", bundle))?;
+    nmodl::export(lems, nml, "-*", &format!("{}/cat", bundle), ions)?;
 
     if use_super_mechs {
         export_with_super_mechanisms(lems, nml, bundle)?;

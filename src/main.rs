@@ -15,6 +15,14 @@ struct Cli {
     /// Verbosity level, defaults to 'WARN'.
     #[clap(short, long, parse(from_occurrences))]
     verbose: usize,
+    /// Comma separated list of ion species to consider as given. The default is
+    /// _Arbor's_ list of ions Calcium Ca 2+, Sodium Na 1+, and Potassium K 1+.
+    /// NeuroML2 defaults to just Ca and Na, so if you are trying to port an
+    /// NML2 model 1:1 pass --ions='na,ca'. All ion names will be turned into
+    /// lowercase. Note that this gives the simulator's built-in, but does not
+    /// allow for adding new species.
+    #[clap(short, long, default_value = "ca, na, k")]
+    ions: String,
     #[clap(subcommand)]
     cmd: Cmd,
 }
@@ -87,6 +95,11 @@ fn main() -> Result<()> {
 
     let mut lems = lems::file::LemsFile::core();
 
+    let ions = opts
+        .ions
+        .split(',')
+        .map(|s| s.trim().to_lowercase())
+        .collect::<Vec<_>>();
     match opts.cmd {
         Cmd::Nmodl {
             nml,
@@ -94,7 +107,7 @@ fn main() -> Result<()> {
             dir,
         } => {
             get_runtime_types(&mut lems, &nml)?;
-            nmodl::export(&lems, &nml, &parameter, &dir)?;
+            nmodl::export(&lems, &nml, &parameter, &dir, &ions[..])?;
         }
         Cmd::Acc { nml, dir } => {
             get_runtime_types(&mut lems, &nml)?;
@@ -106,7 +119,7 @@ fn main() -> Result<()> {
             super_mechanisms,
         } => {
             get_runtime_types(&mut lems, &[nml.clone()])?;
-            bundle::export(&lems, &[nml], &dir, super_mechanisms)?;
+            bundle::export(&lems, &[nml], &dir, super_mechanisms, &ions[..])?;
         }
     }
     Ok(())

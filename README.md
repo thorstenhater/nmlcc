@@ -145,13 +145,23 @@ speficied by the `species` attribute.
 More importantly, Arbor does **not** suppport the `area` attribute, since its
 internal model is one of densities already. Thus statements like this (here
 `fixedFactorConcentrationModel` from `CoreTypes.xml`) 
+
 ``` xml
 <TimeDerivative variable="concentration" 
-                value="1e-9*phi*(iCa/surfaceArea) - (concentration - restingConc)*beta"/>
+                value="1e-9*phi*(ica/surfaceArea) - (concentration - restingConc)*beta"/>
 ```
-are redundant, since `iCa` is already normalised to the area. Thus, if you
+
+are redundant, since `ica` is already normalised to the area. Thus, if you
 intend to run these kinds of models in Arbor, you will need to adjust your NML2
-models. However, `nmlcc` *does export* `surfaceArea` as area, so 
+models. However, Arbor *does not export* `surfaceArea` as `area` -- as NEURON
+does -- since it dependes on the concrete discretised models. Instead, Arbor's
+NMODL dialect has the `diam` variable. Usually, this is not an issue, but
+concentration models need the _molar flux_ `f` across the membrane and reach for
+the formula `f = -i A /(F q)` where `F` is Faraday's constant, `q` the ionic
+charge, `A` the CV's surface area, and `i` the current density. This is
+difficult to model without being able to access the surface area. If you have
+such a model, you'll need to modify it. It might be acceptable to approximate
+the surface area as a sphere with `A = π diam^2`.
 
 ### Options
 

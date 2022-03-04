@@ -2,6 +2,14 @@ use nml2::{instance::Instance, lems::file::LemsFile, nmodl::to_nmodl};
 
 use roxmltree::Document;
 
+fn ions() -> Vec<String> {
+    vec![
+        String::from("na"),
+        String::from("ca"),
+        String::from("k"),
+    ]
+}
+
 #[test]
 fn simple_synapse() {
     let lems = LemsFile::core();
@@ -18,7 +26,7 @@ fn simple_synapse() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseSynapse").unwrap(),
+        to_nmodl(&inst, "-*", "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   POINT_PROCESS sy1
   NONSPECIFIC_CURRENT i
@@ -46,7 +54,7 @@ NET_RECEIVE(weight) {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseSynapse").unwrap(),
+        to_nmodl(&inst, "+*", "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   POINT_PROCESS sy1
   NONSPECIFIC_CURRENT i
@@ -97,7 +105,7 @@ fn simple_gap_junction() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseSynapse").unwrap(),
+        to_nmodl(&inst, "-*", "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   JUNCTION gj1
   NONSPECIFIC_CURRENT i
@@ -116,7 +124,7 @@ BREAKPOINT {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseSynapse").unwrap(),
+        to_nmodl(&inst, "+*", "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   JUNCTION gj1
   NONSPECIFIC_CURRENT i
@@ -167,7 +175,7 @@ fn simple_ion_channel() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseIonChannel").unwrap(),
+        to_nmodl(&inst, "+*", "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX NaConductance
   USEION na WRITE ina READ ena
@@ -254,7 +262,7 @@ BREAKPOINT {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseIonChannel").unwrap(),
+        to_nmodl(&inst, "-*", "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX NaConductance
   USEION na WRITE ina READ ena
@@ -344,7 +352,7 @@ fn simple_passive_channel() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseIonChannel").unwrap(),
+        to_nmodl(&inst, "+*", "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX passiveChan
   NONSPECIFIC_CURRENT ileak
@@ -366,7 +374,7 @@ BREAKPOINT {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseIonChannel").unwrap(),
+        to_nmodl(&inst, "-*", "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX passiveChan
   NONSPECIFIC_CURRENT ileak

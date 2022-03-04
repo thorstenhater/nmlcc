@@ -771,8 +771,12 @@ fn print_dependency_chains(
     Ok(result.join("\n"))
 }
 
-pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String> {
-    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
+pub fn to_nmodl(
+    instance: &Instance,
+    filter: &str,
+    base: &str,
+    known_ions: &[String],
+) -> Result<String> {
     let ty: &str = instance.component_type.name.as_ref();
     match base {
         "baseSynapse" => {
@@ -791,7 +795,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
                 let mut coll = Collapsed::from_instance(&instance)?;
                 coll.parameters
                     .insert(String::from("weight"), Some(Quantity::parse("1")?));
-                let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
+                let mut n = Nmodl::from(&coll, known_ions, &filter)?;
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
                     n.outputs.insert(k, v);
@@ -804,7 +808,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
                 let filter = filter.to_string();
                 let instance = instance.clone();
                 let coll = Collapsed::from_instance(&instance)?;
-                let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
+                let mut n = Nmodl::from(&coll, known_ions, &filter)?;
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
                     n.outputs.insert(k, v);
@@ -823,7 +827,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
             }
             filter.push_str("+conductance");
             let coll = Collapsed::from_instance(&instance)?;
-            let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
+            let mut n = Nmodl::from(&coll, known_ions, &filter)?;
             for ion in &n.species {
                 let ex = format!("e{}", ion);
                 let gx = String::from("g");
@@ -863,7 +867,7 @@ pub fn to_nmodl(instance: &Instance, filter: &str, base: &str) -> Result<String>
                 String::from("initialConcentration"),
                 Some(Quantity::parse("0 mM")?),
             );
-            let mut n = Nmodl::from(&coll, &known_ions, &filter)?;
+            let mut n = Nmodl::from(&coll, known_ions, &filter)?;
             let xi = format!("{}i", ion);
             let xo = format!("{}o", ion);
             let dxi = format!("{}i'", ion);
@@ -992,7 +996,13 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
     }
 }
 
-pub fn export(lems: &LemsFile, nml: &[String], filter: &str, cat: &str) -> Result<()> {
+pub fn export(
+    lems: &LemsFile,
+    nml: &[String],
+    filter: &str,
+    cat: &str,
+    known_ions: &[String],
+) -> Result<()> {
     let tys = vec!["baseIonChannel", "baseSynapse", "concentrationModel"];
 
     process_files(nml, |_, node| {
@@ -1015,7 +1025,7 @@ pub fn export(lems: &LemsFile, nml: &[String], filter: &str, cat: &str) -> Resul
                     instance.id.as_deref().unwrap(),
                     &path
                 );
-                write(&path, to_nmodl(&instance, filter, ty)?)?;
+                write(&path, to_nmodl(&instance, filter, ty, known_ions)?)?;
             }
         }
         Ok(())
