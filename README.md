@@ -146,28 +146,16 @@ designator.
 ### `ConcentrationModel` Support 
 
 In contrast to NML2 native models `nmlcc` replaces the `Ca` ion with the one
-speficied by the `species` attribute. 
-
-More importantly, Arbor does **not** suppport the `area` attribute, since its
-internal model is one of densities already. Thus statements like this (here
-`fixedFactorConcentrationModel` from `CoreTypes.xml`) 
-
-``` xml
-<TimeDerivative variable="concentration" 
-                value="1e-9*phi*(ica/surfaceArea) - (concentration - restingConc)*beta"/>
-```
-
-are redundant, since `ica` is already normalised to the area. Thus, if you
-intend to run these kinds of models in Arbor, you will need to adjust your NML2
-models. However, Arbor *does not export* `surfaceArea` as `area` -- as NEURON
-does -- since it dependes on the concrete discretised models. Instead, Arbor's
-NMODL dialect has the `diam` variable. Usually, this is not an issue, but
-concentration models need the _molar flux_ `f` across the membrane and reach for
-the formula `f = -i A /(F q)` where `F` is Faraday's constant, `q` the ionic
+speficied by the `species` attribute. If you intend to run concentration models
+in Arbor, you will need to adjust your NML2 description slightly. However, Arbor
+*does not export* `surfaceArea` as `area` -- as NEURON does -- since it dependes
+on the concrete discretised models. Instead, Arbor's NMODL dialect exposes the
+CV's diameter as the `diam` variable. Usually, this is not an issue, but
+concentration models may need the _molar flux_ `f` across the membrane and reach
+for the formula `f = -i A /(F q)` where `F` is Faraday's constant, `q` the ionic
 charge, `A` the CV's surface area, and `i` the current density. This is
-difficult to model without being able to access the surface area. If you have
-such a model, you'll need to modify it. It might be acceptable to approximate
-the surface area as a sphere with `A = π diam^2`.
+difficult to model without being able to access the surface area. It might be
+acceptable to approximate the surface area as a sphere with `A = π diam^2`.
 
 ### Options
 
