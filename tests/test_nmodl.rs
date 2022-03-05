@@ -3,11 +3,7 @@ use nml2::{instance::Instance, lems::file::LemsFile, nmodl::to_nmodl};
 use roxmltree::Document;
 
 fn ions() -> Vec<String> {
-    vec![
-        String::from("na"),
-        String::from("ca"),
-        String::from("k"),
-    ]
+    vec![String::from("na"), String::from("ca"), String::from("k")]
 }
 
 #[test]

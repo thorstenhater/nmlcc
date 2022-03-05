@@ -118,6 +118,12 @@ replace `nmlcc` with `cargo run -- [args]` instead.
 
 - `-v/--verbose`: Provide more output, defaults to warnings only, `-v` escalates
   to `INFO` and `-vv` to `TRACE`.
+- `--ions`: Comma separated list of ion species to consider as given in the
+  simulator, but does not allow for adding new species (for that use the
+  `<species>` tag). The default is _Arbor's_ list of ions Calcium Ca 2+, Sodium
+  Na 1+, and Potassium K 1+. NeuroML2 defaults to just Ca and Na, so if you are
+  trying to port an NML2 model 1:1 pass `--ions='na,ca'`. All ion names will be
+  turned into lowercase.
 
 ## Generate `NMODL` from NeuroML2 Dynamics
 
