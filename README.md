@@ -124,6 +124,10 @@ replace `nmlcc` with `cargo run -- [args]` instead.
   Na 1+, and Potassium K 1+. NeuroML2 defaults to just Ca and Na, so if you are
   trying to port an NML2 model 1:1 pass `--ions='na,ca'`. All ion names will be
   turned into lowercase.
+  
+  Any ionic species that is neither _known_, ie given via this flag or its
+  defaults, or _declared_ using an NML2 `<species>` will be turned into a
+  non-specific current when exporting to NMODL.
 
 ## Generate `NMODL` from NeuroML2 Dynamics
 

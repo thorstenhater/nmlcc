@@ -110,7 +110,7 @@ impl LemsFile {
             ("nA_ms_per_amol", "charge_per_mole"),
             ("nA", "current"),
             ("uA_per_cm2", "currentDensity"),
-            ("mol_per_cm3", "concentration"),
+            ("mol_per_m3", "concentration"),
             ("K", "temperature"),
             ("J_per_K_per_mol", "idealGasConstantDims"),
             ("nS_per_mV", "conductance_per_voltage"),
