@@ -227,8 +227,8 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
             .ok_or_else(||nml2_error("Projection has no id."))?
             .to_string();
         let ty = prj.component_type.name.as_str();
-        if "projections" != ty {
-            return Err(nml2_error("Projection has no id."));
+        if "projection" != ty {
+            return Err(nml2_error(format!("Projection expected, got type '{}'.", ty)));
         }
         if let Some(conns) = prj.children.get("connections") {
             for conn in conns {
@@ -238,10 +238,7 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                         .get("preFractionAlong")
                         .map(|s| s.parse::<f64>().unwrap())
                         .unwrap_or(0.5);
-                    let cell = attr
-                        .get("preCellId")
-                        .map(|s| s.parse::<i64>().unwrap())
-                        .unwrap_or(0);
+                    let cell = get_cell_id(attr.get("preCellId").ok_or(nml2_error("No preCellId."))?)?.1;
                     let segment = attr
                         .get("preSegmentId")
                         .map(|s| s.parse::<i64>().unwrap())
@@ -257,10 +254,7 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                         .get("postFractionAlong")
                         .map(|s| s.parse::<f64>().unwrap())
                         .unwrap_or(0.5);
-                    let cell = attr
-                        .get("postCellId")
-                        .map(|s| s.parse::<i64>().unwrap())
-                        .unwrap_or(0);
+                    let cell = get_cell_id(attr.get("preCellId").ok_or(nml2_error("No preCellId."))?)?.1;
                     let segment = attr
                         .get("postSegmentId")
                         .map(|s| s.parse::<i64>().unwrap())

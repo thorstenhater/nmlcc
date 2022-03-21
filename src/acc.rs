@@ -38,12 +38,11 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
                 let ins = Instance::new(lems, node)?;
                 let net = Network::new(&ins)?;
                 for input in &net.inputs {
-                    let (pop, tgt) = network::get_cell_id(&input.target)?;
+                    let (pop, _tgt) = network::get_cell_id(&input.target)?;
                     let npop = net
                         .populations
                         .get(&pop)
                         .ok_or_else(|| nml2_error(format!("No such population {}", pop)))?;
-                    assert!(tgt == 0); // TODO For now
                     let kind = npop.component.clone();
                     wiring
                         .entry(kind)
