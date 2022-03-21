@@ -241,8 +241,11 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                         .get("preFractionAlong")
                         .map(|s| s.parse::<f64>().unwrap())
                         .unwrap_or(0.5);
-                    let cell =
-                        get_cell_id(attr.get("preCellId").ok_or_else(||nml2_error("No preCellId."))?)?.1;
+                    let cell = get_cell_id(
+                        attr.get("preCellId")
+                            .ok_or_else(|| nml2_error("No preCellId."))?,
+                    )?
+                    .1;
                     let segment = attr
                         .get("preSegmentId")
                         .map(|s| s.parse::<i64>().unwrap())
@@ -258,8 +261,11 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                         .get("postFractionAlong")
                         .map(|s| s.parse::<f64>().unwrap())
                         .unwrap_or(0.5);
-                    let cell =
-                        get_cell_id(attr.get("preCellId").ok_or_else(||nml2_error("No preCellId."))?)?.1;
+                    let cell = get_cell_id(
+                        attr.get("preCellId")
+                            .ok_or_else(|| nml2_error("No preCellId."))?,
+                    )?
+                    .1;
                     let segment = attr
                         .get("postSegmentId")
                         .map(|s| s.parse::<i64>().unwrap())
