@@ -340,9 +340,16 @@ impl Boolean {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub enum Select {
+    All,
+    Index(usize),
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Path {
+    Up,
     Fixed(String),
-    When(String, String),
+    When(String, Select),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -380,15 +387,16 @@ impl Match {
                             false
                         }
                     }
-                    Path::When(f, c) => {
-                        assert!("*" == c);
+                    Path::When(f, Select::All) => {
                         ok &= if let Some(r) = es.next() {
                             r == f
                         } else {
                             false
                         };
-                        ok &= es.next().is_some(); // TODO(TH): More elaborate matching
+                        ok &= es.next().is_some();
                     }
+                    Path::Up => panic!("Going up not allowed here"),
+                    Path::When(_, Select::Index(_)) => panic!("Indexing not allowed here"),
                 }
             }
             if ok {
@@ -412,7 +420,12 @@ mod parse {
         IResult,
     };
 
-    use super::{Boolean, Cmp, Expr, Op, Path, Quantity};
+    use super::{Boolean, Cmp, Expr, Op, Path, Quantity, Select};
+
+    fn up(input: &str) -> IResult<&str, Path> {
+        let (input, _) = tag("..")(input)?;
+        Ok((input, Path::Up))
+    }
 
     fn fixed(input: &str) -> IResult<&str, Path> {
         let (input, v) = take_while(|c| is_alphanumeric(c as u8) || '_' == c)(input)?;
@@ -429,11 +442,16 @@ mod parse {
     fn when(input: &str) -> IResult<&str, Path> {
         let (input, v) = take_while(|c| is_alphanumeric(c as u8) || '_' == c)(input)?;
         let (input, c) = delimited(tag("["), take_while1(|c| c != ']'), tag("]"))(input)?;
-        Ok((input, Path::When(v.to_string(), c.to_string())))
+        let c = if c == "*" {
+            Select::All
+        } else {
+            Select::Index(nom::character::complete::u64(c)?.1 as usize)
+        };
+        Ok((input, Path::When(v.to_string(), c)))
     }
 
     pub fn path(input: &str) -> IResult<&str, Vec<Path>> {
-        separated_list1(tag("/"), alt((when, fixed)))(input)
+        separated_list1(tag("/"), alt((up, when, fixed)))(input)
     }
 
     pub fn quantity(input: &str) -> IResult<&str, Quantity> {
@@ -838,7 +856,7 @@ mod test {
             Match(vec![
                 Fixed(String::from("a")),
                 Fixed(String::from("b")),
-                When(String::from("c"), String::from("*"))
+                When(String::from("c"), Select::All)
             ])
         );
 

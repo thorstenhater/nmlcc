@@ -2,7 +2,9 @@ use std::fs::{create_dir_all, write};
 use tracing::{info, trace};
 
 use crate::acc::Paintable;
+use crate::error::nml2_error;
 use crate::expr::Stmnt;
+use crate::network::Network;
 use crate::{
     acc::{self, Sexp},
     error::{Error, Result},
@@ -26,7 +28,7 @@ pub fn export(
     use_super_mechs: bool,
     ions: &[String],
 ) -> Result<()> {
-    export_template(nml, bundle)?;
+    export_template(lems, nml, bundle)?;
 
     // We always export these to keep synapse etc alive
     nmodl::export(lems, nml, "-*", &format!("{}/cat", bundle), ions)?;
@@ -122,7 +124,7 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
     )
 }
 
-fn export_template(nml: &[String], bundle: &str) -> Result<()> {
+fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     trace!("Creating bundle {}", bundle);
     create_dir_all(&bundle)?;
     create_dir_all(&format!("{}/mrf", bundle))?;
@@ -130,15 +132,13 @@ fn export_template(nml: &[String], bundle: &str) -> Result<()> {
     create_dir_all(&format!("{}/cat", bundle))?;
 
     let mut ids = Vec::new();
-    process_files(nml, |_, node| {
+    process_files(nml, |fd, node| {
         let doc = node.document().input_text();
-        for mrf in node.descendants() {
-            match node.tag_name().name() {
-                "cell" => {
-                    let id = node.attribute("id").ok_or(Error::Nml {
-                        what: String::from("Cell has no id"),
-                    })?;
-                    ids.push(id.to_string());
+        match node.tag_name().name() {
+            "cell" => {
+                let id = node.attribute("id").ok_or(nml2_error("Cell has no id"))?;
+                ids.push(id.to_string());
+                for mrf in node.children() {
                     if mrf.tag_name().name() == "morphology" {
                         trace!("Writing morphology to {}/mrf/{}", bundle, id);
                         write(
@@ -147,9 +147,16 @@ fn export_template(nml: &[String], bundle: &str) -> Result<()> {
                         )?;
                     }
                 }
-                "network" => {}
-                _ => {}
             }
+            "network" => {
+                let id = node.attribute("id").ok_or(Error::Nml {
+                    what: String::from("Network has no id"),
+                })?;
+                let inst = Instance::new(lems, node)?;
+                let net = Network::new(&inst)?;
+                eprintln!("{}::{} => {:?}", fd, id, net);
+            }
+            _ => {}
         }
         Ok(())
     })?;

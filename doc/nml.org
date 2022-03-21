@@ -769,7 +769,7 @@ more idiomatically?!
  ~condDensity~ added in ~channelDensityCond~ is identical to ~conductance~.
  Thus, we need to retain ~conductance~ and set it to the value of ~condDensity~.
 
-* * Networks
+* Networks
 
 Networks are important for us for both actual network support and simulation
 inputs. We note the following about the network layout in NML2.

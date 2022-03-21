@@ -3,7 +3,7 @@ use tracing::{info, trace, warn};
 
 use crate::{
     error::{nml2_error, Result},
-    expr::{Boolean, Expr, Match, Quantity},
+    expr::{Boolean, Expr, Match, Quantity, Select},
     lems,
     variable::{SelectBy, VarKind, Variable},
     Map, Set,
@@ -222,7 +222,7 @@ impl Collapsed {
                         }
                         panic!("Impossible path {:?}", ks.edge);
                     }
-                    Path::When(s, m) if m == "*" => {
+                    Path::When(s, Select::All) => {
                         for (pfx, node) in &nodes {
                             if let Some(xs) = node.children.get(s) {
                                 nodes = xs
@@ -248,6 +248,9 @@ impl Collapsed {
                 let Match(ref qs) = &ks.node;
                 for q in qs {
                     match q {
+                        Path::Up => {
+                            qfx.pop().ok_or(nml2_error("Invalid path"))?;
+                        }
                         Path::Fixed(s) => qfx.push(s.clone()),
                         Path::When(s, _) => qfx.push(s.clone()),
                     }
@@ -583,6 +586,12 @@ impl ComponentType {
         for ix in &ct.body {
             use lems::raw::ComponentTypeBody::*;
             match ix {
+                ComponentReference(c) => {
+                    attributes.push(c.name.to_string());
+                }
+                Path(c) => {
+                    attributes.push(c.name.to_string());
+                }
                 Child(c) => {
                     child.insert(c.name.to_string(), c.r#type.to_string());
                 }

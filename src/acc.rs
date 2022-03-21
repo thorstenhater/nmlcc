@@ -1,15 +1,16 @@
 use crate::{
-    error::{Error, Result},
+    error::{nml2_error, Error, Result},
     expr::Quantity,
+    instance::Instance,
     lems::file::LemsFile,
-    network::Network,
+    network::{self, Network},
     neuroml::{
         process_files,
         raw::{
-            self, BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity,
-            ChannelDensityNernst, ExtracellularProperties, InitMembPotential,
-            IntracellularProperties, IntracellularPropertiesBody, MembraneProperties,
-            MembranePropertiesBody, PulseGenerator, Resistivity, Species, SpecificCapacitance,
+            BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, ChannelDensityNernst,
+            ExtracellularProperties, InitMembPotential, IntracellularProperties,
+            IntracellularPropertiesBody, MembraneProperties, MembranePropertiesBody,
+            PulseGenerator, Resistivity, Species, SpecificCapacitance,
         },
     },
     xml::XML,
@@ -22,8 +23,8 @@ use tracing::{info, trace};
 
 pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor>>> {
     let mut cells = Map::new();
-    let mut placings: Vec<Decor> = Vec::new();
     let mut iclamps = Map::new();
+    let mut wiring = Map::new();
 
     let norm = |v: &str| -> Result<String> {
         let q = Quantity::parse(v)?;
@@ -34,13 +35,23 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
     process_files(nml, |_, node| {
         match node.tag_name().name() {
             "network" => {
-                let net: raw::Network = XML::from_node(node);
-                let net = Network::new(lems, &net)?;
+                let ins = Instance::new(lems, node)?;
+                let net = Network::new(&ins)?;
                 for input in &net.inputs {
-                    placings.push(Decor::Place(
-                        Locset::Segment(input.segment, input.fraction),
-                        Placeable::IClamp(input.source.clone(), Envelope::Unresolved),
-                    ));
+                    let (pop, tgt) = network::get_cell_id(&input.target)?;
+                    let npop = net
+                        .populations
+                        .get(&pop)
+                        .ok_or_else(|| nml2_error(format!("No such population {}", pop)))?;
+                    assert!(tgt == 0); // TODO For now
+                    let kind = npop.component.clone();
+                    wiring
+                        .entry(kind)
+                        .or_insert_with(Vec::new)
+                        .push(Decor::Place(
+                            Locset::Segment(input.segment, input.fraction),
+                            Placeable::IClamp(input.source.clone(), Envelope::Unresolved),
+                        ));
                 }
             }
             "pulseGenerator" => {
@@ -73,21 +84,23 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
     })?;
 
     // Fix iclamp <> envelope assoc
-    for placing in placings.iter_mut() {
-        if let Decor::Place(_, Placeable::IClamp(n, ref mut e)) = placing {
-            if let Some((d, l, a)) = iclamps.get(n) {
-                *e = Envelope::Pulse(*d, *l, *a);
+    for (_, placings) in wiring.iter_mut() {
+        for placing in placings {
+            if let Decor::Place(_, Placeable::IClamp(n, ref mut e)) = placing {
+                if let Some((d, l, a)) = iclamps.get(n) {
+                    *e = Envelope::Pulse(*d, *l, *a);
+                }
             }
         }
     }
 
-    // TODO(TH, correctness): Need to match up cells and networks via populations here.
     let mut result = Map::new();
-    for (cell, decor) in cells {
-        result
-            .entry(cell)
-            .or_insert_with(Vec::new)
-            .extend(decor.iter().chain(placings.iter()).cloned());
+    for (cell, decor) in &cells {
+        let ps = result.entry(cell.clone()).or_insert_with(Vec::new);
+        ps.extend(decor.iter().cloned());
+        if let Some(p) = wiring.get(cell) {
+            ps.extend(p.iter().cloned());
+        }
     }
     Ok(result)
 }

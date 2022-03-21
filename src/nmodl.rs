@@ -837,8 +837,10 @@ pub fn to_nmodl(
                     let (ki, xi) = assign(&format!("{}conc", ion), &xi)?;
                     n.variables.insert(ki, xi);
                 } else {
+                    filter.push_str(format!("+e{}", ion).as_str());
                     n.parameters
                         .insert(ex.clone(), Some(Quantity::parse("0 mV")?));
+                    n.symbols.insert(ex.clone());
                 }
                 if !n.variables.contains_key(&gx) {
                     // to catch extensions of passiveChannels
