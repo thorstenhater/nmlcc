@@ -136,7 +136,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
         let doc = node.document().input_text();
         match node.tag_name().name() {
             "cell" => {
-                let id = node.attribute("id").ok_or(nml2_error("Cell has no id"))?;
+                let id = node.attribute("id").ok_or_else(|| nml2_error("Cell has no id"))?;
                 ids.push(id.to_string());
                 for mrf in node.children() {
                     if mrf.tag_name().name() == "morphology" {

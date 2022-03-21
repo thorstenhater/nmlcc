@@ -65,7 +65,7 @@ impl Network {
         let id = inst
             .id
             .as_deref()
-            .ok_or(nml2_error("Instance has no id attribute."))?
+            .ok_or_else(||nml2_error("Instance has no id attribute."))?
             .to_string();
         let temperature = if let Some(t) = inst.attributes.get("temperature") {
             t.parse::<f64>()
@@ -120,7 +120,7 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
                             .unwrap_or(0);
                         let target = attr
                             .get("target")
-                            .ok_or(nml2_error("No target in input."))?
+                            .ok_or_else(||nml2_error("No target in input."))?
                             .to_string();
                         inputs.push(Input {
                             fraction,
@@ -138,12 +138,12 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
                 let target = inp
                     .attributes
                     .get("target")
-                    .ok_or(nml2_error("No target in explicitInput."))?
+                    .ok_or_else(||nml2_error("No target in explicitInput."))?
                     .to_string();
                 let source = inp
                     .attributes
                     .get("input")
-                    .ok_or(nml2_error("No input in explicitInput."))?
+                    .ok_or_else(||nml2_error("No input in explicitInput."))?
                     .to_string();
                 inputs.push(Input {
                     fraction,
@@ -164,7 +164,7 @@ fn get_populations(pops: &[Instance]) -> Result<Map<String, Population>> {
         let id = pop
             .id
             .as_deref()
-            .ok_or(nml2_error("Population has no id."))?
+            .ok_or_else(||nml2_error("Population has no id."))?
             .to_string();
         let ty = pop.component_type.name.as_str();
         let members = match ty {
@@ -172,7 +172,7 @@ fn get_populations(pops: &[Instance]) -> Result<Map<String, Population>> {
                 let size = pop
                     .parameters
                     .get("size")
-                    .ok_or(nml2_error(format!("Population {} has no size.", id)))?
+                    .ok_or_else(||nml2_error(format!("Population {} has no size.", id)))?
                     .value as usize;
                 (0..size).collect()
             }
@@ -181,7 +181,7 @@ fn get_populations(pops: &[Instance]) -> Result<Map<String, Population>> {
                 for i in pop.children.get("instances").unwrap_or(&vec![]) {
                     let ix =
                         i.id.as_deref()
-                            .ok_or(nml2_error("Instance without id"))?
+                            .ok_or_else(||nml2_error("Instance without id"))?
                             .parse()
                             .map_err(|_| nml2_error("Could not parse integral."))?;
                     ms.push(ix);
@@ -198,7 +198,7 @@ fn get_populations(pops: &[Instance]) -> Result<Map<String, Population>> {
         let component = pop
             .attributes
             .get("component")
-            .ok_or(nml2_error(format!("Population {} without component", id)))?
+            .ok_or_else(||nml2_error(format!("Population {} without component", id)))?
             .to_string();
         populations.insert(id, Population { component, members });
     }
@@ -224,7 +224,7 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
         let id = prj
             .id
             .as_deref()
-            .ok_or(nml2_error("Projection has no id."))?
+            .ok_or_else(||nml2_error("Projection has no id."))?
             .to_string();
         let ty = prj.component_type.name.as_str();
         if "projections" != ty {

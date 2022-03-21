@@ -249,7 +249,7 @@ impl Collapsed {
                 for q in qs {
                     match q {
                         Path::Up => {
-                            qfx.pop().ok_or(nml2_error("Invalid path"))?;
+                            qfx.pop().ok_or_else(|| nml2_error("Invalid path"))?;
                         }
                         Path::Fixed(s) => qfx.push(s.clone()),
                         Path::When(s, _) => qfx.push(s.clone()),
