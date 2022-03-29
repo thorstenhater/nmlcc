@@ -4,7 +4,7 @@ use tracing::{info, trace};
 use crate::acc::Paintable;
 use crate::error::nml2_error;
 use crate::expr::Stmnt;
-use crate::network::Network;
+use crate::network::{get_cell_id, Input, Network};
 use crate::{
     acc::{self, Sexp},
     error::{Error, Result},
@@ -15,6 +15,7 @@ use crate::{
     neuroml::process_files,
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
+        PulseGenerator,
     },
     nmodl,
     xml::XML,
@@ -41,7 +42,81 @@ pub fn export(
     Ok(())
 }
 
-fn mk_main_py(id: &str) -> Result<String> {
+fn mk_main_py(
+    cells: &[(String, String)],
+    iclamps: &Map<String, (f64, f64, f64)>,
+    nets: &[Network],
+) -> Result<String> {
+    let net = if let [net] = nets {
+        net
+    } else {
+        return Err(nml2_error(
+            "Currently only one Network per bundle is supported.",
+        ));
+    };
+
+    let mut cell_to_morph = String::from("{");
+    for (c, m) in cells {
+        cell_to_morph.push_str(&format!("'{}': '{}', ", c, m))
+    }
+    cell_to_morph.push('}');
+
+    let mut count = 0;
+    let mut pop_to_gid = Map::new();
+    let mut gid_to_cell = String::from("[");
+    let mut gid_to_pop = String::from("[");
+    let mut inputs = Map::new();
+    for (id, pop) in &net.populations {
+        pop_to_gid.insert(id.clone(), count);
+        for _ in &pop.members {
+            count += 1;
+            gid_to_cell.push_str(&format!("'{}', ", pop.component));
+            gid_to_pop.push_str(&format!("'{}', ", id));
+        }
+    }
+    for Input {
+        source,
+        target,
+        segment,
+        fraction,
+    } in &net.inputs
+    {
+        let (pop, id) = get_cell_id(target)?;
+        let fst = pop_to_gid[&pop];
+        let idx = if let Some(p) = net.populations.get(&pop) {
+            p.members
+                .iter()
+                .position(|ix| id == *ix as i64)
+                .ok_or_else(|| nml2_error(format!("Bad index {} in population {}.", id, pop)))?
+        } else {
+            return Err(nml2_error(format!(
+                "Indexing into an unknown population: {}.",
+                pop
+            )));
+        };
+        let key = fst + idx;
+        let val = (source.clone(), segment, fraction);
+        inputs.entry(key).or_insert_with(Vec::new).push(val);
+    }
+    gid_to_cell.push(']');
+    gid_to_pop.push(']');
+
+    let mut gid_to_inputs = String::from("{");
+    for (key, vals) in inputs {
+        gid_to_inputs.push_str(&format!("{}: [", key));
+
+        for val in vals {
+            gid_to_inputs.push_str(&format!("{:?}, ", val));
+        }
+        gid_to_inputs.push_str("], ");
+    }
+    gid_to_inputs.push('}');
+
+    let mut i_clamps = String::from("{");
+    for (lbl, iclamp) in iclamps {
+        i_clamps.push_str(&format!("'{}': {:?}, ", lbl, iclamp))
+    }
+    i_clamps.push('}');
     Ok(format!(
         "#!/usr/bin/env python3
 import arbor as A
@@ -50,40 +125,68 @@ import subprocess as sp
 from pathlib import Path
 from time import perf_counter as pc
 
-# Auto-generated file, please copy to eg main.py
-
 here = Path(__file__).parent
 
-def nml_load_cell():
-    nml = A.neuroml(here / 'mrf' / '{id}.nml').cell_morphology(\"{id}\", allow_spherical_root=True)
-    lbl = A.label_dict()
-    lbl.append(nml.segments())
-    lbl.append(nml.named_segments())
-    lbl.append(nml.groups())
-    lbl['all'] = '(all)'
-    dec = A.load_component(here / 'acc' / '{id}.acc').component
-    return nml.morphology, lbl, dec
+def compile(fn, cat):
+    fn = fn.resolve()
+    cat = cat.resolve()
+    recompile = False
+    if fn.exists():
+        for src in cat.glob('*.mod'):
+            src = Path(src).resolve()
+            if src.stat().st_mtime > fn.stat().st_mtime:
+                recompile = True
+                break
+    sp.run(f'arbor-build-catalogue local {{cat}}', shell=True, check=True)
+    return A.load_catalogue(fn)
 
-def mk_cat():
-    sp.run('arbor-build-catalogue local cat', shell=True, check=True)
-    res = A.default_catalogue()
-    cat = A.load_catalogue(here / 'local-catalogue.so')
-    res.extend(cat, '')
-    return res
+class recipe(A.recipe):
+    def __init__(self):
+        A.recipe.__init__(self)
+        self.props = A.neuron_cable_properties()
+        cat = compile(here / 'local-catalogue.so', here / 'cat')
+        self.props.catalogue.extend(cat, '')
+        self.cell_to_morph = {}
+        self.gid_to_cell = {}
+        self.gid_to_pop = {}
+        self.i_clamps = {}
+        self.gid_to_inputs = {}
 
-morph, labels, decor = nml_load_cell()
+    def num_cells(self):
+        return {}
 
-decor.discretization(A.cv_policy_every_segment())
+    def cell_kind(self, _):
+        return A.cell_kind.cable
 
-cell = A.cable_cell(morph, labels, decor)
-sim  = A.single_cell_model(cell)
+    def cell_description(self, gid):
+        cid = self.gid_to_cell[gid]
+        mrf = self.cell_to_morph[cid]
+        nml = A.neuroml(f'{{here}}/mrf/{{mrf}}.nml').morphology(mrf, allow_spherical_root=True)
+        lbl = A.label_dict()
+        lbl.append(nml.segments())
+        lbl.append(nml.named_segments())
+        lbl.append(nml.groups())
+        lbl['all'] = '(all)'
+        dec = A.load_component(f'{{here}}/acc/{{cid}}.acc').component
+        dec.discretization(A.cv_policy_every_segment())
+        for tag, seg, frc in self.gid_to_inputs[gid]:
+            lag, dur, amp = self.i_clamps[tag]
+            dec.place(f'(on-components {{frc}} (segment {{seg}}))', A.iclamp(lag, dur, amp), f'{{tag}}@({{seg}},{{frc}})')
+        return A.cable_cell(nml.morphology, lbl, dec)
 
-sim.properties.catalogue = mk_cat()
+    def probes(self, _):
+        # Example: probe center of the root (likely the soma)
+        return [A.cable_probe_membrane_voltage('(location 0 0.5)')]
 
-# Add probes here (example below)
-sim.probe('voltage', '(location 0 0.5)', frequency=10) # probe center of the root (likely the soma)
+    def global_properties(self, kind):
+        return self.props
 
-# Now run the simulation
+ctx = A.context()
+mdl = recipe()
+ddc = A.partition_load_balance(mdl, ctx)
+sim = A.simulation(mdl, ddc, ctx)
+hdl = sim.sample((0, 0), A.regular_schedule(0.1))
+
 print('Running simulation for 1s...')
 t0 = pc()
 sim.run(1000, 0.0025)
@@ -95,16 +198,13 @@ try:
   import pandas as pd
   import seaborn as sns
 
-  tr = sim.traces[0]
-  df = pd.DataFrame({{'t/ms': tr.time, 'U/mV': tr.value}})
-
-  sns.relplot(data=df, kind='line', x='t/ms', y='U/mV', ci=None).set_titles('Probe at (location 0 0.5)').savefig('{id}.pdf')
-  print('Ok, generated {id}.pdf')
+  for data, meta in sim.samples(hdl):
+    df = pd.DataFrame({{'t/ms': data[:, 0], 'U/mV': data[:, 1]}})
+    sns.relplot(data=df, kind='line', x='t/ms', y='U/mV', ci=None).savefig('result.pdf')
+  print('Ok')
 except:
   print('Failure, are seaborn and matplotlib installed?')
-",
-        id = id
-    ))
+", cell_to_morph, gid_to_cell, gid_to_pop, i_clamps, gid_to_inputs, count))
 }
 
 fn mk_mrf(id: &str, mrf: &str) -> String {
@@ -115,12 +215,10 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  https://raw.githubusercontent.com/NeuroML/NeuroML2/master/Schemas/NeuroML2/NeuroML_v2beta3.xsd"
     id="{}">
-    <cell id="{}">
-        {}
-    </cell>
+   {}
 </neuroml>
 "#,
-        id, id, mrf
+        id, mrf
     )
 }
 
@@ -131,42 +229,67 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     create_dir_all(&format!("{}/acc", bundle))?;
     create_dir_all(&format!("{}/cat", bundle))?;
 
-    let mut ids = Vec::new();
-    process_files(nml, |fd, node| {
+    let norm = |v: &str| -> Result<String> {
+        let q = Quantity::parse(v)?;
+        let u = lems.normalise_quantity(&q)?;
+        Ok(format!("{}", u.value))
+    };
+
+    let mut iclamps = Map::new();
+    let mut cells = Vec::new();
+    let mut nets = Vec::new();
+    process_files(nml, |_, node| {
         let doc = node.document().input_text();
         match node.tag_name().name() {
-            "cell" => {
+            "morphology" => {
                 let id = node
                     .attribute("id")
+                    .ok_or_else(|| nml2_error("Morph has no id"))?;
+                trace!("Writing morphology to {}/mrf/{}", bundle, id);
+                write(
+                    format!("{}/mrf/{}.nml", bundle, id),
+                    mk_mrf(id, &doc[node.range()]),
+                )?;
+            }
+            "cell" => {
+                let cell = node
+                    .attribute("id")
                     .ok_or_else(|| nml2_error("Cell has no id"))?;
-                ids.push(id.to_string());
                 for mrf in node.children() {
                     if mrf.tag_name().name() == "morphology" {
-                        trace!("Writing morphology to {}/mrf/{}", bundle, id);
-                        write(
-                            format!("{}/mrf/{}.nml", bundle, id),
-                            mk_mrf(id, &doc[mrf.range()]),
-                        )?;
+                        let morph = mrf
+                            .attribute("id")
+                            .ok_or_else(|| nml2_error("Morph has no id"))?;
+                        cells.push((cell.to_string(), morph.to_string()));
                     }
                 }
             }
+            "pulseGenerator" => {
+                let ic: PulseGenerator = XML::from_node(node);
+                iclamps.insert(
+                    ic.id.to_string(),
+                    (
+                        norm(&ic.delay)?.parse::<f64>().unwrap(),
+                        norm(&ic.duration)?.parse::<f64>().unwrap(),
+                        norm(&ic.amplitude)?.parse::<f64>().unwrap(),
+                    ),
+                );
+            }
             "network" => {
-                let id = node.attribute("id").ok_or(Error::Nml {
-                    what: String::from("Network has no id"),
-                })?;
                 let inst = Instance::new(lems, node)?;
                 let net = Network::new(&inst)?;
-                eprintln!("{}::{} => {:?}", fd, id, net);
+                nets.push(net);
             }
             _ => {}
         }
         Ok(())
     })?;
 
-    for id in &ids {
-        trace!("Writing main.{}.py", id);
-        write(&format!("{}/main.{}.py", bundle, id), mk_main_py(id)?)?;
-    }
+    trace!("Writing main.py");
+    write(
+        &format!("{}/main.py", bundle),
+        mk_main_py(&cells, &iclamps, &nets)?,
+    )?;
     Ok(())
 }
 

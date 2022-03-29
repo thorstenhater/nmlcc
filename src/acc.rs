@@ -1,16 +1,14 @@
 use crate::{
     error::{nml2_error, Error, Result},
     expr::Quantity,
-    instance::Instance,
     lems::file::LemsFile,
-    network::{self, Network},
     neuroml::{
         process_files,
         raw::{
             BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, ChannelDensityNernst,
             ExtracellularProperties, InitMembPotential, IntracellularProperties,
-            IntracellularPropertiesBody, MembraneProperties, MembranePropertiesBody,
-            PulseGenerator, Resistivity, Species, SpecificCapacitance,
+            IntracellularPropertiesBody, MembraneProperties, MembranePropertiesBody, Resistivity,
+            Species, SpecificCapacitance,
         },
     },
     xml::XML,
@@ -19,89 +17,27 @@ use crate::{
 
 use std::fs::write;
 use std::path::PathBuf;
-use tracing::{info, trace};
+use tracing::{info, trace, warn};
 
 pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor>>> {
     let mut cells = Map::new();
-    let mut iclamps = Map::new();
-    let mut wiring = Map::new();
-
-    let norm = |v: &str| -> Result<String> {
-        let q = Quantity::parse(v)?;
-        let u = lems.normalise_quantity(&q)?;
-        Ok(format!("{}", u.value))
-    };
-
     process_files(nml, |_, node| {
-        match node.tag_name().name() {
-            "network" => {
-                let ins = Instance::new(lems, node)?;
-                let net = Network::new(&ins)?;
-                for input in &net.inputs {
-                    let (pop, _tgt) = network::get_cell_id(&input.target)?;
-                    let npop = net
-                        .populations
-                        .get(&pop)
-                        .ok_or_else(|| nml2_error(format!("No such population {}", pop)))?;
-                    let kind = npop.component.clone();
-                    wiring
-                        .entry(kind)
-                        .or_insert_with(Vec::new)
-                        .push(Decor::Place(
-                            Locset::Segment(input.segment, input.fraction),
-                            Placeable::IClamp(input.source.clone(), Envelope::Unresolved),
-                        ));
-                }
-            }
-            "pulseGenerator" => {
-                let ic: PulseGenerator = XML::from_node(node);
-                iclamps.insert(
-                    ic.id.to_string(),
-                    (
-                        norm(&ic.delay)?.parse::<f64>().unwrap(),
-                        norm(&ic.duration)?.parse::<f64>().unwrap(),
-                        norm(&ic.amplitude)?.parse::<f64>().unwrap(),
-                    ),
-                );
-            }
-            "cell" => {
-                if let Some(id) = node.attribute("id") {
-                    let mut result = Vec::new();
-                    for bpp in node.descendants() {
-                        if bpp.tag_name().name() != "biophysicalProperties" {
-                            continue;
-                        }
-                        let prop: BiophysicalProperties = XML::from_node(&bpp);
-                        result.append(&mut biophys(&prop, lems)?);
+        if node.tag_name().name() == "cell" {
+            if let Some(id) = node.attribute("id") {
+                let mut result = Vec::new();
+                for bpp in node.descendants() {
+                    if bpp.tag_name().name() != "biophysicalProperties" {
+                        continue;
                     }
-                    *cells.entry(id.to_string()).or_default() = result;
+                    let prop: BiophysicalProperties = XML::from_node(&bpp);
+                    result.append(&mut biophys(&prop, lems)?);
                 }
+                *cells.entry(id.to_string()).or_default() = result;
             }
-            _ => {}
         }
         Ok(())
     })?;
-
-    // Fix iclamp <> envelope assoc
-    for (_, placings) in wiring.iter_mut() {
-        for placing in placings {
-            if let Decor::Place(_, Placeable::IClamp(n, ref mut e)) = placing {
-                if let Some((d, l, a)) = iclamps.get(n) {
-                    *e = Envelope::Pulse(*d, *l, *a);
-                }
-            }
-        }
-    }
-
-    let mut result = Map::new();
-    for (cell, decor) in &cells {
-        let ps = result.entry(cell.clone()).or_insert_with(Vec::new);
-        ps.extend(decor.iter().cloned());
-        if let Some(p) = wiring.get(cell) {
-            ps.extend(p.iter().cloned());
-        }
-    }
-    Ok(result)
+    Ok(cells)
 }
 
 pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
@@ -197,43 +133,9 @@ impl Sexp for Paintable {
 }
 
 #[derive(Clone, Debug)]
-pub enum Envelope {
-    Unresolved,
-    Pulse(f64, f64, f64),
-}
-
-impl Sexp for Envelope {
-    fn to_sexp(&self) -> String {
-        match self {
-            Envelope::Unresolved => panic!("Cannot serialize unresolved envelopes."),
-            Envelope::Pulse(d, l, a) => format!("(envelope-pulse {} {} {})", d, l, a),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Placeable {
-    IClamp(String, Envelope),
-}
-
-#[derive(Clone, Debug)]
-pub enum Locset {
-    Segment(i64, f64),
-}
-
-impl Sexp for Locset {
-    fn to_sexp(&self) -> String {
-        match self {
-            Locset::Segment(i, f) => format!("(on-components {} (segment {}))", f, i),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
 pub enum Decor {
     Default(Paintable),
     Paint(String, Paintable),
-    Place(Locset, Placeable),
 }
 
 impl Decor {
@@ -253,7 +155,6 @@ impl Decor {
         match self {
             Decor::Default(p) => Ok(Decor::Default(p.normalise(lems)?)),
             Decor::Paint(r, p) => Ok(Decor::Paint(r.clone(), p.normalise(lems)?)),
-            _ => Ok(self.clone()),
         }
     }
 }
@@ -263,15 +164,6 @@ impl Sexp for Decor {
         match self {
             Decor::Default(i) => format!("(default {})", i.to_sexp()),
             Decor::Paint(r, i) => format!("(paint (region \"{}\") {})", r, i.to_sexp()),
-            Decor::Place(l, p) => {
-                let (q, n) = match p {
-                    Placeable::IClamp(n, e) => (
-                        format!("(current-clamp {} 0 0)", e.to_sexp()),
-                        n.to_string(),
-                    ),
-                };
-                format!("(place {} {} \"{}\")", l.to_sexp(), q, n)
-            }
         }
     }
 }
@@ -334,11 +226,31 @@ fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
                     gs.insert(String::from("conductance"), g.clone());
                 }
                 if known_ions.contains(ion) {
-                    result.push(Decor::new(
-                        segmentGroup,
-                        Paintable::Er(ion.to_string(), erev.to_string()),
-                        false,
-                    ));
+                    let past = result.iter().find_map(|x| {
+                        if let Decor::Paint(rg, Paintable::Er(i, er)) = x {
+                            if rg == segmentGroup && ion == i {
+                                Some(er)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    });
+                    if let Some(er) = past {
+                        if er != erev {
+                            return Err(nml2_error(format!(
+                                "Overwriting different Er[{}] on {}.",
+                                ion, segmentGroup
+                            )));
+                        }
+                    } else {
+                        result.push(Decor::new(
+                            segmentGroup,
+                            Paintable::Er(ion.to_string(), erev.to_string()),
+                            false,
+                        ));
+                    }
                 } else {
                     gs.insert(format!("e{}", ion), erev.to_string());
                 }
@@ -447,6 +359,6 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
 }
 
 fn extra(_: &ExtracellularProperties) -> Result<Vec<Decor>> {
-    info!("Not handling extracellular settings, if required please file an issue.");
+    warn!("Not handling extracellular settings, if required please file an issue.");
     Ok(Vec::new())
 }
