@@ -15,7 +15,7 @@ use crate::{
 /// a state variable with name `state`. These are states (NB. overloaded term)
 /// of the scheme. Similarly, we need to find components prefixed with `edge`
 /// each exposing `forward` and `backward` transition rates.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Kinetic {
     /// Identifier
     pub name: String,
@@ -606,7 +606,12 @@ impl ComponentType {
                     let kind = VarKind::Derived(Vec::new(), Some(expr));
                     let name = p.name.to_string();
                     let dimension = p.dimension.to_string();
-                    variables.push(Variable { name, exposure: None, dimension, kind });
+                    variables.push(Variable {
+                        name,
+                        exposure: None,
+                        dimension,
+                        kind,
+                    });
                 }
                 Constant(c) => {
                     constants.insert(c.name.to_string(), Quantity::parse(&c.value)?);

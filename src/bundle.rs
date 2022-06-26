@@ -1,6 +1,3 @@
-use std::fs::{create_dir_all, write};
-use tracing::{info, trace};
-
 use crate::acc::Paintable;
 use crate::error::nml2_error;
 use crate::expr::Stmnt;
@@ -21,6 +18,9 @@ use crate::{
     xml::XML,
     Map, Set,
 };
+use std::fmt::Write as _;
+use std::fs::{create_dir_all, write};
+use tracing::{info, trace};
 
 pub fn export(
     lems: &LemsFile,
@@ -49,7 +49,7 @@ fn mk_main_py(
 ) -> Result<String> {
     let mut cell_to_morph = String::from("{");
     for (c, m) in cells {
-        cell_to_morph.push_str(&format!("'{}': '{}', ", c, m))
+        write!(cell_to_morph, "'{}': '{}', ", c, m).unwrap();
     }
     cell_to_morph.push('}');
 
@@ -91,9 +91,10 @@ fn mk_main_py(
         let key: i64 = (fst + idx) as i64;
         let val = (source.clone(), segment, fraction);
         inputs.entry(key).or_insert_with(Vec::new).push(val);
-        labels.entry(key)
-              .or_insert_with(Set::new)
-              .insert((*segment, fraction.clone()));
+        labels
+            .entry(key)
+            .or_insert_with(Set::new)
+            .insert((*segment, fraction.clone()));
     }
     gid_to_cell.push(']');
     gid_to_pop.push(']');
@@ -138,12 +139,14 @@ fn mk_main_py(
         {
             let from_gid = pre + from.cell;
             let to_gid = post + to.cell;
-            labels.entry(from_gid)
-                  .or_insert_with(Set::new)
-                  .insert((from.segment, from.fraction.clone()));
-            labels.entry(to_gid)
-                  .or_insert_with(Set::new)
-                  .insert((to.segment, to.fraction.clone()));
+            labels
+                .entry(from_gid)
+                .or_insert_with(Set::new)
+                .insert((from.segment, from.fraction.clone()));
+            labels
+                .entry(to_gid)
+                .or_insert_with(Set::new)
+                .insert((to.segment, to.fraction.clone()));
             detectors
                 .entry(from_gid)
                 .or_insert_with(Set::new)
@@ -152,15 +155,14 @@ fn mk_main_py(
                 .entry(to_gid)
                 .or_insert_with(Set::new)
                 .insert((to.to_label(), synapse.clone()));
-            conns
-                .entry(to_gid)
-                .or_insert_with(Vec::new)
-                .push((from_gid,
-                       from.to_label(),
-                       synapse.to_string(),
-                       to.to_label(),
-                       weight,
-                       delay));
+            conns.entry(to_gid).or_insert_with(Vec::new).push((
+                from_gid,
+                from.to_label(),
+                synapse.to_string(),
+                to.to_label(),
+                weight,
+                delay,
+            ));
         }
     }
 
@@ -188,8 +190,10 @@ fn mk_main_py(
     for (gid, vs) in &conns {
         gid_to_connections.push_str(&format!("                                {}: [", gid));
         for (fgid, floc, syn, tloc, weight, delay) in vs {
-            gid_to_connections.push_str(&format!("({}, \"{}\", \"{}\", \"{}\", {}, {}), ",
-                                                 fgid, floc, syn, tloc, weight, delay));
+            gid_to_connections.push_str(&format!(
+                "({}, \"{}\", \"{}\", \"{}\", {}, {}), ",
+                fgid, floc, syn, tloc, weight, delay
+            ));
         }
         gid_to_connections.push_str("],\n");
     }
@@ -204,7 +208,6 @@ fn mk_main_py(
         gid_to_labels.push_str("],\n");
     }
     gid_to_labels.push_str("                               }");
-
 
     Ok(format!(
         "#!/usr/bin/env python3

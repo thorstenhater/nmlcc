@@ -15,6 +15,7 @@ use crate::{
     Map,
 };
 
+use std::fmt::Write as _;
 use std::fs::write;
 use std::path::PathBuf;
 use tracing::{info, trace, warn};
@@ -177,7 +178,7 @@ impl Sexp for Vec<Decor> {
 ",
         );
         for it in self {
-            result += &format!("    {}\n", it.to_sexp());
+            writeln!(result, "    {}", it.to_sexp()).unwrap();
         }
         result.pop();
         result.push_str("))\n");

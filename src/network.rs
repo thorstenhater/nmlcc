@@ -246,23 +246,17 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
         let pre = prj
             .attributes
             .get("presynapticPopulation")
-            .ok_or(nml2_error(format!(
-                "No presynaptic in projection '{}'.",
-                id
-            )))?
+            .ok_or_else(|| nml2_error(format!("No presynaptic in projection '{}'.", id)))?
             .to_string();
         let post = prj
             .attributes
             .get("postsynapticPopulation")
-            .ok_or(nml2_error(format!(
-                "No presynaptic in projection '{}'.",
-                id
-            )))?
+            .ok_or_else(|| nml2_error(format!("No presynaptic in projection '{}'.", id)))?
             .to_string();
         let synapse = prj
             .attributes
             .get("synapse")
-            .ok_or(nml2_error(format!("No synapse in projection '{}'.", id)))?
+            .ok_or_else(|| nml2_error(format!("No synapse in projection '{}'.", id)))?
             .to_string();
 
         if let Some(conns) = prj.children.get("connections") {

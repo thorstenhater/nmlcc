@@ -16,7 +16,7 @@ fn nmodl_error<T: Into<String>>(what: T) -> Error {
     Error::Nmodl { what: what.into() }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
     Density,
     Point,
