@@ -228,12 +228,12 @@ impl Stmnt {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub enum Op {
     And,
     Or,
 }
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub enum Cmp {
     Eq,
     Ne,
@@ -344,20 +344,20 @@ impl Boolean {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub enum Select {
     All,
     Index(usize),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub enum Path {
     Up,
     Fixed(String),
     When(String, Select),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
 pub struct Match(pub Vec<Path>);
 
 impl Match {
