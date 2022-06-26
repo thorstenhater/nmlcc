@@ -4,7 +4,7 @@ use tracing::{info, trace};
 use crate::acc::Paintable;
 use crate::error::nml2_error;
 use crate::expr::Stmnt;
-use crate::network::{get_cell_id, Input, Network};
+use crate::network::{get_cell_id, Connection, Input, Network, Projection};
 use crate::{
     acc::{self, Sexp},
     error::{Error, Result},
@@ -45,16 +45,8 @@ pub fn export(
 fn mk_main_py(
     cells: &[(String, String)],
     iclamps: &Map<String, (f64, f64, f64)>,
-    nets: &[Network],
+    net: &Network,
 ) -> Result<String> {
-    let net = if let [net] = nets {
-        net
-    } else {
-        return Err(nml2_error(
-            "Currently only one Network per bundle is supported.",
-        ));
-    };
-
     let mut cell_to_morph = String::from("{");
     for (c, m) in cells {
         cell_to_morph.push_str(&format!("'{}': '{}', ", c, m))
@@ -74,6 +66,8 @@ fn mk_main_py(
             gid_to_pop.push_str(&format!("'{}', ", id));
         }
     }
+
+    let mut labels = Map::new();
     for Input {
         source,
         target,
@@ -94,19 +88,23 @@ fn mk_main_py(
                 pop
             )));
         };
-        let key = fst + idx;
+        let key: i64 = (fst + idx) as i64;
         let val = (source.clone(), segment, fraction);
         inputs.entry(key).or_insert_with(Vec::new).push(val);
+        labels.entry(key)
+              .or_insert_with(Set::new)
+              .insert((*segment, fraction.clone()));
     }
     gid_to_cell.push(']');
     gid_to_pop.push(']');
 
+    eprintln!("{:?}", net.inputs);
+
     let mut gid_to_inputs = String::from("{");
     for (key, vals) in inputs {
-        gid_to_inputs.push_str(&format!("{}: [", key));
-
-        for val in vals {
-            gid_to_inputs.push_str(&format!("{:?}, ", val));
+        gid_to_inputs.push_str(&format!("\n                                 {}: [", key));
+        for (src, seg, frac) in vals {
+            gid_to_inputs.push_str(&format!("(\"seg_{}_frac_{}\", \"{}\"), ", seg, frac, src));
         }
         gid_to_inputs.push_str("], ");
     }
@@ -117,6 +115,97 @@ fn mk_main_py(
         i_clamps.push_str(&format!("'{}': {:?}, ", lbl, iclamp))
     }
     i_clamps.push('}');
+
+    // In arbor
+    let mut detectors = Map::new();
+    let mut synapses = Map::new();
+    let mut conns = Map::new();
+    for Projection {
+        synapse,
+        pre,
+        post,
+        connections,
+    } in &net.projections
+    {
+        let pre = pop_to_gid[pre] as i64;
+        let post = pop_to_gid[post] as i64;
+        for Connection {
+            from,
+            to,
+            weight,
+            delay,
+        } in connections
+        {
+            let from_gid = pre + from.cell;
+            let to_gid = post + to.cell;
+            labels.entry(from_gid)
+                  .or_insert_with(Set::new)
+                  .insert((from.segment, from.fraction.clone()));
+            labels.entry(to_gid)
+                  .or_insert_with(Set::new)
+                  .insert((to.segment, to.fraction.clone()));
+            detectors
+                .entry(from_gid)
+                .or_insert_with(Set::new)
+                .insert(from.to_label());
+            synapses
+                .entry(to_gid)
+                .or_insert_with(Set::new)
+                .insert((to.to_label(), synapse.clone()));
+            conns
+                .entry(to_gid)
+                .or_insert_with(Vec::new)
+                .push((from_gid,
+                       from.to_label(),
+                       synapse.to_string(),
+                       to.to_label(),
+                       weight,
+                       delay));
+        }
+    }
+
+    let mut gid_to_synapses = String::from("{\n");
+    for (gid, vs) in &synapses {
+        gid_to_synapses.push_str(&format!("                                  {}: [", gid));
+        for (t, s) in vs {
+            gid_to_synapses.push_str(&format!("(\"{}\", \"{}\"), ", t, s));
+        }
+        gid_to_synapses.push_str("],\n");
+    }
+    gid_to_synapses.push_str("                               }");
+
+    let mut gid_to_detectors = String::from("{\n");
+    for (gid, vs) in &detectors {
+        gid_to_detectors.push_str(&format!("                                  {}: [", gid));
+        for v in vs {
+            gid_to_detectors.push_str(&format!("\"{}\", ", v));
+        }
+        gid_to_detectors.push_str("],\n");
+    }
+    gid_to_detectors.push_str("                               }");
+
+    let mut gid_to_connections = String::from("{\n");
+    for (gid, vs) in &conns {
+        gid_to_connections.push_str(&format!("                                {}: [", gid));
+        for (fgid, floc, syn, tloc, weight, delay) in vs {
+            gid_to_connections.push_str(&format!("({}, \"{}\", \"{}\", \"{}\", {}, {}), ",
+                                                 fgid, floc, syn, tloc, weight, delay));
+        }
+        gid_to_connections.push_str("],\n");
+    }
+    gid_to_connections.push_str("                               }");
+
+    let mut gid_to_labels = String::from("{\n");
+    for (gid, vs) in &labels {
+        gid_to_labels.push_str(&format!("                                {}: [", gid));
+        for (seg, frac) in vs {
+            gid_to_labels.push_str(&format!("({}, {}), ", seg, frac));
+        }
+        gid_to_labels.push_str("],\n");
+    }
+    gid_to_labels.push_str("                               }");
+
+
     Ok(format!(
         "#!/usr/bin/env python3
 import arbor as A
@@ -148,9 +237,12 @@ class recipe(A.recipe):
         self.props.catalogue.extend(cat, '')
         self.cell_to_morph = {}
         self.gid_to_cell = {}
-        self.gid_to_pop = {}
         self.i_clamps = {}
         self.gid_to_inputs = {}
+        self.gid_to_synapses = {}
+        self.gid_to_detectors = {}
+        self.gid_to_connections = {}
+        self.gid_to_labels = {}
 
     def num_cells(self):
         return {}
@@ -167,11 +259,21 @@ class recipe(A.recipe):
         lbl.append(nml.named_segments())
         lbl.append(nml.groups())
         lbl['all'] = '(all)'
+        if gid in self.gid_to_labels:
+            for seg, frac in self.gid_to_labels[gid]:
+                lbl[f'seg_{{seg}}_frac_{{frac}}'] = f'(on-components {{frac}} (segment {{seg}}))'
         dec = A.load_component(f'{{here}}/acc/{{cid}}.acc').component
         dec.discretization(A.cv_policy_every_segment())
-        for tag, seg, frc in self.gid_to_inputs[gid]:
-            lag, dur, amp = self.i_clamps[tag]
-            dec.place(f'(on-components {{frc}} (segment {{seg}}))', A.iclamp(lag, dur, amp), f'{{tag}}@({{seg}},{{frc}})')
+        if gid in self.gid_to_inputs:
+            for tag, inp in self.gid_to_inputs[gid]:
+                lag, dur, amp = self.i_clamps[inp]
+                dec.place(f'\"{{tag}}\"', A.iclamp(lag, dur, amp), f'ic_{{inp}}@{{tag}}')
+        if gid in self.gid_to_synapses:
+            for tag, syn in self.gid_to_synapses[gid]:
+                dec.place(f'\"{{tag}}\"', A.synapse(syn), f'syn_{{syn}}@{{tag}}')
+        if gid in self.gid_to_detectors:
+            for tag in self.gid_to_detectors[gid]:
+                dec.place(f'\"{{tag}}\"', A.spike_detector(-40), f'sd@{{tag}}') # -40 is a phony value!!!
         return A.cable_cell(nml.morphology, lbl, dec)
 
     def probes(self, _):
@@ -181,10 +283,18 @@ class recipe(A.recipe):
     def global_properties(self, kind):
         return self.props
 
+    def connections_on(self, gid):
+        res = []
+        if gid in self.gid_to_connections:
+            for src, dec, syn, loc, w, d in self.gid_to_connections[gid]:
+                conn = A.connection((src, f'sd@{{dec}}'), f'syn_{{syn}}@{{loc}}', w, d)
+                res.append(conn)
+        return res
+
 ctx = A.context()
 mdl = recipe()
 ddc = A.partition_load_balance(mdl, ctx)
-sim = A.simulation(mdl, ddc, ctx)
+sim = A.simulation(mdl, ctx, ddc)
 hdl = sim.sample((0, 0), A.regular_schedule(0.1))
 
 print('Running simulation for 1s...')
@@ -204,7 +314,7 @@ try:
   print('Ok')
 except:
   print('Failure, are seaborn and matplotlib installed?')
-", cell_to_morph, gid_to_cell, gid_to_pop, i_clamps, gid_to_inputs, count))
+", cell_to_morph, gid_to_cell, i_clamps, gid_to_inputs, gid_to_synapses, gid_to_detectors, gid_to_connections, gid_to_labels, count))
 }
 
 fn mk_mrf(id: &str, mrf: &str) -> String {
@@ -285,12 +395,20 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
         Ok(())
     })?;
 
-    trace!("Writing main.py");
-    write(
-        &format!("{}/main.py", bundle),
-        mk_main_py(&cells, &iclamps, &nets)?,
-    )?;
-    Ok(())
+    match &nets[..] {
+        [] => Ok(()),
+        [net] => {
+            trace!("Writing main.py");
+            write(
+                &format!("{}/main.py", bundle),
+                mk_main_py(&cells, &iclamps, net)?,
+            )?;
+            Ok(())
+        }
+        _ => Err(nml2_error(
+            "Currently only one Network per bundle is supported.",
+        )),
+    }
 }
 
 struct Assign {
@@ -411,7 +529,6 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                     }
                     ions.entry(ion.clone()).or_default().push(m.clone());
                     coll.add(&inst, &Context::default(), None)?;
-                    eprintln!("{:?}", coll.parameters);
                 }
             }
         }

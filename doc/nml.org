@@ -777,7 +777,10 @@ inputs. We note the following about the network layout in NML2.
 Instances for input and synapse appear at top-level, next to cells and networks.
 Thus any =.nml= file is eligible to define them.
 
-Networks are defined in terms of _populations_ and _projections_.
+Networks are defined in terms of _populations_ and _projections_, see below.
+
+*NOTE* Connections in NML2 use zero delay by default. This will break Arbor's
+performance.
 
 ** Populations
 
@@ -868,6 +871,14 @@ optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~.
     <explicitInput target="hhpop[0]" input="pulseGen2"/>
 </network>
 #+end_src
+** Connectivity: From NML2 to Arbor
+In Arbor, we need these items to produce a spike-based connection
+- Source :: a spike detector bound to a locset, eg
+  ~d.place('(root)', A.spike_detector(-10), 'detector'))~
+- Target :: a synapse bound to a locset, eg
+  ~d.place('(terminal)', A.synapse('expsyn'), 'synapse')~
+- Connection :: Returned by the ~connections_on(here)~ callback, eg
+  ~[A.connection((there, 'detector'), 'synapse', weight, delay)]~
 
 * Concentration Models
 First, duplicate the ~ComponentType~ for reference with the usual simplifications

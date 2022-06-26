@@ -601,6 +601,13 @@ impl ComponentType {
                 Parameter(p) => {
                     parameters.push(p.name.to_string());
                 }
+                DerivedParameter(p) => {
+                    let expr = Expr::parse(&p.value)?;
+                    let kind = VarKind::Derived(Vec::new(), Some(expr));
+                    let name = p.name.to_string();
+                    let dimension = p.dimension.to_string();
+                    variables.push(Variable { name, exposure: None, dimension, kind });
+                }
                 Constant(c) => {
                     constants.insert(c.name.to_string(), Quantity::parse(&c.value)?);
                 }

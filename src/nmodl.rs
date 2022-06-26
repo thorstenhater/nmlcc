@@ -1,5 +1,5 @@
-use std::fs::write;
 use std::path::PathBuf;
+use std::{fs::write, iter::once};
 use tracing::{info, trace, warn};
 
 use crate::{
@@ -353,7 +353,7 @@ fn nmodl_init_block(n: &Nmodl) -> Result<String> {
         .iter()
         .chain(n.init.iter())
         .map(|(a, b)| (a.clone(), b.clone()))
-        .collect::<Map<String, Stmnt>>();
+        .collect();
     let roots = n.init.keys().cloned().collect::<Vec<String>>();
     let init = n
         .init
@@ -370,6 +370,39 @@ fn nmodl_init_block(n: &Nmodl) -> Result<String> {
         } else {
             String::new()
         },
+        String::from("}\n\n"),
+    ];
+    result.retain(|s| !s.is_empty());
+    Ok(result.join("\n"))
+}
+
+fn nmodl_recv_block(n: &Nmodl) -> Result<String> {
+    if n.events.is_empty() {
+        return Ok(String::new());
+    }
+    let evts = n
+        .events
+        .iter()
+        .map(|v| v.1.print_to_string(2))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let vars = n
+        .variables
+        .iter()
+        .chain(n.events.iter())
+        .map(|(a, b)| (a.clone(), b.clone()))
+        .collect();
+    let roots = n.events.keys().cloned().collect::<Vec<_>>();
+    let syms = n
+        .symbols
+        .iter()
+        .cloned()
+        .chain(once(String::from("weight")))
+        .collect();
+    let mut result = vec![
+        String::from("NET_RECEIVE(weight) {"),
+        print_dependency_chains(&roots, &vars, &syms)?,
+        evts,
         String::from("}\n\n"),
     ];
     result.retain(|s| !s.is_empty());
@@ -633,25 +666,6 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
     }
     result.push(String::from("}\n\n"));
     Ok(result.join(""))
-}
-
-fn nmodl_recv_block(n: &Nmodl) -> Result<String> {
-    if !n.events.is_empty() {
-        let evts = n
-            .events
-            .iter()
-            .map(|v| v.1.print_to_string(2))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let result = vec![
-            String::from("NET_RECEIVE(weight) {"),
-            evts,
-            String::from("}\n\n"),
-        ];
-        Ok(result.join("\n"))
-    } else {
-        Ok(String::new())
-    }
 }
 
 fn ion_species(coll: &Collapsed) -> Vec<String> {
@@ -941,7 +955,6 @@ pub fn to_nmodl(
             if let Some(vs) = n.conditions.remove(ec) {
                 n.conditions.insert(xo.clone(), vs);
             }
-
             if n.state.remove(ic) {
                 n.state.insert(xi.clone());
             }

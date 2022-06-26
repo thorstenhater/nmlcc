@@ -28,29 +28,36 @@ pub struct Input {
     /// segment in target, default to 0
     pub segment: i64,
     /// fraction of segment to target, default 0.5
-    pub fraction: f64,
+    pub fraction: String,
 }
 
 #[derive(Clone, Debug)]
 pub struct Loc {
-    cell: i64,
-    segment: i64,
-    fraction: f64, // 0-1
+    pub cell: i64,
+    pub segment: i64,
+    pub fraction: String, // needs to be a string, to avoid formatting!
+}
+
+impl Loc {
+    pub fn to_label(&self) -> String {
+        format!("seg_{}_frac_{}", self.segment, self.fraction)
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Connection {
-    from: Loc,
-    to: Loc,
-    weight: f64,
+    pub from: Loc,
+    pub to: Loc,
+    pub weight: f64,
+    pub delay: f64,
 }
 
 #[derive(Clone, Debug)]
 pub struct Projection {
-    synapse: String,
-    pre: String,
-    post: String,
-    connections: Vec<Connection>,
+    pub synapse: String,
+    pub pre: String,
+    pub post: String,
+    pub connections: Vec<Connection>,
 }
 
 #[derive(Clone, Debug)]
@@ -80,11 +87,14 @@ impl Network {
         } else {
             Map::new()
         };
-        let inputs = if let Some(inps) = inst.children.get("inputs") {
-            get_inputs(inps)?
-        } else {
-            Vec::new()
-        };
+        let mut inputs = Vec::new();
+        if let Some(inps) = inst.children.get("inputs") {
+            inputs.extend(get_inputs(inps)?);
+        }
+        if let Some(inps) = inst.children.get("explicitInputs") {
+            inputs.extend(get_inputs(inps)?);
+        }
+
         let projections = if let Some(prjs) = inst.children.get("projections") {
             get_projections(prjs)?
         } else {
@@ -112,8 +122,8 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
                         let attr = &x.attributes;
                         let fraction = attr
                             .get("fractionAlong")
-                            .map(|s| s.parse::<f64>().unwrap())
-                            .unwrap_or(0.5);
+                            .unwrap_or(&String::from("0.5"))
+                            .to_string();
                         let segment = attr
                             .get("segmentId")
                             .map(|s| s.parse::<i64>().unwrap())
@@ -133,7 +143,7 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
             }
             "explicitInput" => {
                 warn!("Using 'ExplicitInput' is discouraged. Treated as targetting segment=0 fraction=0.5.");
-                let fraction = 0.5;
+                let fraction = String::from("0.5");
                 let segment = 0;
                 let target = inp
                     .attributes
@@ -233,14 +243,37 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                 ty
             )));
         }
+        let pre = prj
+            .attributes
+            .get("presynapticPopulation")
+            .ok_or(nml2_error(format!(
+                "No presynaptic in projection '{}'.",
+                id
+            )))?
+            .to_string();
+        let post = prj
+            .attributes
+            .get("postsynapticPopulation")
+            .ok_or(nml2_error(format!(
+                "No presynaptic in projection '{}'.",
+                id
+            )))?
+            .to_string();
+        let synapse = prj
+            .attributes
+            .get("synapse")
+            .ok_or(nml2_error(format!("No synapse in projection '{}'.", id)))?
+            .to_string();
+
         if let Some(conns) = prj.children.get("connections") {
+            let mut connections = Vec::new();
             for conn in conns {
                 let attr = &conn.attributes;
-                let pre = {
+                let from = {
                     let fraction = attr
                         .get("preFractionAlong")
-                        .map(|s| s.parse::<f64>().unwrap())
-                        .unwrap_or(0.5);
+                        .unwrap_or(&String::from("0.5"))
+                        .to_string();
                     let cell = get_cell_id(
                         attr.get("preCellId")
                             .ok_or_else(|| nml2_error("No preCellId."))?,
@@ -256,11 +289,11 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                         fraction,
                     }
                 };
-                let post = {
+                let to = {
                     let fraction = attr
                         .get("postFractionAlong")
-                        .map(|s| s.parse::<f64>().unwrap())
-                        .unwrap_or(0.5);
+                        .unwrap_or(&String::from("0.5"))
+                        .to_string();
                     let cell = get_cell_id(
                         attr.get("preCellId")
                             .ok_or_else(|| nml2_error("No preCellId."))?,
@@ -276,11 +309,33 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                         fraction,
                     }
                 };
-                let segment = attr
+                let weight = attr
                     .get("weight")
                     .map(|s| s.parse::<f64>().unwrap())
+                    .unwrap_or(1.0);
+                let delay = attr
+                    .get("delay")
+                    .map(|s| s.parse::<f64>().unwrap())
                     .unwrap_or(0.0);
+                connections.push(Connection {
+                    from,
+                    to,
+                    weight,
+                    delay,
+                });
             }
+            if !connections.is_empty() {
+                projections.push(Projection {
+                    synapse,
+                    pre,
+                    post,
+                    connections,
+                })
+            } else {
+                warn!("Empty connections in projection {}", id);
+            }
+        } else {
+            warn!("No connections in projection {}", id);
         }
     }
     Ok(projections)
