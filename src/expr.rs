@@ -35,6 +35,7 @@ pub enum Expr {
     Exp(Box<Expr>),
     Log(Box<Expr>),
     Sqrt(Box<Expr>),
+    H(Box<Expr>),
 }
 
 impl Expr {
@@ -46,6 +47,7 @@ impl Expr {
             Expr::Exp(b) => Expr::Exp(Box::new(b.map(f))),
             Expr::Log(b) => Expr::Log(Box::new(b.map(f))),
             Expr::Sqrt(b) => Expr::Sqrt(Box::new(b.map(f))),
+            Expr::H(b) => Expr::H(Box::new(b.map(f))),
             e => f(e),
         }
     }
@@ -59,6 +61,7 @@ impl Expr {
             Expr::Exp(b) => b.fold(acc, f),
             Expr::Log(b) => b.fold(acc, f),
             Expr::Sqrt(b) => b.fold(acc, f),
+            Expr::H(b) => b.fold(acc, f),
             _ => {}
         }
     }
@@ -105,6 +108,9 @@ impl Expr {
                 })
                 .collect::<Vec<_>>()
                 .join("^"),
+            Expr::H(_) => {
+                panic!("Heaviside step is not supported in nmodl")
+            }
         }
     }
 
@@ -119,6 +125,7 @@ impl Expr {
                 Expr::Exp(vs) => simplify_exp(vs),
                 Expr::Log(vs) => simplify_log(vs),
                 Expr::Sqrt(vs) => simplify_sqrt(vs),
+                Expr::H(x) => Expr::H(Box::new(x.simplify())),
                 e => e.clone(),
             };
             done = old == new;
@@ -514,10 +521,15 @@ mod parse {
         Ok((input, Expr::Sqrt(Box::new(e))))
     }
 
+    fn h(input: &str) -> IResult<&str, Expr> {
+        let (input, e) = preceded(tag("H"), parenthised)(input)?;
+        Ok((input, Expr::H(Box::new(e))))
+    }
+
     fn atom(input: &str) -> IResult<&str, Expr> {
         let (input, sign) = opt(delimited(space0, tag("-"), space0))(input)?;
         let (input, result) =
-            delimited(space0, alt((parenthised, exp, log, sqrt, lit, var)), space0)(input)?;
+            delimited(space0, alt((parenthised, exp, log, sqrt, h, lit, var)), space0)(input)?;
         if sign.is_some() {
             Ok((input, Expr::Mul(vec![Expr::F64(-1.0), result])))
         } else {
