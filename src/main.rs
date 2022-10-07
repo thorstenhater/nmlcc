@@ -60,6 +60,10 @@ enum Cmd {
         /// Try to combine channels per segment group
         #[clap(short, long)]
         super_mechanisms: bool,
+        /// Change catalogue prefix.
+        /// Set to empty string if mechanisms do not collide with internal mechanisms
+        #[clap(short, long, default_value="local_")]
+        cat_prefix: String,
         /// Prefix to put bundle
         dir: String,
     },
@@ -111,15 +115,16 @@ fn main() -> Result<()> {
         }
         Cmd::Acc { nml, dir } => {
             get_runtime_types(&mut lems, &nml)?;
-            acc::export(&lems, &nml, &dir)?;
+            acc::export(&lems, &nml, &dir, "")?;
         }
         Cmd::Bundle {
             nml,
             dir,
             super_mechanisms,
+            cat_prefix
         } => {
             get_runtime_types(&mut lems, &[nml.clone()])?;
-            bundle::export(&lems, &[nml], &dir, super_mechanisms, &ions[..])?;
+            bundle::export(&lems, &[nml], &dir, super_mechanisms, &ions[..], &cat_prefix)?;
         }
     }
     Ok(())

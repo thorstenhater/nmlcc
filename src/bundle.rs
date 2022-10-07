@@ -28,6 +28,7 @@ pub fn export(
     bundle: &str,
     use_super_mechs: bool,
     ions: &[String],
+    cat_prefix: &str
 ) -> Result<()> {
     export_template(lems, nml, bundle)?;
 
@@ -37,7 +38,7 @@ pub fn export(
     if use_super_mechs {
         export_with_super_mechanisms(lems, nml, bundle)?;
     } else {
-        acc::export(lems, nml, &format!("{}/acc", bundle))?;
+        acc::export(lems, nml, &format!("{}/acc", bundle), cat_prefix)?;
     }
     Ok(())
 }
@@ -209,6 +210,8 @@ fn mk_main_py(
     }
     gid_to_labels.push_str("                               }");
 
+    let cat_prefix = "local_";
+
     Ok(format!(
         "#!/usr/bin/env python3
 import arbor as A
@@ -237,7 +240,7 @@ class recipe(A.recipe):
         A.recipe.__init__(self)
         self.props = A.neuron_cable_properties()
         cat = compile(here / 'local-catalogue.so', here / 'cat')
-        self.props.catalogue.extend(cat, '')
+        self.props.catalogue.extend(cat, '{cat_prefix}')
         self.cell_to_morph = {}
         self.gid_to_cell = {}
         self.i_clamps = {}

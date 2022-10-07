@@ -96,7 +96,7 @@ fn parse_inhomogeneous_parameters(cell: &roxmltree::Node<'_, '_>) -> Result<Map<
     return Ok(inhomogeneous_parameters);
 }
 
-pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
+pub fn export(lems: &LemsFile, nml: &[String], pfx: &str, cat_prefix: &str) -> Result<()> {
     trace!("Creating path {}", pfx);
     std::fs::create_dir_all(&pfx)?;
 
@@ -106,7 +106,9 @@ pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
         file.push(cell);
         file.set_extension("acc");
         info!("Writing ACC to {:?}", &file);
-        write(&file, decor.to_sexp())?;
+        write(&file, decor.to_sexp_with_config(&SexpConfig {
+            cat_prefix: cat_prefix.to_string()
+        }))?;
     }
     Ok(())
 }
@@ -117,8 +119,26 @@ fn acc_unimplemented(f: &str) -> Error {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct SexpConfig {
+    cat_prefix: String
+}
+
+impl SexpConfig {
+    fn add_prefix(&self, mech: &str) -> String {
+        if mech == "nernst" {
+            mech.to_string()
+        } else {
+            format!("{}{}", self.cat_prefix, mech)
+        }
+    }
+}
+
 pub trait Sexp {
-    fn to_sexp(&self) -> String;
+    fn to_sexp(&self) -> String {
+        self.to_sexp_with_config(&SexpConfig::default())
+    }
+    fn to_sexp_with_config(&self, config: &SexpConfig) -> String;
 }
 
 #[derive(Clone, Debug)]
@@ -203,7 +223,7 @@ impl Paintable {
 }
 
 impl Sexp for Expr {
-    fn to_sexp(&self) -> String {
+    fn to_sexp_with_config(&self, _: &SexpConfig) -> String {
         fn op_to_sexp(op: &str, args: &Vec<Expr>) -> String {
             format!("({op} {})", args.iter().map(|x| x.to_sexp()).collect::<Vec<_>>().join(" "))
         }
@@ -224,7 +244,7 @@ impl Sexp for Expr {
 }
 
 impl Sexp for Paintable {
-    fn to_sexp(&self) -> String {
+    fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         match self {
             Paintable::Xi(i, v) => format!("(ion-internal-concentration \"{}\" {})", i, v),
             Paintable::Xo(i, v) => format!("(ion-external-concentration \"{}\" {})", i, v),
@@ -237,7 +257,7 @@ impl Sexp for Paintable {
             Paintable::Vm(v) => format!("(membrane-potential {})", v),
             Paintable::Cm(v) => format!("(membrane-capacitance {})", v),
             Paintable::Mech(m, gs) => {
-                let mut result = format!("(density (mechanism \"{}\"", m);
+                let mut result = format!("(density (mechanism \"{}\"", config.add_prefix(m));
                 for (k, v) in gs.iter() {
                     let x = format!(" (\"{}\" {})", k, v);
                     result.push_str(&x);
@@ -247,7 +267,7 @@ impl Sexp for Paintable {
                 result
             },
             Paintable::NonUniformMech(m, gs, ns) => {
-                let mut result = format!("(scaled-mechanism (density (mechanism \"{}\"", m);
+                let mut result = format!("(scaled-mechanism (density (mechanism \"{}\"", config.add_prefix(m));
                 for (k, v) in gs.iter() {
                     let x = format!(" (\"{}\" {})", k, v);
                     result.push_str(&x);
@@ -293,16 +313,16 @@ impl Decor {
 }
 
 impl Sexp for Decor {
-    fn to_sexp(&self) -> String {
+    fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         match self {
-            Decor::Default(i) => format!("(default {})", i.to_sexp()),
-            Decor::Paint(r, i) => format!("(paint (region \"{}\") {})", r, i.to_sexp()),
+            Decor::Default(i) => format!("(default {})", i.to_sexp_with_config(config)),
+            Decor::Paint(r, i) => format!("(paint (region \"{}\") {})", r, i.to_sexp_with_config(config)),
         }
     }
 }
 
 impl Sexp for Vec<Decor> {
-    fn to_sexp(&self) -> String {
+    fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         let mut result = String::from(
             "(arbor-component
   (meta-data (version \"0.1-dev\"))
@@ -310,7 +330,7 @@ impl Sexp for Vec<Decor> {
 ",
         );
         for it in self {
-            writeln!(result, "    {}", it.to_sexp()).unwrap();
+            writeln!(result, "    {}", it.to_sexp_with_config(config)).unwrap();
         }
         result.pop();
         result.push_str("))\n");
