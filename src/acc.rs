@@ -204,33 +204,21 @@ impl Paintable {
 
 impl Sexp for Expr {
     fn to_sexp(&self) -> String {
+        fn op_to_sexp(op: &str, args: &Vec<Expr>) -> String {
+                let mut s = "(".to_string();
+                s.push_str(op);
+                for arg in args {
+                    s.push_str(&format!(" {}", arg.to_sexp()));
+                }
+                s.push(')');
+                s
+        }
         match self {
             Expr::F64(x) => format!("{x}"),
             Expr::Var(x) => format!("{x}"),
-            Expr::Add(x) => {
-                let mut s = "(add".to_string();
-                for arg in x {
-                    s.push_str(&format!(" {}", arg.to_sexp()));
-                }
-                s.push(')');
-                s
-            },
-            Expr::Mul(x) => {
-                let mut s = "(mul".to_string();
-                for arg in x {
-                    s.push_str(&format!(" {}", arg.to_sexp()));
-                }
-                s.push(')');
-                s
-            }
-            Expr::Pow(x) => {
-                let mut s = "(pow".to_string();
-                for arg in x {
-                    s.push_str(&format!(" {}", arg.to_sexp()));
-                }
-                s.push(')');
-                s
-            }
+            Expr::Add(x) => op_to_sexp("add", x),
+            Expr::Mul(x) => op_to_sexp("mul", x),
+            Expr::Pow(x) => op_to_sexp("pow", x),
             Expr::Exp(x) => format!("(exp {})", x.to_sexp()),
             Expr::Log(x) => format!("(log {})", x.to_sexp()),
             Expr::Sqrt(x) => format!("(sqrt {})", x.to_sexp()),
