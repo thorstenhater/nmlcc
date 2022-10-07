@@ -358,7 +358,7 @@ fn nmodl_init_block(n: &Nmodl) -> Result<String> {
     let init = n
         .init
         .values()
-        .map(|s| s.print_to_string(2))
+        .map(|s| s.simplify().print_to_string(2))
         .collect::<Vec<String>>()
         .join("\n");
     let mut result = vec![
@@ -418,7 +418,7 @@ fn nmodl_deriv_block(n: &Nmodl) -> Result<String> {
         .variables
         .iter()
         .chain(n.deriv.iter())
-        .map(|(a, b)| (a.clone(), b.clone()))
+        .map(|(a, b)| (a.clone(), b.simplify().clone()))
         .collect::<Map<String, Stmnt>>();
     let mut result = String::from("DERIVATIVE dstate {\n");
     let ls = print_dependency_chains(&roots, &vars, &n.symbols)?;
@@ -456,7 +456,7 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
     let currents = n
         .outputs
         .values()
-        .map(|s| s.print_to_string(2))
+        .map(|s| s.simplify().print_to_string(2))
         .collect::<Vec<String>>()
         .join("\n");
     let deps = print_dependency_chains(&roots, &vars, &n.symbols)?;
