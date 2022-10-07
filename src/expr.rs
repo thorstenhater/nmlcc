@@ -707,6 +707,20 @@ fn simplify_mul(es: &[Expr]) -> Expr {
         result.push(Expr::F64(lit));
     }
     result.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let mut i = 0;
+    while result.len() > 0 && i < result.len() - 1 {
+        if let (Expr::Var(a), Expr::Pow(pow_args)) = (
+            &result[i], &result[i+1]) {
+            if let [Expr::Var(b), Expr::F64(pow_num)] = pow_args.as_slice() {
+                if a == b && *pow_num == -1.0 {
+                    result.remove(i);
+                    result.remove(i);
+                }
+            }
+        }
+        i += 1;
+    }
+
     match &result[..] {
         [] => Expr::F64(1.0),
         [x] => x.clone(),
@@ -846,6 +860,7 @@ mod test {
                 Expr::Var(String::from("z")),
             ])
         );
+        assert_eq!(Expr::parse("a / a").unwrap(), Expr::F64(1.0));
     }
 
     #[test]
