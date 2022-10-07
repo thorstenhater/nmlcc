@@ -337,6 +337,40 @@ pub fn biophys(prop: &BiophysicalProperties, lems: &LemsFile, inhomogeneous_para
 
 fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>) -> Result<Vec<Decor>> {
     let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
+
+    fn handle_ion_simple(known_ions: &Vec<String>, result: &mut Vec<Decor>, gs: &mut Map<String, String>, ion: &str, segmentGroup: &str, erev: &str) -> Result<()> {
+        if known_ions.contains(&ion.to_string()) {
+            let past = result.iter().find_map(|x| {
+                if let Decor::Paint(rg, Paintable::Er(i, er)) = x {
+                    if rg == segmentGroup && ion == i {
+                        Some(er)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            });
+            if let Some(er) = past {
+                if er != erev {
+                    return Err(nml2_error(format!(
+                        "Overwriting different Er[{}] on {}.",
+                        ion, segmentGroup
+                    )));
+                }
+            } else {
+                result.push(Decor::new(
+                    segmentGroup,
+                    Paintable::Er(ion.to_string(), erev.to_string()),
+                    false,
+                ));
+            }
+        } else {
+            gs.insert(format!("e{}", if ion == "non_specific" { "" } else { ion }), erev.to_string());
+        }
+        Ok(())
+    }
+
     use MembranePropertiesBody::*;
     let mut result = Vec::new();
     for item in &membrane.body {
@@ -357,35 +391,7 @@ fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
                 }
-                if known_ions.contains(ion) {
-                    let past = result.iter().find_map(|x| {
-                        if let Decor::Paint(rg, Paintable::Er(i, er)) = x {
-                            if rg == segmentGroup && ion == i {
-                                Some(er)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    });
-                    if let Some(er) = past {
-                        if er != erev {
-                            return Err(nml2_error(format!(
-                                "Overwriting different Er[{}] on {}.",
-                                ion, segmentGroup
-                            )));
-                        }
-                    } else {
-                        result.push(Decor::new(
-                            segmentGroup,
-                            Paintable::Er(ion.to_string(), erev.to_string()),
-                            false,
-                        ));
-                    }
-                } else {
-                    gs.insert(format!("e{}", if ion == "non_specific" { "" } else { ion }), erev.to_string());
-                }
+                handle_ion_simple(&known_ions, &mut result, &mut gs, ion, segmentGroup, erev)?;
                 result.push(Decor::new(
                     segmentGroup,
                     Paintable::Mech(ionChannel.to_string(), gs),
@@ -446,35 +452,7 @@ fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String
                 };
                 let mut gs = Map::new();
                 let mut ns = Map::new();
-                if known_ions.contains(ion) {
-                    let past = result.iter().find_map(|x| {
-                        if let Decor::Paint(rg, Paintable::Er(i, er)) = x {
-                            if rg == segmentGroup && ion == i {
-                                Some(er)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    });
-                    if let Some(er) = past {
-                        if er != erev {
-                            return Err(nml2_error(format!(
-                                "Overwriting different Er[{}] on {}.",
-                                ion, segmentGroup
-                            )));
-                        }
-                    } else {
-                        result.push(Decor::new(
-                            segmentGroup,
-                            Paintable::Er(ion.to_string(), erev.to_string()),
-                            false,
-                        ));
-                    }
-                } else {
-                    gs.insert(format!("e{}", if ion == "non_specific" { "" } else { ion }), erev.to_string());
-                }
+                handle_ion_simple(&known_ions, &mut result, &mut gs, ion, segmentGroup, erev)?;
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
                     ns.insert(if param == "condDensity" { String::from("conductance") } else { param.to_string() },
                         MechVariableParameter { param: ihv.clone(), value: value.to_string() } );
