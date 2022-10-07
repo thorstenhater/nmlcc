@@ -205,13 +205,7 @@ impl Paintable {
 impl Sexp for Expr {
     fn to_sexp(&self) -> String {
         fn op_to_sexp(op: &str, args: &Vec<Expr>) -> String {
-                let mut s = "(".to_string();
-                s.push_str(op);
-                for arg in args {
-                    s.push_str(&format!(" {}", arg.to_sexp()));
-                }
-                s.push(')');
-                s
+            format!("({op} {})", args.iter().map(|x| x.to_sexp()).collect::<Vec<_>>().join(" "))
         }
         match self {
             Expr::F64(x) => format!("{x}"),
