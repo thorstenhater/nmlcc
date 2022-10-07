@@ -56,6 +56,9 @@ fn parse_inhomogeneous_parameters(cell: &roxmltree::Node<'_, '_>) -> Result<Map<
                 use crate::neuroml::raw::{ProximalDetails, DistalDetails};
                 use crate::neuroml::raw::InhomogeneousParameterBody::*;
                 let ihp: InhomogeneousParameter = XML::from_node(&ihp);
+                if ihp.metric != "Path Length from root" {
+                    return Err(nml2_error("Only path length from root is supported as inhomogeneous parameter metric"));
+                }
                 let mut subtract_the_minimum = false;
                 let mut normalize_end = false;
                 for elem in ihp.body {
