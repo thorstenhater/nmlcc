@@ -36,6 +36,8 @@ pub enum Expr {
     Log(Box<Expr>),
     Sqrt(Box<Expr>),
     H(Box<Expr>),
+    ProximalDistanceFromRegion(String),
+    DistanceFromRoot(),
 }
 
 impl Expr {
@@ -108,6 +110,12 @@ impl Expr {
                 })
                 .collect::<Vec<_>>()
                 .join("^"),
+            Expr::ProximalDistanceFromRegion(_) => {
+                panic!("ProximalDistanceFromRegion can not be constructed in xml")
+            }
+            Expr::DistanceFromRoot() => {
+                panic!("DistanceFromRoot can not be constructed in xml")
+            }
             Expr::H(_) => {
                 panic!("Heaviside step is not supported in nmodl")
             }

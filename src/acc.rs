@@ -24,30 +24,12 @@ use std::path::PathBuf;
 use tracing::{info, trace, warn};
 
 pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor>>> {
-    let mut inhomogeneous_parameters = Map::new();
     let mut cells = Map::new();
     process_files(nml, |_, node| {
         if node.tag_name().name() == "cell" {
             if let Some(id) = node.attribute("id") {
                 let mut result = Vec::new();
-                for m in node.descendants() {
-                    if m.tag_name().name() != "morphology" {
-                        continue;
-                    }
-                    for ihp in m.descendants().filter(|n| n.has_tag_name("inhomogeneousParameter")) { 
-                        if let Some(segmentGroup) = ihp.parent().and_then(|p| p.attribute("id")) {
-                            let ihp: InhomogeneousParameter = XML::from_node(&ihp);
-                            inhomogeneous_parameters.insert(ihp.id, ParsedInhomogeneousParameter {
-                                variable: ihp.variable,
-                                region: segmentGroup.to_string(),
-                                subtract_the_minimum: true, // MUST PARSE!!
-                                normalize_end: false // MUST PARSE!!
-                            });
-                        } else {
-                            return Err(acc_unimplemented("inhomogeneousParameter definition must be inside segmentGroup group with id"));
-                        }
-                    }
-                }
+                let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
                 for bpp in node.descendants() {
                     if bpp.tag_name().name() != "biophysicalProperties" {
                         continue;
@@ -61,6 +43,54 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
         Ok(())
     })?;
     Ok(cells)
+}
+
+fn parse_inhomogeneous_parameters(cell: &roxmltree::Node<'_, '_>) -> Result<Map<String, ParsedInhomogeneousParameter>>{
+    let mut inhomogeneous_parameters = Map::new();
+    for m in cell.descendants() {
+        if m.tag_name().name() != "morphology" {
+            continue;
+        }
+        for ihp in m.descendants().filter(|n| n.has_tag_name("inhomogeneousParameter")) { 
+            if let Some(segmentGroup) = ihp.parent().and_then(|p| p.attribute("id")) {
+                use crate::neuroml::raw::{ProximalDetails, DistalDetails};
+                use crate::neuroml::raw::InhomogeneousParameterBody::*;
+                let ihp: InhomogeneousParameter = XML::from_node(&ihp);
+                let mut subtract_the_minimum = false;
+                let mut normalize_end = false;
+                for elem in ihp.body {
+                    match elem {
+                        proximal(ProximalDetails { translationStart }) => {
+                            if translationStart == 0.0 {
+                                subtract_the_minimum = true;
+                            } else {
+                                return Err(acc_unimplemented("Proximal translationStart must be 0 in InhomogeneousParameter"));
+                            }
+                        }
+                        distal(DistalDetails { normalizationEnd }) => {
+                            if normalizationEnd == 1.0 {
+                                normalize_end = true;
+                            } else {
+                                return Err(acc_unimplemented("Distal normalizeEnd must be 1 in InhomogeneousParameter"));
+                            }
+                        }
+                    }
+                }
+                if normalize_end {
+                    return Err(acc_unimplemented("Endpoint normalization for inhomogeneous parameters is not yet supported"));
+                }
+                inhomogeneous_parameters.insert(ihp.id, ParsedInhomogeneousParameter {
+                    variable: ihp.variable,
+                    region: segmentGroup.to_string(),
+                    subtract_the_minimum,
+                    normalize_end
+                });
+            } else {
+                return Err(acc_unimplemented("inhomogeneousParameter definition must be inside segmentGroup group with id"));
+            }
+        }
+    }
+    return Ok(inhomogeneous_parameters);
 }
 
 pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
@@ -146,11 +176,15 @@ impl Paintable {
                 }
                 let mut ns = ns.clone();
                 for v in ns.values_mut() {
-                    let repl = Expr::Var(format!("(proximal-distance (region \"{}\"))", v.param.region));
+                    let metric = if v.param.subtract_the_minimum {
+                        Expr::ProximalDistanceFromRegion(v.param.region.to_string())
+                    } else {
+                        Expr::DistanceFromRoot()
+                    };
                     let e = Expr::parse(&v.value)?;
                     let e = e.map(&|ex: &Expr| -> Expr {
                         match ex {
-                            Expr::Var(x) if x == &v.param.variable => repl.clone(),
+                            Expr::Var(x) if x == &v.param.variable => metric.clone(),
                             _ => ex.clone()
                         }
                     });
@@ -198,7 +232,8 @@ impl Sexp for Expr {
             Expr::Log(x) => format!("(log {})", x.to_sexp()),
             Expr::Sqrt(x) => format!("(sqrt {})", x.to_sexp()),
             Expr::H(x) => format!("(step {})", x.to_sexp()),
-
+            Expr::ProximalDistanceFromRegion(region) => format!("(proximal-distance (region \"{}\"))", region),
+            Expr::DistanceFromRoot() => format!("(distance (root))")
         }
     }
 }
@@ -492,12 +527,6 @@ fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String
                     }
                 };
                 let mut ns = Map::new();
-                if param != "condDensity" {
-                    return Err(acc_unimplemented("Only density is supported for inhomogeneousParameter"));
-                }
-                if ihv != "PathLengthOverApicDends" {
-                    return Err(acc_unimplemented("Only PathLengthOverApicDends is supported for inhomogeneousParameter"));
-                }
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
                     ns.insert(if param == "condDensity" { String::from("conductance") } else { param.to_string() },
                         MechVariableParameter { param: ihv.clone(), value: value.to_string() } );
