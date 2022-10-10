@@ -255,17 +255,17 @@ impl Collapsed {
                         Path::When(s, _) => qfx.push(s.clone()),
                     }
                 }
-                let qfx = qfx.join("_");
+                let qfx = qfx.join("/");
                 // TODO End of horrible hack
-                let pfx = pfx.join("_");
+                let pfx = pfx.join("/");
                 let from = format!(
-                    "{}_{}_{}",
+                    "{}/{}/{}",
                     qfx,
                     node.attributes.get("from").unwrap(),
                     ks.state
                 );
                 let to = format!(
-                    "{}_{}_{}",
+                    "{}/{}/{}",
                     qfx,
                     node.attributes.get("to").unwrap(),
                     ks.state
@@ -273,8 +273,8 @@ impl Collapsed {
                 coll.transitions.push((
                     from.clone(),
                     to.clone(),
-                    format!("{}_{}", pfx, ks.rfwd),
-                    format!("{}_{}", pfx, ks.rbwd),
+                    format!("{}/{}", pfx, ks.rfwd),
+                    format!("{}/{}", pfx, ks.rbwd),
                 ));
                 states.insert(from);
                 states.insert(to);
@@ -465,7 +465,7 @@ impl Context {
     fn add_prefix(&self, name: &str) -> String {
         let mut ks = self.keys();
         ks.push(name.to_string());
-        ks.join("_")
+        ks.join("/")
     }
 
     fn rename(&self, name: &str) -> String {
@@ -487,7 +487,7 @@ impl Context {
             .rev()
             .cloned()
             .collect();
-        pfx.join("_")
+        pfx.join("/")
     }
 
     fn rename_expr(&self, v: &Expr) -> Expr {
