@@ -54,6 +54,17 @@ impl Expr {
         }
     }
 
+    pub fn rename(&self, f: &impl Fn(&String) -> String) -> Self {
+        let fun = |v: &Expr| -> Expr {
+          if let Expr::Var(s) = v {
+              Expr::Var(f(s))
+          } else {
+              v.clone()
+          }
+        };
+        self.map(&fun)
+    }
+
     pub fn fold<T>(&self, acc: &mut T, f: &impl Fn(&Expr, &mut T)) {
         f(self, acc);
         match self {
@@ -241,6 +252,19 @@ impl Stmnt {
             }
         }
     }
+
+    pub fn rename(&self, f: &impl Fn(&String) -> String) -> Stmnt {
+        match self {
+            Stmnt::Ass(s, e) => Stmnt::Ass(f(s), e.rename(f)),
+            Stmnt::Ift(c, t, e) => {
+                if let Some(e) = e.as_ref() {
+                    Stmnt::Ift(c.rename(f), Box::new(t.rename(f)), Box::new(Some(e.rename(f))))
+                } else {
+                    Stmnt::Ift(c.rename(f), Box::new(t.rename(f)), Box::new(None))
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
@@ -336,6 +360,17 @@ impl Boolean {
         }
     }
 
+    pub fn rename(&self, f: &impl Fn(&String) -> String) -> Self {
+        let fun = |v: &Expr| -> Expr {
+          if let Expr::Var(s) = v {
+              Expr::Var(f(s))
+          } else {
+              v.clone()
+          }
+        };
+        self.map(&fun)
+    }
+
     pub fn map(&self, f: &impl Fn(&Expr) -> Expr) -> Boolean {
         match self {
             Boolean::Cmp(o, l, r) => Boolean::Cmp(*o, Box::new(l.map(f)), Box::new(r.map(f))),
@@ -396,7 +431,7 @@ impl Match {
     pub fn on_path(&self, exposures: &[String]) -> Vec<String> {
         let mut ms = Vec::new();
         for ex in exposures {
-            let mut es = ex.split('_');
+            let mut es = ex.split('/');
             let mut ok = true;
             for p in &self.0 {
                 match p {
@@ -416,7 +451,7 @@ impl Match {
                         ok &= es.next().is_some();
                     }
                     Path::Up => panic!("Going up not allowed here"),
-                    Path::When(_, Select::Index(_)) => panic!("Indexing not allowed here"),
+                    Path::When(_, _) => panic!("Indexing not allowed here"),
                 }
             }
             if ok {
@@ -904,27 +939,25 @@ mod test {
     #[test]
     fn test_path() {
         use Path::*;
-        let m = Match::parse("a/b/c[*]").unwrap();
+        let m = Match::parse("a_b/c[*]").unwrap();
         assert_eq!(
             m,
             Match(vec![
-                Fixed(String::from("a")),
-                Fixed(String::from("b")),
+                Fixed(String::from("a_b")),
                 When(String::from("c"), Select::All)
             ])
         );
 
         let ex = vec![
-            String::from("a_b_c_foo"),
-            String::from("a_b_c_bar"),
+            String::from("a_b/c/foo"),
+            String::from("a_b/c/foo_bar"),
             String::from(""),
-            String::from("a__b"),
             String::from("foo"),
         ];
 
         assert_eq!(
             m.on_path(&ex),
-            vec![String::from("a_b_c_foo"), String::from("a_b_c_bar"),]
+            vec![String::from("a_b/c/foo"), String::from("a_b/c/foo_bar"),]
         );
     }
 }

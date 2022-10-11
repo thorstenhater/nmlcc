@@ -13,7 +13,7 @@ fn simple_synapse() {
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2 ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
     id="simple-synapse">
-    <expOneSynapse id="sy1" gbase="0.5nS" erev="0mV" tauDecay="3ms" />
+    <expOneSynapse id="sy1" gbase="0.5nS" erev="0mV" />
 </neuroml>
 "#).unwrap();
     let node = tree
@@ -26,6 +26,11 @@ fn simple_synapse() {
         r#"NEURON {
   POINT_PROCESS sy1
   NONSPECIFIC_CURRENT i
+  RANGE tauDecay
+}
+
+PARAMETER {
+  tauDecay
 }
 
 STATE { g }
@@ -35,7 +40,7 @@ INITIAL {
 }
 
 DERIVATIVE dstate {
-  g' = -0.3333333333333333 * g
+  g' = -1 * g * tauDecay^-1
 }
 
 BREAKPOINT {
@@ -60,7 +65,7 @@ NET_RECEIVE(weight) {
 PARAMETER {
   erev = 0 (mV)
   gbase = 0.0005 (uS)
-  tauDecay = 3 (ms)
+  tauDecay
 }
 
 STATE { g }

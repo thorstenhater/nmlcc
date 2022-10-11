@@ -34,8 +34,8 @@ templated Arbor simulation that can be customised to your needs.
   not test this nor do we plan support for it.
 3. If you are not interested in multi-compartment models. Currently only
   MC-cells are supported.
-4. If you need automated export of networks. We are currently looking into this,
-    but it is not yet supported.
+4. Networks are supported, yet experimental. ~If you need automated export of 
+   networks. We are currently looking into this, but it is not yet supported.~
 5. If you are reliant on other features of `jnml` and/or `jlems` that are not
   supported in `nmlcc`.
 
