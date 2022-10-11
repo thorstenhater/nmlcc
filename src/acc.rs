@@ -563,10 +563,11 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
     for item in &intra.body {
         match &item {
             species(Species {
-                ion,
+                ion, // the neuroml standard suggests selecting on id instead of ion
                 initialConcentration,
                 initialExtConcentration,
                 segmentGroup,
+                concentrationModel,
                 ..
             }) if ion.is_some() => {
                 let ion = ion.as_deref().unwrap();
@@ -580,6 +581,12 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
                     Paintable::Xo(ion.to_string(), initialExtConcentration.to_string()),
                     false,
                 ));
+                result.push(Decor::new(
+                    segmentGroup,
+                    Paintable::Mech(concentrationModel.to_string(), Map::new()),
+                    false
+                ));
+
             }
             resistivity(Resistivity {
                 value,
