@@ -583,7 +583,7 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
                 ));
                 result.push(Decor::new(
                     segmentGroup,
-                    Paintable::Mech(concentrationModel.to_string(), Map::new()),
+                    Paintable::Mech(concentrationModel.to_string(), Map::from([(String::from("initialConcentration"), initialConcentration.to_string())])),
                     false
                 ));
 
