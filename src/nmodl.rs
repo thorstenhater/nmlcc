@@ -269,24 +269,59 @@ impl Nmodl {
                 .push(ass);
         }
 
-        fn subs(k: &String) -> String { k.replace("/", "_") }
+        fn subs(k: &String) -> String {
+            k.replace("/", "_")
+        }
 
         let symbols = symbols.iter().map(subs).collect();
-        let constants = constants.iter().map(|(k, v)| (subs(k), v.clone())).collect();
-        let parameters = parameters.iter().map(|(k, v)| (subs(k), v.clone())).collect();
+        let constants = constants
+            .iter()
+            .map(|(k, v)| (subs(k), v.clone()))
+            .collect();
+        let parameters = parameters
+            .iter()
+            .map(|(k, v)| (subs(k), v.clone()))
+            .collect();
         let state = state.iter().map(subs).collect();
-        let init = init.iter().map(|(k, v)| (subs(k), v.rename(&subs))).collect();
-        let deriv = deriv.iter().map(|(k, v)| (subs(k), v.rename(&subs))).collect();
-        let outputs = outputs.iter().map(|(k, v)| (subs(k), v.rename(&subs))).collect();
-        let variables = variables.iter().map(|(k, v)| (subs(k), v.rename(&subs))).collect();
+        let init = init
+            .iter()
+            .map(|(k, v)| (subs(k), v.rename(&subs)))
+            .collect();
+        let deriv = deriv
+            .iter()
+            .map(|(k, v)| (subs(k), v.rename(&subs)))
+            .collect();
+        let outputs = outputs
+            .iter()
+            .map(|(k, v)| (subs(k), v.rename(&subs)))
+            .collect();
+        let variables = variables
+            .iter()
+            .map(|(k, v)| (subs(k), v.rename(&subs)))
+            .collect();
         let species = species.iter().map(|k| k.replace("/", "_")).collect();
-        let transitions = transitions.iter().map(|(a,b,c,d)| (subs(a), subs(b), subs(c), subs(d))).collect();
-        let events = events.iter().map(|(k, v)| (subs(k), v.rename(&subs))).collect();
-        let rates = rates.iter().map(|(k, v)| (subs(k), v.rename(&subs))).collect();
+        let transitions = transitions
+            .iter()
+            .map(|(a, b, c, d)| (subs(a), subs(b), subs(c), subs(d)))
+            .collect();
+        let events = events
+            .iter()
+            .map(|(k, v)| (subs(k), v.rename(&subs)))
+            .collect();
+        let rates = rates
+            .iter()
+            .map(|(k, v)| (subs(k), v.rename(&subs)))
+            .collect();
         let states = coll.states.iter().cloned().collect();
-        let fixed = fixed.iter().map(|(k, v)| (subs(k), v.rename(&subs))).collect();
+        let fixed = fixed
+            .iter()
+            .map(|(k, v)| (subs(k), v.rename(&subs)))
+            .collect();
         let keep = keep.iter().map(|k| k.replace("/", "_")).collect();
-        let conditions = conditions.iter().map(|(k, vs)| (subs(k), vs.iter().map(|v| v.rename(&subs)).collect())).collect();
+        let conditions = conditions
+            .iter()
+            .map(|(k, vs)| (subs(k), vs.iter().map(|v| v.rename(&subs)).collect()))
+            .collect();
 
         Ok(Nmodl {
             known_ions,
@@ -312,7 +347,9 @@ impl Nmodl {
     }
 
     pub fn add_variables(&mut self, rhs: &Map<String, Stmnt>) {
-        fn subs(k: &String) -> String { k.replace("/", "_") }
+        fn subs(k: &String) -> String {
+            k.replace("/", "_")
+        }
         for (k, v) in rhs {
             let k = subs(k);
             let v = v.rename(&subs);
@@ -323,7 +360,9 @@ impl Nmodl {
     }
 
     pub fn add_outputs(&mut self, rhs: &Map<String, Stmnt>) {
-        fn subs(k: &String) -> String { k.replace("/", "_") }
+        fn subs(k: &String) -> String {
+            k.replace("/", "_")
+        }
         for (k, v) in rhs {
             let k = subs(k);
             let v = v.rename(&subs);
@@ -333,7 +372,9 @@ impl Nmodl {
         simplify(&mut self.outputs, &mut self.fixed, &self.keep);
     }
     pub fn add_initials(&mut self, rhs: &Map<String, Stmnt>) {
-        fn subs(k: &String) -> String { k.replace("/", "_") }
+        fn subs(k: &String) -> String {
+            k.replace("/", "_")
+        }
         for (k, v) in rhs {
             let k = subs(k);
             let v = v.rename(&subs);
