@@ -1,20 +1,16 @@
-use crate::acc::Paintable;
-use crate::error::nml2_error;
-use crate::expr::Stmnt;
-use crate::network::{get_cell_id, Connection, Input, Network, Projection};
 use crate::{
-    acc::{self, Sexp},
+    acc::{self, Paintable, Sexp},
     error::{Error, Result},
-    expr::Expr,
-    expr::Quantity,
+    expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
+    network::{get_cell_id, Connection, Input, Network, Projection},
     neuroml::process_files,
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
         PulseGenerator,
     },
-    nmodl,
+    nml2_error, nmodl,
     xml::XML,
     Map, Set,
 };
@@ -81,12 +77,9 @@ fn mk_main_py(
             p.members
                 .iter()
                 .position(|ix| id == *ix as i64)
-                .ok_or_else(|| nml2_error(format!("Bad index {} in population {}.", id, pop)))?
+                .ok_or_else(|| nml2_error!("Bad index {} in population {}.", id, pop))?
         } else {
-            return Err(nml2_error(format!(
-                "Indexing into an unknown population: {}.",
-                pop
-            )));
+            return Err(nml2_error!("Indexing into an unknown population: {}.", pop));
         };
         let key: i64 = (fst + idx) as i64;
         let val = (source.clone(), segment, fraction);
@@ -357,7 +350,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
             "morphology" => {
                 let id = node
                     .attribute("id")
-                    .ok_or_else(|| nml2_error("Morph has no id"))?;
+                    .ok_or_else(|| nml2_error!("Morph has no id"))?;
                 trace!("Writing morphology to {}/mrf/{}", bundle, id);
                 write(
                     format!("{}/mrf/{}.nml", bundle, id),
@@ -367,12 +360,12 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
             "cell" => {
                 let cell = node
                     .attribute("id")
-                    .ok_or_else(|| nml2_error("Cell has no id"))?;
+                    .ok_or_else(|| nml2_error!("Cell has no id"))?;
                 for mrf in node.children() {
                     if mrf.tag_name().name() == "morphology" {
                         let morph = mrf
                             .attribute("id")
-                            .ok_or_else(|| nml2_error("Morph has no id"))?;
+                            .ok_or_else(|| nml2_error!("Morph has no id"))?;
                         cells.push((cell.to_string(), morph.to_string()));
                     }
                 }
@@ -408,7 +401,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
             )?;
             Ok(())
         }
-        _ => Err(nml2_error(
+        _ => Err(nml2_error!(
             "Currently only one Network per bundle is supported.",
         )),
     }

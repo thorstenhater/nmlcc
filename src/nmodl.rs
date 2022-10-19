@@ -3,11 +3,12 @@ use std::{fs::write, iter::once};
 use tracing::{info, trace, warn};
 
 use crate::{
-    error::{nml2_error, Error, Result},
+    error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Instance},
     lems::file::LemsFile,
     neuroml::process_files,
+    nml2_error,
     variable::VarKind,
     Map, Set,
 };
@@ -100,7 +101,7 @@ impl Nmodl {
         let suffix = coll
             .name
             .as_deref()
-            .ok_or_else(|| nml2_error("Unnamed channel."))?
+            .ok_or_else(|| nml2_error!("Unnamed channel."))?
             .to_string();
         let species = ion_species(coll);
         let mut outputs = Map::new();
@@ -147,7 +148,7 @@ impl Nmodl {
                     res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(Some(res)));
                 }
                 if !init {
-                    return Err(nml2_error(format!("Variable '{}' undefined.", nm)));
+                    return Err(nml2_error!("Variable '{}' undefined.", nm));
                 }
                 variables.insert(nm, res);
             }
@@ -821,7 +822,6 @@ fn print_dependency_chains(
         if let Some(s) = vars.get(&d) {
             result.push(s.print_to_string(2));
         } else {
-            // return Err(nml2_error(format!("Could not resolve variable {}.", d)));
             let exprs = roots
                 .iter()
                 .map(|r| {

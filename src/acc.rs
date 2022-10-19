@@ -1,5 +1,5 @@
 use crate::{
-    error::{nml2_error, Error, Result},
+    error::{Error, Result},
     expr::Quantity,
     lems::file::LemsFile,
     neuroml::{
@@ -11,6 +11,7 @@ use crate::{
             Species, SpecificCapacitance,
         },
     },
+    nml2_error,
     xml::XML,
     Map,
 };
@@ -344,10 +345,11 @@ fn simple_ion(
                      Decor::Paint(r, Paintable::Er(i, e))
                      if r == group && ion == i && e == erev)
         }) {
-            return Err(nml2_error(format!(
+            return Err(nml2_error!(
                 "Overwriting different Er[{}] on {}.",
-                ion, group
-            )));
+                ion,
+                group
+            ));
         }
         result.push(Decor::new(
             group,
