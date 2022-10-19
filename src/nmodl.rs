@@ -269,9 +269,7 @@ impl Nmodl {
                 .push(ass);
         }
 
-        fn subs(k: &String) -> String {
-            k.replace('/', "_")
-        }
+        let subs = |k: &String| -> String { k.replace('/', "_") };
 
         let symbols = symbols.iter().map(subs).collect();
         let constants = constants
@@ -347,12 +345,9 @@ impl Nmodl {
     }
 
     pub fn add_variables(&mut self, rhs: &Map<String, Stmnt>) {
-        fn subs(k: &String) -> String {
-            k.replace('/', "_")
-        }
         for (k, v) in rhs {
-            let k = subs(k);
-            let v = v.rename(&subs);
+            let k = k.replace('/', "_");
+            let v = v.rename(&|k| k.replace('/', "_"));
             self.variables.insert(k.clone(), v);
             self.keep.insert(k);
         }
@@ -360,24 +355,18 @@ impl Nmodl {
     }
 
     pub fn add_outputs(&mut self, rhs: &Map<String, Stmnt>) {
-        fn subs(k: &String) -> String {
-            k.replace('/', "_")
-        }
         for (k, v) in rhs {
-            let k = subs(k);
-            let v = v.rename(&subs);
+            let k = k.replace('/', "_");
+            let v = v.rename(&|k| k.replace('/', "_"));
             self.outputs.insert(k.clone(), v);
             self.keep.insert(k);
         }
         simplify(&mut self.outputs, &mut self.fixed, &self.keep);
     }
     pub fn add_initials(&mut self, rhs: &Map<String, Stmnt>) {
-        fn subs(k: &String) -> String {
-            k.replace('/', "_")
-        }
         for (k, v) in rhs {
-            let k = subs(k);
-            let v = v.rename(&subs);
+            let k = k.replace('/', "_");
+            let v = v.rename(&|k| k.replace('/', "_"));
             self.init.insert(k.clone(), v);
             self.keep.insert(k);
         }

@@ -918,7 +918,19 @@ mod test {
                 Expr::Var(String::from("z")),
             ])
         );
+    }
+
+    #[test]
+    fn test_pow_contraction() {
         assert_eq!(Expr::parse("a^-2 * a ^2").unwrap(), Expr::F64(1.0));
+        assert_eq!(
+            Expr::parse("a^-2 * k * a ^2").unwrap(),
+            Expr::Var("k".to_string())
+        );
+        assert_eq!(
+            Expr::parse("a * a^-2 * k * a ").unwrap(),
+            Expr::Var("k".to_string())
+        );
     }
 
     #[test]
@@ -945,8 +957,6 @@ mod test {
             Expr::parse("1/x").unwrap(),
             Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(-1.0)])
         );
-        // TODO See above, we would like to do this, but need the basis to be a simple expression
-        // assert_eq!(Expr::parse("x^2.0"), Expr::Mul(vec![Expr::Var("x".to_string()), Expr::Var("x".to_string())]));
     }
 
     #[test]
