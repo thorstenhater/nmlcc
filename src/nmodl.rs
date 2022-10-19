@@ -270,7 +270,7 @@ impl Nmodl {
         }
 
         fn subs(k: &String) -> String {
-            k.replace("/", "_")
+            k.replace('/', "_")
         }
 
         let symbols = symbols.iter().map(subs).collect();
@@ -299,7 +299,7 @@ impl Nmodl {
             .iter()
             .map(|(k, v)| (subs(k), v.rename(&subs)))
             .collect();
-        let species = species.iter().map(|k| k.replace("/", "_")).collect();
+        let species = species.iter().map(|k| k.replace('/', "_")).collect();
         let transitions = transitions
             .iter()
             .map(|(a, b, c, d)| (subs(a), subs(b), subs(c), subs(d)))
@@ -312,12 +312,12 @@ impl Nmodl {
             .iter()
             .map(|(k, v)| (subs(k), v.rename(&subs)))
             .collect();
-        let states = coll.states.iter().cloned().collect();
+        let states = coll.states.to_vec();
         let fixed = fixed
             .iter()
             .map(|(k, v)| (subs(k), v.rename(&subs)))
             .collect();
-        let keep = keep.iter().map(|k| k.replace("/", "_")).collect();
+        let keep = keep.iter().map(|k| k.replace('/', "_")).collect();
         let conditions = conditions
             .iter()
             .map(|(k, vs)| (subs(k), vs.iter().map(|v| v.rename(&subs)).collect()))
@@ -348,7 +348,7 @@ impl Nmodl {
 
     pub fn add_variables(&mut self, rhs: &Map<String, Stmnt>) {
         fn subs(k: &String) -> String {
-            k.replace("/", "_")
+            k.replace('/', "_")
         }
         for (k, v) in rhs {
             let k = subs(k);
@@ -361,7 +361,7 @@ impl Nmodl {
 
     pub fn add_outputs(&mut self, rhs: &Map<String, Stmnt>) {
         fn subs(k: &String) -> String {
-            k.replace("/", "_")
+            k.replace('/', "_")
         }
         for (k, v) in rhs {
             let k = subs(k);
@@ -373,7 +373,7 @@ impl Nmodl {
     }
     pub fn add_initials(&mut self, rhs: &Map<String, Stmnt>) {
         fn subs(k: &String) -> String {
-            k.replace("/", "_")
+            k.replace('/', "_")
         }
         for (k, v) in rhs {
             let k = subs(k);
