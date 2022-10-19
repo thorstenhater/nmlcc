@@ -735,21 +735,19 @@ fn simplify_mul(es: &[Expr]) -> Expr {
         for ix in 0..result.len() - 1 {
             let (ab, ae) = match &result[ix] {
                 Expr::Pow(ms) => {
-                    if ms.len() == 2 {
-                        (ms[0].clone(), ms[1].clone())
-                    } else {
+                    if ms.len() != 2 {
                         continue;
                     }
+                    (ms[0].clone(), ms[1].clone())
                 }
                 a => (a.clone(), Expr::F64(1.0)),
             };
             let (bb, be) = match &result[ix + 1] {
                 Expr::Pow(ms) => {
-                    if ms.len() == 2 {
-                        (ms[0].clone(), ms[1].clone())
-                    } else {
+                    if ms.len() != 2 {
                         continue;
                     }
+                    (ms[0].clone(), ms[1].clone())
                 }
                 a => (a.clone(), Expr::F64(1.0)),
             };

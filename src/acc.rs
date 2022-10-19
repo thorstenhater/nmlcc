@@ -222,38 +222,9 @@ fn membrane(membrane: &MembraneProperties) -> Result<Vec<Decor>> {
                 if !body.is_empty() {
                     return Err(acc_unimplemented("Non-empty body in MembraneProperties"));
                 }
-                let mut gs = Map::new();
+                let mut gs = simple_ion(&known_ions, &mut result, ion, segmentGroup, erev)?;
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
-                }
-                if known_ions.contains(ion) {
-                    let past = result.iter().find_map(|x| {
-                        if let Decor::Paint(rg, Paintable::Er(i, er)) = x {
-                            if rg == segmentGroup && ion == i {
-                                Some(er)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    });
-                    if let Some(er) = past {
-                        if er != erev {
-                            return Err(nml2_error(format!(
-                                "Overwriting different Er[{}] on {}.",
-                                ion, segmentGroup
-                            )));
-                        }
-                    } else {
-                        result.push(Decor::new(
-                            segmentGroup,
-                            Paintable::Er(ion.to_string(), erev.to_string()),
-                            false,
-                        ));
-                    }
-                } else {
-                    gs.insert(format!("e{}", ion), erev.to_string());
                 }
                 result.push(Decor::new(
                     segmentGroup,
@@ -357,6 +328,39 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
         }
     }
     Ok(result)
+}
+
+fn simple_ion(
+    known_ions: &[String],
+    result: &mut Vec<Decor>,
+    ion: &str,
+    group: &str,
+    erev: &str,
+) -> Result<Map<String, String>> {
+    let mut gs = Map::new();
+    if known_ions.contains(&ion.to_string()) {
+        if result.iter().any(|x| {
+            matches!(x,
+                     Decor::Paint(r, Paintable::Er(i, e))
+                     if r == group && ion == i && e == erev)
+        }) {
+            return Err(nml2_error(format!(
+                "Overwriting different Er[{}] on {}.",
+                ion, group
+            )));
+        }
+        result.push(Decor::new(
+            group,
+            Paintable::Er(ion.to_string(), erev.to_string()),
+            false,
+        ));
+    } else {
+        gs.insert(
+            format!("e{}", if ion == "non_specific" { "" } else { ion }),
+            erev.to_string(),
+        );
+    }
+    Ok(gs)
 }
 
 fn extra(_: &ExtracellularProperties) -> Result<Vec<Decor>> {
