@@ -1,5 +1,5 @@
 use crate::{
-    acc::{self, Paintable, Sexp},
+    acc::{self, Paintable, Sexp, SexpConfig},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
@@ -32,7 +32,7 @@ pub fn export(
     nmodl::export(lems, nml, "-*", &format!("{}/cat", bundle), ions)?;
 
     if use_super_mechs {
-        export_with_super_mechanisms(lems, nml, bundle)?;
+        export_with_super_mechanisms(lems, nml, bundle, cat_prefix)?;
     } else {
         acc::export(lems, nml, &format!("{}/acc", bundle), cat_prefix)?;
     }
@@ -428,7 +428,12 @@ impl Assign {
     }
 }
 
-pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
+pub fn export_with_super_mechanisms(
+    lems: &LemsFile,
+    nml: &[String],
+    bundle: &str,
+    cat_prefix: &str,
+) -> Result<()> {
     use BiophysicalPropertiesBody::*;
     use MembranePropertiesBody::*;
     let mut sms: Map<(String, String), Vec<Assign>> = Map::new();
@@ -494,7 +499,12 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
         }
 
         info!("Writing Super Mechanism ACC to {:?}", &path);
-        write(&path, ass_sm.to_sexp())?;
+        write(
+            &path,
+            ass_sm.to_sexp_with_config(&SexpConfig {
+                cat_prefix: cat_prefix.into(),
+            }),
+        )?;
     }
 
     let mut instances = Vec::new();

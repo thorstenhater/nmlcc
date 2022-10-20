@@ -144,7 +144,7 @@ fn acc_unimplemented(f: &str) -> Error {
 
 #[derive(Clone, Debug, Default)]
 pub struct SexpConfig {
-    cat_prefix: String,
+    pub cat_prefix: String,
 }
 
 impl SexpConfig {
@@ -285,6 +285,11 @@ impl Sexp for Expr {
 }
 
 impl Sexp for Paintable {
+    fn to_sexp(&self) -> String {
+        warn!("nmlcc internal warning: should not call Paintable.to_sexp() without config");
+        self.to_sexp_with_config(&SexpConfig::default())
+    }
+
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         match self {
             Paintable::Xi(i, v) => format!("(ion-internal-concentration \"{}\" {})", i, v),
@@ -357,6 +362,11 @@ impl Decor {
 }
 
 impl Sexp for Decor {
+    fn to_sexp(&self) -> String {
+        warn!("nmlcc internal warning: should not call Decor.to_sexp() without config");
+        self.to_sexp_with_config(&SexpConfig::default())
+    }
+
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         match self {
             Decor::Default(i) => format!("(default {})", i.to_sexp_with_config(config)),
@@ -370,6 +380,11 @@ impl Sexp for Decor {
 }
 
 impl Sexp for Vec<Decor> {
+    fn to_sexp(&self) -> String {
+        warn!("nmlcc internal warning: should not call Vec<Decor>.to_sexp() without config");
+        self.to_sexp_with_config(&SexpConfig::default())
+    }
+
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         let mut result = String::from(
             "(arbor-component
