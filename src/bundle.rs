@@ -24,7 +24,7 @@ pub fn export(
     bundle: &str,
     use_super_mechs: bool,
     ions: &[String],
-    cat_prefix: &str
+    cat_prefix: &str,
 ) -> Result<()> {
     export_template(lems, nml, bundle)?;
 

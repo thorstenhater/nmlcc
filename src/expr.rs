@@ -580,8 +580,11 @@ mod parse {
 
     fn atom(input: &str) -> IResult<&str, Expr> {
         let (input, sign) = opt(delimited(space0, tag("-"), space0))(input)?;
-        let (input, result) =
-            delimited(space0, alt((parenthised, exp, log, sqrt, h, lit, var)), space0)(input)?;
+        let (input, result) = delimited(
+            space0,
+            alt((parenthised, exp, log, sqrt, h, lit, var)),
+            space0,
+        )(input)?;
         if sign.is_some() {
             Ok((input, Expr::Mul(vec![Expr::F64(-1.0), result])))
         } else {

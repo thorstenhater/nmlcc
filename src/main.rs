@@ -62,7 +62,7 @@ enum Cmd {
         super_mechanisms: bool,
         /// Change catalogue prefix.
         /// Set to empty string if mechanisms do not collide with internal mechanisms
-        #[clap(short, long, default_value="local_")]
+        #[clap(short, long, default_value = "local_")]
         cat_prefix: String,
         /// Prefix to put bundle
         dir: String,
@@ -121,10 +121,17 @@ fn main() -> Result<()> {
             nml,
             dir,
             super_mechanisms,
-            cat_prefix
+            cat_prefix,
         } => {
             get_runtime_types(&mut lems, &[nml.clone()])?;
-            bundle::export(&lems, &[nml], &dir, super_mechanisms, &ions[..], &cat_prefix)?;
+            bundle::export(
+                &lems,
+                &[nml],
+                &dir,
+                super_mechanisms,
+                &ions[..],
+                &cat_prefix,
+            )?;
         }
     }
     Ok(())
