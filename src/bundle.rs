@@ -569,7 +569,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);
-        let nmodl = nmodl::mk_nmodl(&n)?;
+        let nmodl = nmodl::mk_nmodl(n)?;
 
         let path = format!("{}/cat/{}_{}.mod", bundle, id, reg);
         info!(

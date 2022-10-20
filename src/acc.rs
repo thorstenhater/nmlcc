@@ -212,11 +212,17 @@ impl Paintable {
             Paintable::Em(i, m) if m == "nernst" => Paintable::Em(i.clone(), m.clone()),
             Paintable::Em(i, m) => Paintable::Em(i.clone(), norm(m)?),
             Paintable::Mech(m, ps) => {
-                let ps = ps.iter().map(|(k, v)| norm(v).map(|v| (k.to_string(), v))).collect::<Result<_>>()?;
+                let ps = ps
+                    .iter()
+                    .map(|(k, v)| norm(v).map(|v| (k.to_string(), v)))
+                    .collect::<Result<_>>()?;
                 Paintable::Mech(m.clone(), ps)
             }
             Paintable::NonUniformMech { name: m, ps, ns } => {
-                let ps = ps.iter().map(|(k, v)| norm(v).map(|v| (k.to_string(), v))).collect::<Result<_>>()?;
+                let ps = ps
+                    .iter()
+                    .map(|(k, v)| norm(v).map(|v| (k.to_string(), v)))
+                    .collect::<Result<_>>()?;
                 let mut ns = ns.clone();
                 for v in ns.values_mut() {
                     let metric = if v.param.subtract_the_minimum {
@@ -237,7 +243,11 @@ impl Paintable {
                         value: as_sexpr,
                     };
                 }
-                Paintable::NonUniformMech { name: m.clone(), ps, ns }
+                Paintable::NonUniformMech {
+                    name: m.clone(),
+                    ps,
+                    ns,
+                }
             }
         };
         Ok(r)
@@ -507,7 +517,11 @@ fn membrane(
                 }
                 result.push(Decor::new(
                     segmentGroup,
-                    Paintable::NonUniformMech { name: ionChannel.to_string(), ps: gs, ns } ,
+                    Paintable::NonUniformMech {
+                        name: ionChannel.to_string(),
+                        ps: gs,
+                        ns,
+                    },
                     true,
                 ));
             }
@@ -566,7 +580,11 @@ fn membrane(
                 ));
                 result.push(Decor::new(
                     segmentGroup,
-                    Paintable::NonUniformMech { name: ionChannel.to_string(), ps: Map::new(), ns },
+                    Paintable::NonUniformMech {
+                        name: ionChannel.to_string(),
+                        ps: Map::new(),
+                        ns,
+                    },
                     true,
                 ));
             }

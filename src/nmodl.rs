@@ -373,9 +373,63 @@ impl Nmodl {
         }
         simplify(&mut self.init, &mut self.fixed, &self.keep);
     }
+
+    pub fn simplify(self) -> Self {
+        // for efficiency, consume self
+        Nmodl {
+            known_ions: self.known_ions,
+            kind: self.kind,
+            suffix: self.suffix,
+            symbols: self.symbols,
+            constants: self.constants,
+            parameters: self.parameters,
+            state: self.state,
+            init: self
+                .init
+                .iter()
+                .map(|(k, v)| (k.into(), v.simplify()))
+                .collect(),
+            deriv: self
+                .deriv
+                .iter()
+                .map(|(k, v)| (k.into(), v.simplify()))
+                .collect(),
+            outputs: self
+                .outputs
+                .iter()
+                .map(|(k, v)| (k.into(), v.simplify()))
+                .collect(),
+            variables: self
+                .variables
+                .iter()
+                .map(|(k, v)| (k.into(), v.simplify()))
+                .collect(),
+            species: self.species,
+            transitions: self.transitions,
+            events: self
+                .events
+                .iter()
+                .map(|(k, v)| (k.into(), v.simplify()))
+                .collect(),
+            rates: self
+                .rates
+                .iter()
+                .map(|(k, v)| (k.into(), v.simplify()))
+                .collect(),
+            states: self.states,
+            fixed: self.fixed,
+            keep: self.keep,
+            conditions: self
+                .conditions
+                .iter()
+                .map(|(k, vs)| (k.into(), vs.iter().map(|v| v.simplify()).collect()))
+                .collect(),
+        }
+    }
 }
 
-pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
+pub fn mk_nmodl(n: Nmodl) -> Result<String> {
+    let n = &n.simplify();
     Ok(vec![
         nmodl_neuron_block(n)?,
         nmodl_const_block(n)?,
@@ -415,7 +469,7 @@ fn nmodl_init_block(n: &Nmodl) -> Result<String> {
     let init = n
         .init
         .values()
-        .map(|s| s.simplify().print_to_string(2))
+        .map(|s| s.print_to_string(2))
         .collect::<Vec<String>>()
         .join("\n");
     let mut result = vec![
@@ -513,7 +567,7 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
     let currents = n
         .outputs
         .values()
-        .map(|s| s.simplify().print_to_string(2))
+        .map(|s| s.print_to_string(2))
         .collect::<Vec<String>>()
         .join("\n");
     let deps = print_dependency_chains(&roots, &vars, &n.symbols)?;
@@ -873,7 +927,7 @@ pub fn to_nmodl(
                     return Err(nmodl_error("Gap Junction without defined current 'i'"));
                 }
                 n.kind = Kind::Junction;
-                mk_nmodl(&n)
+                mk_nmodl(n)
             } else {
                 let filter = filter.to_string();
                 let instance = instance.clone();
@@ -886,7 +940,7 @@ pub fn to_nmodl(
                     return Err(nmodl_error("Synapse without defined current 'i'"));
                 }
                 n.kind = Kind::Point;
-                mk_nmodl(&n)
+                mk_nmodl(n)
             }
         }
         "baseIonChannel" => {
@@ -924,7 +978,7 @@ pub fn to_nmodl(
                 n.variables.insert(ki, xi);
             }
             n.kind = Kind::Density;
-            mk_nmodl(&n)
+            mk_nmodl(n)
         }
         "concentrationModel" => {
             let mut filter = filter.to_string();
@@ -1017,7 +1071,7 @@ pub fn to_nmodl(
             if n.state.remove(ec) {
                 n.state.insert(xo.clone());
             }
-            mk_nmodl(&n)
+            mk_nmodl(n)
         }
         _ => Err(nmodl_error(format!(
             "Type {} deriving an expected base {}",
