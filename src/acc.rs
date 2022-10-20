@@ -50,66 +50,67 @@ fn parse_inhomogeneous_parameters(
     cell: &roxmltree::Node<'_, '_>,
 ) -> Result<Map<String, ParsedInhomogeneousParameter>> {
     let mut inhomogeneous_parameters = Map::new();
-    for m in cell.descendants() {
-        if m.tag_name().name() != "morphology" {
-            continue;
-        }
-        for ihp in m
-            .descendants()
-            .filter(|n| n.has_tag_name("inhomogeneousParameter"))
-        {
-            if let Some(segmentGroup) = ihp.parent().and_then(|p| p.attribute("id")) {
-                use crate::neuroml::raw::InhomogeneousParameterBody::*;
-                use crate::neuroml::raw::{DistalDetails, ProximalDetails};
-                let ihp: InhomogeneousParameter = XML::from_node(&ihp);
-                if ihp.metric != "Path Length from root" {
-                    return Err(nml2_error!(
-                        "Only path length from root is supported as inhomogeneous parameter metric"
-                    ));
-                }
-                let mut subtract_the_minimum = false;
-                let mut normalize_end = false;
-                for elem in ihp.body {
-                    match elem {
-                        proximal(ProximalDetails { translationStart }) => {
-                            if translationStart == 0.0 {
-                                subtract_the_minimum = true;
-                            } else {
-                                return Err(acc_unimplemented(
-                                    "Proximal translationStart must be 0 in InhomogeneousParameter",
-                                ));
-                            }
+    let m = cell
+        .children()
+        .find(|n| n.has_tag_name("morphology"))
+        .ok_or(nml2_error!("no morphology tag"))?;
+    for ihp in m
+        .children()
+        .filter(|n| n.has_tag_name("segmentGroup"))
+        .flat_map(|n| n.children())
+        .filter(|n| n.has_tag_name("inhomogeneousParameter"))
+    {
+        if let Some(segmentGroup) = ihp.parent().and_then(|p| p.attribute("id")) {
+            use crate::neuroml::raw::InhomogeneousParameterBody::*;
+            use crate::neuroml::raw::{DistalDetails, ProximalDetails};
+            let ihp: InhomogeneousParameter = XML::from_node(&ihp);
+            if ihp.metric != "Path Length from root" {
+                return Err(nml2_error!(
+                    "Only path length from root is supported as inhomogeneous parameter metric"
+                ));
+            }
+            let mut subtract_the_minimum = false;
+            let mut normalize_end = false;
+            for elem in ihp.body {
+                match elem {
+                    proximal(ProximalDetails { translationStart }) => {
+                        if translationStart == 0.0 {
+                            subtract_the_minimum = true;
+                        } else {
+                            return Err(acc_unimplemented(
+                                "Proximal translationStart must be 0 in InhomogeneousParameter",
+                            ));
                         }
-                        distal(DistalDetails { normalizationEnd }) => {
-                            if normalizationEnd == 1.0 {
-                                normalize_end = true;
-                            } else {
-                                return Err(acc_unimplemented(
-                                    "Distal normalizeEnd must be 1 in InhomogeneousParameter",
-                                ));
-                            }
+                    }
+                    distal(DistalDetails { normalizationEnd }) => {
+                        if normalizationEnd == 1.0 {
+                            normalize_end = true;
+                        } else {
+                            return Err(acc_unimplemented(
+                                "Distal normalizeEnd must be 1 in InhomogeneousParameter",
+                            ));
                         }
                     }
                 }
-                if normalize_end {
-                    return Err(acc_unimplemented(
-                        "Endpoint normalization for inhomogeneous parameters is not yet supported",
-                    ));
-                }
-                inhomogeneous_parameters.insert(
-                    ihp.id,
-                    ParsedInhomogeneousParameter {
-                        variable: ihp.variable,
-                        region: segmentGroup.to_string(),
-                        subtract_the_minimum,
-                        normalize_end,
-                    },
-                );
-            } else {
+            }
+            if normalize_end {
                 return Err(acc_unimplemented(
-                    "inhomogeneousParameter definition must be inside segmentGroup group with id",
+                    "Endpoint normalization for inhomogeneous parameters is not yet supported",
                 ));
             }
+            inhomogeneous_parameters.insert(
+                ihp.id,
+                ParsedInhomogeneousParameter {
+                    variable: ihp.variable,
+                    region: segmentGroup.to_string(),
+                    subtract_the_minimum,
+                    normalize_end,
+                },
+            );
+        } else {
+            return Err(acc_unimplemented(
+                "inhomogeneousParameter definition must be inside segmentGroup group with id",
+            ));
         }
     }
     Ok(inhomogeneous_parameters)
