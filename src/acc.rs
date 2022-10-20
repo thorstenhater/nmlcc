@@ -188,11 +188,11 @@ pub enum Paintable {
     Er(String, String),
     Em(String, String),
     Mech(String, Map<String, String>),
-    NonUniformMech(
-        String,
-        Map<String, String>,
-        Map<String, MechVariableParameter>,
-    ),
+    NonUniformMech {
+        name: String,
+        ps: Map<String, String>,
+        ns: Map<String, MechVariableParameter>,
+    },
 }
 
 impl Paintable {
@@ -212,17 +212,11 @@ impl Paintable {
             Paintable::Em(i, m) if m == "nernst" => Paintable::Em(i.clone(), m.clone()),
             Paintable::Em(i, m) => Paintable::Em(i.clone(), norm(m)?),
             Paintable::Mech(m, ps) => {
-                let mut ps = ps.clone();
-                for v in ps.values_mut() {
-                    *v = norm(v)?;
-                }
+                let ps = ps.iter().map(|(k, v)| norm(v).map(|v| (k.to_string(), v))).collect::<Result<_>>()?;
                 Paintable::Mech(m.clone(), ps)
             }
-            Paintable::NonUniformMech(m, ps, ns) => {
-                let mut ps = ps.clone();
-                for v in ps.values_mut() {
-                    *v = norm(v)?;
-                }
+            Paintable::NonUniformMech { name: m, ps, ns } => {
+                let ps = ps.iter().map(|(k, v)| norm(v).map(|v| (k.to_string(), v))).collect::<Result<_>>()?;
                 let mut ns = ns.clone();
                 for v in ns.values_mut() {
                     let metric = if v.param.subtract_the_minimum {
@@ -243,7 +237,7 @@ impl Paintable {
                         value: as_sexpr,
                     };
                 }
-                Paintable::NonUniformMech(m.clone(), ps, ns)
+                Paintable::NonUniformMech { name: m.clone(), ps, ns }
             }
         };
         Ok(r)
@@ -302,12 +296,12 @@ impl Sexp for Paintable {
                 result.push(')');
                 result
             }
-            Paintable::NonUniformMech(m, gs, ns) => {
+            Paintable::NonUniformMech { name: m, ps, ns } => {
                 let mut result = format!(
                     "(scaled-mechanism (density (mechanism \"{}\"",
                     config.add_prefix(m)
                 );
-                for (k, v) in gs.iter() {
+                for (k, v) in ps.iter() {
                     let x = format!(" (\"{}\" {})", k, v);
                     result.push_str(&x);
                 }
@@ -513,7 +507,7 @@ fn membrane(
                 }
                 result.push(Decor::new(
                     segmentGroup,
-                    Paintable::NonUniformMech(ionChannel.to_string(), gs, ns),
+                    Paintable::NonUniformMech { name: ionChannel.to_string(), ps: gs, ns } ,
                     true,
                 ));
             }
@@ -572,7 +566,7 @@ fn membrane(
                 ));
                 result.push(Decor::new(
                     segmentGroup,
-                    Paintable::NonUniformMech(ionChannel.to_string(), Map::new(), ns),
+                    Paintable::NonUniformMech { name: ionChannel.to_string(), ps: Map::new(), ns },
                     true,
                 ));
             }
