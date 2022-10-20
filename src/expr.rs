@@ -56,11 +56,11 @@ impl Expr {
 
     pub fn rename(&self, f: &impl Fn(&String) -> String) -> Self {
         let fun = |v: &Expr| -> Expr {
-          if let Expr::Var(s) = v {
-              Expr::Var(f(s))
-          } else {
-              v.clone()
-          }
+            if let Expr::Var(s) = v {
+                Expr::Var(f(s))
+            } else {
+                v.clone()
+            }
         };
         self.map(&fun)
     }
@@ -113,14 +113,19 @@ impl Expr {
                 })
                 .collect::<Vec<_>>()
                 .join(" * "),
-            Expr::Pow(xs) => xs
-                .iter()
-                .map(|x| match x {
-                    Expr::Add(_) | Expr::Mul(_) => format!("({})", x.print_to_string()),
-                    _ => x.print_to_string(),
-                })
-                .collect::<Vec<_>>()
-                .join("^"),
+            Expr::Pow(xs) => match &xs[..] {
+                [Expr::Var(x), Expr::F64(k)] if *k >= 0.0 && k.fract() < f64::EPSILON => {
+                    vec![x.clone(); *k as usize].join(" * ")
+                }
+                _ => xs
+                    .iter()
+                    .map(|x| match x {
+                        Expr::Add(_) | Expr::Mul(_) => format!("({})", x.print_to_string()),
+                        _ => x.print_to_string(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("^"),
+            },
             Expr::ProximalDistanceFromRegion(_) => {
                 panic!("ProximalDistanceFromRegion can not be constructed in xml")
             }
@@ -258,7 +263,11 @@ impl Stmnt {
             Stmnt::Ass(s, e) => Stmnt::Ass(f(s), e.rename(f)),
             Stmnt::Ift(c, t, e) => {
                 if let Some(e) = e.as_ref() {
-                    Stmnt::Ift(c.rename(f), Box::new(t.rename(f)), Box::new(Some(e.rename(f))))
+                    Stmnt::Ift(
+                        c.rename(f),
+                        Box::new(t.rename(f)),
+                        Box::new(Some(e.rename(f))),
+                    )
                 } else {
                     Stmnt::Ift(c.rename(f), Box::new(t.rename(f)), Box::new(None))
                 }
@@ -362,11 +371,11 @@ impl Boolean {
 
     pub fn rename(&self, f: &impl Fn(&String) -> String) -> Self {
         let fun = |v: &Expr| -> Expr {
-          if let Expr::Var(s) = v {
-              Expr::Var(f(s))
-          } else {
-              v.clone()
-          }
+            if let Expr::Var(s) = v {
+                Expr::Var(f(s))
+            } else {
+                v.clone()
+            }
         };
         self.map(&fun)
     }
@@ -711,9 +720,6 @@ fn simplify_pow(es: &[Expr]) -> Expr {
     match &result[..] {
         [] => Expr::F64(1.0),
         [e] => e.clone(),
-        [x @ Expr::Var(_), Expr::F64(v)] if *v > 0.0 && v.fract() == 0.0 && *v < 10.0 => {
-            Expr::Mul(vec![x.clone(); *v as usize])
-        }
         // [x, Expr::F64(v)] if *v < 0.0 && v.fract() == 0.0 => Expr::Pow(vec![Expr::Mul(vec![x.clone(); (-*v) as usize]), Expr::F64(-1.0)]),
         [xs @ .., Expr::F64(x), Expr::F64(y)] => {
             let mut res = xs.to_vec();
@@ -732,30 +738,67 @@ fn simplify_mul(es: &[Expr]) -> Expr {
         match e.simplify() {
             Expr::F64(z) => lit *= z,
             Expr::Mul(zs) => todo.extend(zs),
-            k => result.push(k),
+            e @ Expr::Pow(_) => result.push(e),
+            e => result.push(Expr::Pow(vec![e, Expr::F64(1.0)])),
         }
     }
     if lit == 0.0 {
         return Expr::F64(0.0);
     }
-    if (lit - 1.0).abs() > f64::EPSILON {
-        result.push(Expr::F64(lit));
-    }
     result.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let mut i = 0;
-    while result.len() > 0 && i < result.len() - 1 {
-        if let (Expr::Var(a), Expr::Pow(pow_args)) = (
-            &result[i], &result[i+1]) {
-            if let [Expr::Var(b), Expr::F64(pow_num)] = pow_args.as_slice() {
-                if a == b && *pow_num == -1.0 {
-                    result.remove(i);
-                    result.remove(i);
+    // Now we have these terms left
+    // * at most one literal
+    // * ex^k
+    // * ex
+    while result.len() > 1 {
+        let old = result.clone();
+        for ix in 0..result.len() - 1 {
+            let (ab, ae) = match &result[ix] {
+                Expr::Pow(ms) => {
+                    if ms.len() == 2 {
+                        (ms[0].clone(), ms[1].clone())
+                    } else {
+                        continue;
+                    }
                 }
+                a => (a.clone(), Expr::F64(1.0)),
+            };
+            let (bb, be) = match &result[ix + 1] {
+                Expr::Pow(ms) => {
+                    if ms.len() == 2 {
+                        (ms[0].clone(), ms[1].clone())
+                    } else {
+                        continue;
+                    }
+                }
+                a => (a.clone(), Expr::F64(1.0)),
+            };
+            if ab != bb {
+                continue;
+            }
+            // Here, ab == bb, thus we can contract ab^ae * ab^be = ab^(ae + be)
+            let res = Expr::Pow(vec![ab, Expr::Add(vec![ae, be]).simplify()]);
+            // Now, we can remove the two contracted terms and replace them
+            result.remove(ix);
+            result.remove(ix);
+            result.insert(ix, res);
+            break;
+        }
+        if result == old {
+            break;
+        }
+    }
+    for ex in result.iter_mut() {
+        if let Expr::Pow(es) = ex {
+            if es.len() == 2 && es[1] == Expr::F64(1.0) {
+                *ex = es[0].clone();
             }
         }
-        i += 1;
     }
-
+    result.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    if (lit - 1.0).abs() > f64::EPSILON {
+        result.insert(0, Expr::F64(lit));
+    }
     match &result[..] {
         [] => Expr::F64(1.0),
         [x] => x.clone(),
@@ -899,6 +942,19 @@ mod test {
     }
 
     #[test]
+    fn test_pow_contraction() {
+        assert_eq!(Expr::parse("a^-2 * a ^2").unwrap(), Expr::F64(1.0));
+        assert_eq!(
+            Expr::parse("a^-2 * k * a ^2").unwrap(),
+            Expr::Var("k".to_string())
+        );
+        assert_eq!(
+            Expr::parse("a * a^-2 * k * a ").unwrap(),
+            Expr::Var("k".to_string())
+        );
+    }
+
+    #[test]
     fn test_pow() {
         assert_eq!(
             Expr::parse("2^3^4").unwrap(),
@@ -922,8 +978,6 @@ mod test {
             Expr::parse("1/x").unwrap(),
             Expr::Pow(vec![Expr::Var("x".to_string()), Expr::F64(-1.0)])
         );
-        // TODO See above, we would like to do this, but need the basis to be a simple expression
-        // assert_eq!(Expr::parse("x^2.0"), Expr::Mul(vec![Expr::Var("x".to_string()), Expr::Var("x".to_string())]));
     }
 
     #[test]
