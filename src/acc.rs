@@ -112,7 +112,7 @@ fn parse_inhomogeneous_parameters(
             }
         }
     }
-    return Ok(inhomogeneous_parameters);
+    Ok(inhomogeneous_parameters)
 }
 
 pub fn export(lems: &LemsFile, nml: &[String], pfx: &str, cat_prefix: &str) -> Result<()> {
@@ -252,7 +252,7 @@ impl Paintable {
 
 impl Sexp for Expr {
     fn to_sexp_with_config(&self, _: &SexpConfig) -> String {
-        fn op_to_sexp(op: &str, args: &Vec<Expr>) -> String {
+        fn op_to_sexp(op: &str, args: &[Expr]) -> String {
             format!(
                 "({op} {})",
                 args.iter()
@@ -263,7 +263,7 @@ impl Sexp for Expr {
         }
         match self {
             Expr::F64(x) => format!("{x}"),
-            Expr::Var(x) => format!("{x}"),
+            Expr::Var(x) => x.to_string(),
             Expr::Add(x) => op_to_sexp("add", x),
             Expr::Mul(x) => op_to_sexp("mul", x),
             Expr::Pow(x) => op_to_sexp("pow", x),
@@ -274,7 +274,7 @@ impl Sexp for Expr {
             Expr::ProximalDistanceFromRegion(region) => {
                 format!("(proximal-distance (region \"{}\"))", region)
             }
-            Expr::DistanceFromRoot() => format!("(distance (root))"),
+            Expr::DistanceFromRoot() => "(distance (root))".to_string(),
         }
     }
 }
