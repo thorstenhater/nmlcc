@@ -45,6 +45,7 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
     Ok(cells)
 }
 
+#[allow(non_snake_case)] // xml..
 fn parse_inhomogeneous_parameters(
     cell: &roxmltree::Node<'_, '_>,
 ) -> Result<Map<String, ParsedInhomogeneousParameter>> {
@@ -164,11 +165,11 @@ pub trait Sexp {
 
 #[derive(Clone, Debug)]
 pub struct ParsedInhomogeneousParameter {
-    // param: String, // PathLengthOverApicDends
     variable: String,           // p
     region: String,             // apicalDends
     subtract_the_minimum: bool, // proximal root or region minimum
-    normalize_end: bool,        // most distal distance 1 or um
+    #[allow(dead_code)]
+    normalize_end: bool, // most distal distance 1 or um (not supported yet)
 }
 
 #[derive(Clone, Debug)]
@@ -401,6 +402,7 @@ pub fn biophys(
     Ok(decor)
 }
 
+#[allow(non_snake_case)] // xml..
 fn membrane(
     membrane: &MembraneProperties,
     inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
@@ -666,7 +668,7 @@ fn simple_ion(
     if known_ions.contains(&ion.to_string()) {
         match result
             .iter()
-            .find(|x| matches!(x, Decor::Paint(r, Paintable::Er(i, e)) if r == group && ion == i))
+            .find(|x| matches!(x, Decor::Paint(r, Paintable::Er(i, _e)) if r == group && ion == i))
         {
             None => {
                 result.push(Decor::new(
