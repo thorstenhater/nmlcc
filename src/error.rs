@@ -28,6 +28,9 @@ pub enum Error {
     Parse { what: String },
 }
 
-pub fn nml2_error<T: Into<String>>(what: T) -> Error {
-    Error::Nml { what: what.into() }
+#[macro_export]
+macro_rules! nml2_error {
+    ($($arg:tt)*) => {{
+        Error::Nml { what: format!($($arg)*) }
+    }};
 }

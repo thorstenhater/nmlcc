@@ -2,9 +2,9 @@ use roxmltree::Node;
 use tracing::{info, trace, warn};
 
 use crate::{
-    error::{nml2_error, Result},
+    error::{Error, Result},
     expr::{Boolean, Expr, Match, Quantity, Select},
-    lems,
+    lems, nml2_error,
     variable::{SelectBy, VarKind, Variable},
     Map, Set,
 };
@@ -94,10 +94,12 @@ impl Instance {
                 attributes.insert(key, val.to_string());
             } else if "id" == key || "type" == key {
             } else {
-                return Err(nml2_error(format!(
+                return Err(nml2_error!(
                     "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
-                    key, val, node
-                )));
+                    key,
+                    val,
+                    node
+                ));
             }
         }
         let id = xml.attribute("id").map(|s| s.to_string());
@@ -249,7 +251,7 @@ impl Collapsed {
                 for q in qs {
                     match q {
                         Path::Up => {
-                            qfx.pop().ok_or_else(|| nml2_error("Invalid path"))?;
+                            qfx.pop().ok_or_else(|| nml2_error!("Invalid path"))?;
                         }
                         Path::Fixed(s) => qfx.push(s.clone()),
                         Path::When(s, _) => qfx.push(s.clone()),
@@ -391,10 +393,11 @@ impl Collapsed {
                         if let [ref n] = ms[..] {
                             n.clone()
                         } else {
-                            return Err(nml2_error(format!(
+                            return Err(nml2_error!(
                                 "Required field is not found for {:?} in {:?}",
-                                ps, result.exposures
-                            )));
+                                ps,
+                                result.exposures
+                            ));
                         }
                     }
                     SelectBy::Product => {
@@ -679,13 +682,13 @@ fn lems_dynamics(
                         Some("add") => SelectBy::Sum,
                         Some("multiply") => SelectBy::Product,
                         None => SelectBy::Get,
-                        Some(x) => return Err(nml2_error(format!("Unknown reduction {}", x))),
+                        Some(x) => return Err(nml2_error!("Unknown reduction {}", x)),
                     };
                     VarKind::Select(by, Match::parse(s)?)
                 } else if let Some(e) = v.value.as_ref() {
                     VarKind::Derived(Vec::new(), Some(Expr::parse(e)?))
                 } else {
-                    return Err(nml2_error(format!("Illegal DerivedVar: {}", v.name)));
+                    return Err(nml2_error!("Illegal DerivedVar: {}", v.name));
                 };
                 variables.push(Variable::new(&v.name, &v.exposure, &v.dimension, &kind));
             }
@@ -724,7 +727,7 @@ fn lems_dynamics(
                     {
                         *i = Some(Expr::parse(&a.value)?);
                     } else {
-                        return Err(nml2_error(format!("Must be a StateVar: {}", a.variable)));
+                        return Err(nml2_error!("Must be a StateVar: {}", a.variable));
                     }
                 }
             }
@@ -741,10 +744,7 @@ fn lems_dynamics(
                             {
                                 events.push((a.variable.to_string(), Expr::parse(&a.value)?));
                             } else {
-                                return Err(nml2_error(format!(
-                                    "Must be a StateVar: {}",
-                                    a.variable
-                                )));
+                                return Err(nml2_error!("Must be a StateVar: {}", a.variable));
                             }
                         }
                         b => trace!("Ignoring {:?}", b),
@@ -768,10 +768,7 @@ fn lems_dynamics(
                                     Expr::parse(&a.value)?,
                                 ));
                             } else {
-                                return Err(nml2_error(format!(
-                                    "Must be a StateVar: {}",
-                                    a.variable
-                                )));
+                                return Err(nml2_error!("Must be a StateVar: {}", a.variable));
                             }
                         }
                         b => trace!("Ignoring {:?}", b),
@@ -787,7 +784,7 @@ fn lems_dynamics(
                 {
                     *d = Some(Expr::parse(&v.value)?);
                 } else {
-                    return Err(nml2_error(format!("Must be a StateVar: {}", v.variable)));
+                    return Err(nml2_error!("Must be a StateVar: {}", v.variable));
                 }
             }
             KineticScheme(k) => kinetic.push(Kinetic::new(k)?),

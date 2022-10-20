@@ -1,5 +1,5 @@
 use crate::{
-    error::{nml2_error, Error, Result},
+    error::{Error, Result},
     expr::Quantity,
     lems::file::LemsFile,
     neuroml::{
@@ -13,6 +13,7 @@ use crate::{
             Species, SpecificCapacitance,
         },
     },
+    nml2_error,
     xml::XML,
     Map,
     expr::Expr
@@ -57,7 +58,7 @@ fn parse_inhomogeneous_parameters(cell: &roxmltree::Node<'_, '_>) -> Result<Map<
                 use crate::neuroml::raw::InhomogeneousParameterBody::*;
                 let ihp: InhomogeneousParameter = XML::from_node(&ihp);
                 if ihp.metric != "Path Length from root" {
-                    return Err(nml2_error("Only path length from root is supported as inhomogeneous parameter metric"));
+                    return Err(nml2_error!("Only path length from root is supported as inhomogeneous parameter metric"));
                 }
                 let mut subtract_the_minimum = false;
                 let mut normalize_end = false;
@@ -358,39 +359,6 @@ pub fn biophys(prop: &BiophysicalProperties, lems: &LemsFile, inhomogeneous_para
 fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>) -> Result<Vec<Decor>> {
     let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
 
-    fn handle_ion_simple(known_ions: &Vec<String>, result: &mut Vec<Decor>, gs: &mut Map<String, String>, ion: &str, segmentGroup: &str, erev: &str) -> Result<()> {
-        if known_ions.contains(&ion.to_string()) {
-            let past = result.iter().find_map(|x| {
-                if let Decor::Paint(rg, Paintable::Er(i, er)) = x {
-                    if rg == segmentGroup && ion == i {
-                        Some(er)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            });
-            if let Some(er) = past {
-                if er != erev {
-                    return Err(nml2_error(format!(
-                        "Overwriting different Er[{}] on {}.",
-                        ion, segmentGroup
-                    )));
-                }
-            } else {
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::Er(ion.to_string(), erev.to_string()),
-                    false,
-                ));
-            }
-        } else {
-            gs.insert(format!("e{}", if ion == "non_specific" { "" } else { ion }), erev.to_string());
-        }
-        Ok(())
-    }
-
     use MembranePropertiesBody::*;
     let mut result = Vec::new();
     for item in &membrane.body {
@@ -407,11 +375,10 @@ fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String
                 if !body.is_empty() {
                     return Err(acc_unimplemented("Non-empty body in MembraneProperties"));
                 }
-                let mut gs = Map::new();
+                let mut gs = simple_ion(&known_ions, &mut result, ion, segmentGroup, erev)?;
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
                 }
-                handle_ion_simple(&known_ions, &mut result, &mut gs, ion, segmentGroup, erev)?;
                 result.push(Decor::new(
                     segmentGroup,
                     Paintable::Mech(ionChannel.to_string(), gs),
@@ -470,14 +437,13 @@ fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String
                         return Err(acc_unimplemented("InhomogeneousValue must contain a single InhomogeneousParameter"));
                     }
                 };
-                let mut gs = Map::new();
+                let gs = simple_ion(&known_ions, &mut result, ion, segmentGroup, erev)?;
                 let mut ns = Map::new();
-                handle_ion_simple(&known_ions, &mut result, &mut gs, ion, segmentGroup, erev)?;
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
                     ns.insert(if param == "condDensity" { String::from("conductance") } else { param.to_string() },
                         MechVariableParameter { param: ihv.clone(), value: value.to_string() } );
                 } else {
-                    return Err(nml2_error(format!("Inhomogeneous parameter definition {ihv} not found")))
+                    return Err(nml2_error!("Inhomogeneous parameter definition {ihv} not found"))
                 }
                 result.push(Decor::new(
                     segmentGroup,
@@ -514,7 +480,7 @@ fn membrane(membrane: &MembraneProperties, inhomogeneous_parameters: &Map<String
                     ns.insert(if param == "condDensity" { String::from("conductance") } else { param.to_string() },
                         MechVariableParameter { param: ihv.clone(), value: value.to_string() } );
                 } else {
-                    return Err(nml2_error(format!("Inhomogeneous parameter definition {ihv} not found")))
+                    return Err(nml2_error!("Inhomogeneous parameter definition {ihv} not found"))
                 }
                 result.push(Decor::new(
                     "",
@@ -604,9 +570,66 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
     Ok(result)
 }
 
+fn simple_ion(
+    known_ions: &[String],
+    result: &mut Vec<Decor>,
+    ion: &str,
+    group: &str,
+    erev: &str,
+) -> Result<Map<String, String>> {
+    let mut gs = Map::new();
+    if known_ions.contains(&ion.to_string()) {
+        match result.iter().find(|x| {
+            matches!(x, Decor::Paint(r, Paintable::Er(i, e)) if r == group && ion == i)
+        }) {
+            None => {
+                result.push(Decor::new(
+                    group,
+                    Paintable::Er(ion.to_string(), erev.to_string()),
+                    false,
+                ));
+            }
+            Some(Decor::Paint(_, Paintable::Er(_, e))) if e == erev => {
+                // do nothing
+            }
+            Some(Decor::Paint(_, Paintable::Er(_, e))) if e != erev => {
+                return Err(nml2_error!(
+                    "Overwriting different Er[{}] on {} erev {}.",
+                    ion,
+                    group,
+                    erev
+                ));
+            }
+            Some(_) => { unreachable!() }
+        }
+    } else {
+        gs.insert(
+            format!("e{}", if ion == "non_specific" { "" } else { ion }),
+            erev.to_string(),
+        );
+    }
+    Ok(gs)
+}
+
 fn extra(_: &ExtracellularProperties) -> Result<Vec<Decor>> {
     warn!("Not handling extracellular settings, if required please file an issue.");
     Ok(Vec::new())
 }
 
 
+#[test]
+fn test_simple_ion() {
+    let known_ions = ["k".to_string()];
+    let mut result = Vec::new();
+    assert!(simple_ion(&known_ions, &mut result, "k", "soma", "-80").is_ok());
+    assert!(result.len() == 1);
+    assert!(simple_ion(&known_ions, &mut result, "k", "soma", "-80").is_ok());
+    assert!(result.len() == 1);
+    assert!(simple_ion(&known_ions, &mut result, "k", "soma", "-90").is_err());
+    assert!(result.len() == 1);
+    assert!(simple_ion(&known_ions, &mut result, "k", "dend", "-90").is_ok());
+    assert!(result.len() == 2);
+    assert!(simple_ion(&known_ions, &mut result, "na", "soma", "-90"
+                       ).and_then(|gs| if gs.len() == 1 { Ok(()) }else { Err(nml2_error!("non_specific")) }).is_ok());
+    assert!(result.len() == 2);
+}
