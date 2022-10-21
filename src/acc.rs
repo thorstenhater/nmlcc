@@ -32,7 +32,6 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
                 let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
                 for bpp in node.children() {
                     if bpp.tag_name().name() == "biophysicalProperties" {
-                        let prop: BiophysicalProperties = XML::from_node(&bpp);
                         result.append(&mut biophys(
                             &XML::from_node(&bpp),
                             lems,
