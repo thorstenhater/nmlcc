@@ -500,7 +500,7 @@ fn nmodl_deriv_block(n: &Nmodl) -> Result<String> {
         .variables
         .iter()
         .chain(n.deriv.iter())
-        .map(|(a, b)| (a.clone(), b.simplify()))
+        .map(|(a, b)| (a.clone(), b.clone()))
         .collect::<Map<String, Stmnt>>();
     let mut result = String::from("DERIVATIVE dstate {\n");
     let ls = print_dependency_chains(&roots, &vars, &n.symbols)?;
