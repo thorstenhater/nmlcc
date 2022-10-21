@@ -431,7 +431,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
             let id = node.attribute("id").ok_or(Error::Nml {
                 what: "Cell without id".to_string(),
             })?;
-            for bpp in node.descendants() {
+            for bpp in node.children() {
                 if bpp.tag_name().name() == "biophysicalProperties" {
                     let prop: BiophysicalProperties = XML::from_node(&bpp);
                     for item in &prop.body {
@@ -483,7 +483,6 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                 _ => ass_sm.push(d),
             }
         }
-
         info!("Writing Super Mechanism ACC to {path:?}");
         write(&path, ass_sm.to_sexp())?;
     }
@@ -513,13 +512,8 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                         .parameters
                         .push(String::from("conductance"));
                     inst.parameters.insert(String::from("conductance"), g);
-                    if ion.is_empty() || !known_ions.contains(&ion) {
-                        inst.parameters.insert(String::from("e"), e);
-                        inst.component_type.parameters.push(String::from("e"));
-                    } else {
-                        inst.parameters.insert(format!("e{ion}"), e);
-                        inst.component_type.parameters.push(format!("e{ion}"));
-                    }
+                    inst.parameters.insert(format!("e{ion}"), e);
+                    inst.component_type.parameters.push(format!("e{ion}"));
                     ions.entry(ion.clone()).or_default().push(m.clone());
                     coll.add(&inst, &Context::default(), None)?;
                 }
@@ -559,6 +553,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                     .map(|m| format!("{m}_conductance*(v - {m}_e{ion})"))
                     .collect::<Vec<_>>()
                     .join(" + ");
+                eprintln!("{i:?}");
                 let ix = Stmnt::Ass(format!("i{ion}"), Expr::parse(&i)?);
                 outputs.insert(format!("i{ion}"), ix);
             }
