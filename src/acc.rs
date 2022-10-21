@@ -33,7 +33,11 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
                 for bpp in node.children() {
                     if bpp.tag_name().name() == "biophysicalProperties" {
                         let prop: BiophysicalProperties = XML::from_node(&bpp);
-                        result.append(&mut biophys(&XML::from_node(&bpp), lems, &inhomogeneous_parameters)?);
+                        result.append(&mut biophys(
+                            &XML::from_node(&bpp),
+                            lems,
+                            &inhomogeneous_parameters,
+                        )?);
                     }
                 }
                 *cells.entry(id.to_string()).or_default() = result;
@@ -274,7 +278,9 @@ impl Sexp for Expr {
             Expr::Exp(x) => format!("(exp {})", x.to_sexp()),
             Expr::Log(x) => format!("(log {})", x.to_sexp()),
             Expr::Sqrt(x) => format!("(sqrt {})", x.to_sexp()),
-            Expr::Fun(nm, x) => format!("({} {})", if nm == "H" { "step" } else { nm }, x.to_sexp()),
+            Expr::Fun(nm, x) => {
+                format!("({} {})", if nm == "H" { "step" } else { nm }, x.to_sexp())
+            }
             Expr::ProximalDistanceFromRegion(region) => {
                 format!("(proximal-distance (region \"{}\"))", region)
             }
@@ -314,13 +320,13 @@ impl Sexp for Paintable {
                     .map(|(k, v)| format!("(\"{k}\" {v})"))
                     .collect::<Vec<_>>()
                     .join(" ");
-                let ns = ns.iter().map(|(k, v)| format!("(\"{k}\" {})", v.value))
+                let ns = ns
+                    .iter()
+                    .map(|(k, v)| format!("(\"{k}\" {})", v.value))
                     .collect::<Vec<_>>()
                     .join(" ");
                 let m = config.add_prefix(m);
-                format!(
-                    "(scaled-mechanism (density (mechanism \"{m}\" {ps})) {ns})",
-                )
+                format!("(scaled-mechanism (density (mechanism \"{m}\" {ps})) {ns})",)
             }
         }
     }

@@ -493,9 +493,12 @@ pub fn export_with_super_mechanisms(
         }
 
         info!("Writing Super Mechanism ACC to {path:?}");
-        write(&path, ass_sm.to_sexp_with_config(&SexpConfig {
+        write(
+            &path,
+            ass_sm.to_sexp_with_config(&SexpConfig {
                 cat_prefix: cat_prefix.into(),
-            }))?;
+            }),
+        )?;
     }
 
     let mut instances = Vec::new();
