@@ -340,17 +340,21 @@ fn simple_ion(
 ) -> Result<Map<String, String>> {
     let mut gs = Map::new();
     if known_ions.contains(&ion.to_string()) {
-        if result.iter().any(|x| {
-            matches!(x,
-                     Decor::Paint(r, Paintable::Er(i, e))
-                     if r == group && ion == i && e == erev)
-        }) {
-            return Err(nml2_error!(
-                "Overwriting different Er[{}] on {}.",
-                ion,
-                group
-            ));
+        for item in result.iter() {
+            if let Decor::Paint(r, Paintable::Er(i, e)) = item {
+                // We are trying to add the same key with a...
+                if r == group && ion == i {
+                    return if e == erev {
+                        // ... matching value: SKIP
+                        Ok(gs)
+                    } else {
+                        // ... mismatch: ERROR
+                        Err(nml2_error!("Overwriting different Er[{ion}] on {group}."))
+                    };
+                }
+            }
         }
+        // New value: add it.
         result.push(Decor::new(
             group,
             Paintable::Er(ion.to_string(), erev.to_string()),

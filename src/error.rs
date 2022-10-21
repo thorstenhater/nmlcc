@@ -34,3 +34,10 @@ macro_rules! nml2_error {
         Error::Nml { what: format!($($arg)*) }
     }};
 }
+
+#[macro_export]
+macro_rules! parse_error {
+    ($($arg:tt)*) => {{
+        Error::Parse { what: format!($($arg)*) }
+    }};
+}

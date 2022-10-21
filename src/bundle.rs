@@ -407,6 +407,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     }
 }
 
+#[derive(Debug)]
 struct Assign {
     m: String,
     g: Quantity,
@@ -429,6 +430,8 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
     use BiophysicalPropertiesBody::*;
     use MembranePropertiesBody::*;
     let mut sms: Map<(String, String), Vec<Assign>> = Map::new();
+    // TODO we might want to extend this when finding <species>.
+    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
     process_files(nml, |_, node| {
         if node.tag_name().name() == "cell" {
             let id = node.attribute("id").ok_or(Error::Nml {
@@ -453,6 +456,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                                         condDensity.as_deref().unwrap(),
                                         erev.as_str(),
                                     )?;
+                                    eprintln!("{:?}", a);
                                     let region = if segmentGroup.is_empty() {
                                         "all"
                                     } else {
@@ -505,23 +509,27 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
     })?;
 
     for ((id, reg), ms) in &sms {
-        let mut coll = Collapsed::new(&Some(format!("{}_{}", id, reg)));
+        let mut coll = Collapsed::new(&Some(format!("{id}_{reg}")));
         let mut ions: Map<_, Vec<_>> = Map::new();
         for Assign { m, g, e } in ms {
+            // NOTE this could be a find ...
             for inst in &instances {
                 if inst.id == Some(m.to_string()) {
                     let mut inst = inst.clone();
                     let ion = inst.attributes.get("species").cloned().unwrap_or_default();
                     // Set Parameters e, g
                     let g = lems.normalise_quantity(g)?;
+                    let e = lems.normalise_quantity(e)?;
                     inst.component_type
                         .parameters
                         .push(String::from("conductance"));
                     inst.parameters.insert(String::from("conductance"), g);
-                    if ion.is_empty() {
-                        let e = lems.normalise_quantity(e)?;
+                    if ion.is_empty() || !known_ions.contains(&ion) {
                         inst.parameters.insert(String::from("e"), e);
                         inst.component_type.parameters.push(String::from("e"));
+                    } else {
+                        inst.parameters.insert(format!("e{ion}"), e);
+                        inst.component_type.parameters.push(format!("e{ion}"));
                     }
                     ions.entry(ion.clone()).or_default().push(m.clone());
                     coll.add(&inst, &Context::default(), None)?;
@@ -533,34 +541,39 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
         let mut outputs = Map::new();
         let mut variables = Map::new();
         for (ion, mechs) in &ions {
-            if !ion.is_empty() {
-                let ik = format!("i{}", ion);
-                let ix = Expr::parse(&format!("g_{}*(v - e{})", ion, ion))?;
-                let ix = Stmnt::Ass(ik.clone(), ix);
-                outputs.insert(ik, ix);
-
+            if !ion.is_empty() && known_ions.contains(ion) {
+                // A non-empty, known ion species X maps to USEION X READ eX WRITE iX
+                // and we can sum the conductivities M_g_X
+                // where M is the mechanism
+                // NOTE we can probably claim that an empty ion is never known...
+                let ix = Stmnt::Ass(
+                    format!("i{ion}"),
+                    Expr::parse(&format!("g_{ion}*(v - e{ion})"))?,
+                );
+                outputs.insert(format!("i{ion}"), ix);
                 let g = mechs
                     .iter()
-                    .map(|m| format!("{}_g", m))
+                    .map(|m| format!("{m}_g"))
                     .collect::<Vec<_>>()
                     .join(" + ");
-                let gk = format!("g_{}", ion);
-                let ig = Expr::parse(&g)?;
-                let ig = Stmnt::Ass(gk.clone(), ig);
-                variables.insert(gk, ig);
+                let ig = Stmnt::Ass(format!("g_{ion}"), Expr::parse(&g)?);
+                variables.insert(format!("g_{ion}"), ig);
             } else {
-                // here we must sum currents directly
-                let mut i = Vec::new();
-                for mech in mechs {
-                    i.push(format!("{}_conductance*(v - {}_e)", mech, mech));
-                }
-                let i = i.join(" + ");
-                let i = Expr::parse(&i)?;
-                outputs.insert(String::from("i"), Stmnt::Ass(String::from("i"), i));
+                // Anything else becomes
+                //   NONSPECIFIC_CURRENT iX
+                // and
+                //   RANGE PARAMETER M_eX
+                // where M is the mechanism's prefix
+                // and we sum currents as sum(g_)
+                let i = mechs
+                    .iter()
+                    .map(|m| format!("{m}_conductance*(v - {m}_e{ion})"))
+                    .collect::<Vec<_>>()
+                    .join(" + ");
+                let ix = Stmnt::Ass(format!("i{ion}"), Expr::parse(&i)?);
+                outputs.insert(format!("i{ion}"), ix);
             }
         }
-        // TODO we might want to extend this when finding <species>.
-        let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
 
         let mut n = nmodl::Nmodl::from(&coll, &known_ions, "-*")?;
         n.add_outputs(&outputs);

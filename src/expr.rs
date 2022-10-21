@@ -1,10 +1,7 @@
 use std::ops::Deref;
 
 use crate::error::{Error, Result};
-
-fn parse_error<T: Into<String>>(what: T) -> Error {
-    Error::Parse { what: what.into() }
-}
+use crate::parse_error;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Quantity {
@@ -17,7 +14,7 @@ impl Quantity {
         if let Ok((_, result)) = parse::quantity(input) {
             Ok(result)
         } else {
-            Err(parse_error(format!("Could not parse quantity '{}'", input)))
+            Err(parse_error!("Could not parse quantity '{}'", input))
         }
     }
 }
@@ -35,6 +32,8 @@ pub enum Expr {
     Exp(Box<Expr>),
     Log(Box<Expr>),
     Sqrt(Box<Expr>),
+    // Unknown, but possibly builtin functions
+    Fun(String, Box<Expr>),
 }
 
 impl Expr {
@@ -46,6 +45,7 @@ impl Expr {
             Expr::Exp(b) => Expr::Exp(Box::new(b.map(f))),
             Expr::Log(b) => Expr::Log(Box::new(b.map(f))),
             Expr::Sqrt(b) => Expr::Sqrt(Box::new(b.map(f))),
+            Expr::Fun(a, b) => Expr::Fun(a.clone(), Box::new(b.map(f))),
             e => f(e),
         }
     }
@@ -70,18 +70,24 @@ impl Expr {
             Expr::Exp(b) => b.fold(acc, f),
             Expr::Log(b) => b.fold(acc, f),
             Expr::Sqrt(b) => b.fold(acc, f),
+            Expr::Fun(_, b) => b.fold(acc, f),
             _ => {}
         }
     }
 
     pub fn parse(input: &str) -> Result<Self> {
-        if let Ok((_, result)) = parse::expr(input) {
-            Ok(result.simplify())
-        } else {
-            Err(parse_error(format!(
-                "Could not parse expression '{}'",
-                input
-            )))
+        match parse::expr(input) {
+            Ok(("", result)) => Ok(result.simplify()),
+            Ok((rs, _)) => Err(parse_error!(
+                "Could not parse expression '{}': remainder '{}' at end",
+                input,
+                rs
+            )),
+            Err(x) => Err(parse_error!(
+                "Could not parse expression '{}': {:?}",
+                input,
+                x
+            )),
         }
     }
 
@@ -89,6 +95,7 @@ impl Expr {
         match &self {
             Expr::F64(x) => format!("{}", x),
             Expr::Var(x) => x.to_string(),
+            Expr::Fun(f, x) => format!("{}({})", f, x.print_to_string()),
             Expr::Exp(x) => format!("exp({})", x.print_to_string()),
             Expr::Log(x) => format!("log({})", x.print_to_string()),
             Expr::Sqrt(x) => format!("({})^0.5", x.print_to_string()), // NB. () needed since we want to call sqrt(...)
@@ -312,7 +319,7 @@ impl Boolean {
         if let Ok((_, result)) = parse::boolean(input) {
             Ok(result.simplify())
         } else {
-            Err(parse_error(format!("Could not parse {}", input)))
+            Err(parse_error!("Could not parse {}", input))
         }
     }
 
@@ -409,7 +416,7 @@ impl Match {
         if let Ok((_, result)) = parse::path(input) {
             Ok(Match(result))
         } else {
-            Err(parse_error(format!("Could not parse {}", input)))
+            Err(parse_error!("Could not parse {}", input))
         }
     }
 
@@ -558,10 +565,19 @@ mod parse {
         Ok((input, Expr::Sqrt(Box::new(e))))
     }
 
+    fn fun(input: &str) -> IResult<&str, Expr> {
+        let (input, f) = take_while1(|c| is_alphanumeric(c as u8) || '_' == c)(input)?;
+        let (input, e) = parenthised(input)?;
+        Ok((input, Expr::Fun(f.to_string(), Box::new(e))))
+    }
+
     fn atom(input: &str) -> IResult<&str, Expr> {
         let (input, sign) = opt(delimited(space0, tag("-"), space0))(input)?;
-        let (input, result) =
-            delimited(space0, alt((parenthised, exp, log, sqrt, lit, var)), space0)(input)?;
+        let (input, result) = delimited(
+            space0,
+            alt((parenthised, exp, log, sqrt, fun, lit, var)),
+            space0,
+        )(input)?;
         if sign.is_some() {
             Ok((input, Expr::Mul(vec![Expr::F64(-1.0), result])))
         } else {
@@ -880,8 +896,29 @@ mod test {
 
     #[test]
     fn test_parse() {
+        assert_eq!(
+            Quantity::parse("10 mV").unwrap(),
+            Quantity {
+                value: 10.0,
+                unit: Some(String::from("mV"))
+            }
+        );
         assert_eq!(Expr::parse(" 1.0  ").unwrap(), Expr::F64(1.0));
         assert_eq!(Expr::parse("  1+2 + 3 +3  *4 ").unwrap(), Expr::F64(18.0));
+        assert_eq!(
+            Expr::parse("log(42)").unwrap(),
+            Expr::F64(3.7376696182833684)
+        );
+        assert_eq!(Expr::parse("sqrt(16.0)").unwrap(), Expr::F64(4.00));
+    }
+
+    #[test]
+    fn test_parse_fail() {
+        assert!(matches!(Quantity::parse("mV 10"), Err(Error::Parse { .. })));
+        assert!(matches!(
+            Expr::parse(" 10*").unwrap_err(),
+            Error::Parse { .. }
+        ));
     }
 
     #[test]
