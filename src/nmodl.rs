@@ -376,54 +376,25 @@ impl Nmodl {
 
     pub fn simplify(self) -> Self {
         // for efficiency, consume self
+        fn simplify_map(statements: Map<String, Stmnt>) -> Map<String, Stmnt> {
+            statements
+                .into_iter()
+                .map(|(k, v)| (k, v.simplify()))
+                .collect()
+        }
         Nmodl {
-            known_ions: self.known_ions,
-            kind: self.kind,
-            suffix: self.suffix,
-            symbols: self.symbols,
-            constants: self.constants,
-            parameters: self.parameters,
-            state: self.state,
-            init: self
-                .init
-                .iter()
-                .map(|(k, v)| (k.into(), v.simplify()))
-                .collect(),
-            deriv: self
-                .deriv
-                .iter()
-                .map(|(k, v)| (k.into(), v.simplify()))
-                .collect(),
-            outputs: self
-                .outputs
-                .iter()
-                .map(|(k, v)| (k.into(), v.simplify()))
-                .collect(),
-            variables: self
-                .variables
-                .iter()
-                .map(|(k, v)| (k.into(), v.simplify()))
-                .collect(),
-            species: self.species,
-            transitions: self.transitions,
-            events: self
-                .events
-                .iter()
-                .map(|(k, v)| (k.into(), v.simplify()))
-                .collect(),
-            rates: self
-                .rates
-                .iter()
-                .map(|(k, v)| (k.into(), v.simplify()))
-                .collect(),
-            states: self.states,
-            fixed: self.fixed,
-            keep: self.keep,
+            init: simplify_map(self.init),
+            deriv: simplify_map(self.deriv),
+            outputs: simplify_map(self.outputs),
+            variables: simplify_map(self.variables),
+            events: simplify_map(self.events),
+            rates: simplify_map(self.rates),
             conditions: self
                 .conditions
-                .iter()
-                .map(|(k, vs)| (k.into(), vs.iter().map(|v| v.simplify()).collect()))
+                .into_iter()
+                .map(|(k, vs)| (k, vs.iter().map(|v| v.simplify()).collect()))
                 .collect(),
+            ..self
         }
     }
 }
