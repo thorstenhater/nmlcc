@@ -441,6 +441,22 @@ pub fn build_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &str) -> 
     Ok(())
 }
 
+fn read_cell_data(nml: &[String]) -> Result<Map<String, BiophysicalProperties>>{
+    let mut result = Map::new();
+    process_files(nml, |_, node| {
+        if node.tag_name().name() != "cell" {
+            return Ok(());
+        }
+        let id = node.attribute("id").ok_or(nml2_error!("Cell without id"))?;
+        if let Some(p) = node.children().find(|c| c.tag_name().name() == "biophysicalProperties") {
+            result.insert(id, p);
+        }
+
+        Ok(())
+    })?;
+    Ok(result)
+}
+
 fn ion_channel_assigments(
     prop: BiophysicalProperties,
     lems: &LemsFile,
