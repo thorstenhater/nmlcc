@@ -28,12 +28,12 @@ pub fn export(
     export_template(lems, nml, bundle)?;
 
     // We always export these to keep synapse etc alive
-    nmodl::export(lems, nml, "-*", &format!("{}/cat", bundle), ions)?;
+    nmodl::export(lems, nml, "-*", &format!("{bundle}/cat"), ions)?;
 
     if use_super_mechs {
         export_with_super_mechanisms(lems, nml, bundle)?;
     } else {
-        acc::export(lems, nml, &format!("{}/acc", bundle))?;
+        acc::export(lems, nml, &format!("{bundle}/acc"))?;
     }
     Ok(())
 }
@@ -45,7 +45,7 @@ fn mk_main_py(
 ) -> Result<String> {
     let mut cell_to_morph = String::from("{");
     for (c, m) in cells {
-        write!(cell_to_morph, "'{}': '{}', ", c, m).unwrap();
+        write!(cell_to_morph, "'{c}': '{m}', ").unwrap();
     }
     cell_to_morph.push('}');
 
@@ -59,7 +59,7 @@ fn mk_main_py(
         for _ in &pop.members {
             count += 1;
             gid_to_cell.push_str(&format!("'{}', ", pop.component));
-            gid_to_pop.push_str(&format!("'{}', ", id));
+            gid_to_pop.push_str(&format!("'{id}', "));
         }
     }
 
@@ -77,9 +77,9 @@ fn mk_main_py(
             p.members
                 .iter()
                 .position(|ix| id == *ix as i64)
-                .ok_or_else(|| nml2_error!("Bad index {} in population {}.", id, pop))?
+                .ok_or_else(|| nml2_error!("Bad index {id} in population {pop}."))?
         } else {
-            return Err(nml2_error!("Indexing into an unknown population: {}.", pop));
+            return Err(nml2_error!("Indexing into an unknown population: {pop}."));
         };
         let key: i64 = (fst + idx) as i64;
         let val = (source.clone(), segment, fraction);
@@ -92,13 +92,11 @@ fn mk_main_py(
     gid_to_cell.push(']');
     gid_to_pop.push(']');
 
-    eprintln!("{:?}", net.inputs);
-
     let mut gid_to_inputs = String::from("{");
     for (key, vals) in inputs {
-        gid_to_inputs.push_str(&format!("\n                                 {}: [", key));
+        gid_to_inputs.push_str(&format!("\n                                 {key}: ["));
         for (src, seg, frac) in vals {
-            gid_to_inputs.push_str(&format!("(\"seg_{}_frac_{}\", \"{}\"), ", seg, frac, src));
+            gid_to_inputs.push_str(&format!("(\"seg_{seg}_frac_{frac}\", \"{src}\"), "));
         }
         gid_to_inputs.push_str("], ");
     }
@@ -106,7 +104,7 @@ fn mk_main_py(
 
     let mut i_clamps = String::from("{");
     for (lbl, iclamp) in iclamps {
-        i_clamps.push_str(&format!("'{}': {:?}, ", lbl, iclamp))
+        i_clamps.push_str(&format!("'{lbl}': {iclamp:?}, "))
     }
     i_clamps.push('}');
 
@@ -161,9 +159,9 @@ fn mk_main_py(
 
     let mut gid_to_synapses = String::from("{\n");
     for (gid, vs) in &synapses {
-        gid_to_synapses.push_str(&format!("                                  {}: [", gid));
+        gid_to_synapses.push_str(&format!("                                  {gid}: ["));
         for (t, s) in vs {
-            gid_to_synapses.push_str(&format!("(\"{}\", \"{}\"), ", t, s));
+            gid_to_synapses.push_str(&format!("(\"{t}\", \"{s}\"), "));
         }
         gid_to_synapses.push_str("],\n");
     }
@@ -171,9 +169,9 @@ fn mk_main_py(
 
     let mut gid_to_detectors = String::from("{\n");
     for (gid, vs) in &detectors {
-        gid_to_detectors.push_str(&format!("                                  {}: [", gid));
+        gid_to_detectors.push_str(&format!("                                  {gid}: ["));
         for v in vs {
-            gid_to_detectors.push_str(&format!("\"{}\", ", v));
+            gid_to_detectors.push_str(&format!("\"{v}\", "));
         }
         gid_to_detectors.push_str("],\n");
     }
@@ -181,11 +179,10 @@ fn mk_main_py(
 
     let mut gid_to_connections = String::from("{\n");
     for (gid, vs) in &conns {
-        gid_to_connections.push_str(&format!("                                {}: [", gid));
+        gid_to_connections.push_str(&format!("                                {gid}: ["));
         for (fgid, floc, syn, tloc, weight, delay) in vs {
             gid_to_connections.push_str(&format!(
-                "({}, \"{}\", \"{}\", \"{}\", {}, {}), ",
-                fgid, floc, syn, tloc, weight, delay
+                "({fgid}, \"{floc}\", \"{syn}\", \"{tloc}\", {weight}, {delay}), "
             ));
         }
         gid_to_connections.push_str("],\n");
@@ -194,9 +191,9 @@ fn mk_main_py(
 
     let mut gid_to_labels = String::from("{\n");
     for (gid, vs) in &labels {
-        gid_to_labels.push_str(&format!("                                {}: [", gid));
+        gid_to_labels.push_str(&format!("                                {gid}: ["));
         for (seg, frac) in vs {
-            gid_to_labels.push_str(&format!("({}, {}), ", seg, frac));
+            gid_to_labels.push_str(&format!("({seg}, {frac}), "));
         }
         gid_to_labels.push_str("],\n");
     }
@@ -320,25 +317,24 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
 <neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  https://raw.githubusercontent.com/NeuroML/NeuroML2/master/Schemas/NeuroML2/NeuroML_v2beta3.xsd"
-    id="{}">
-   {}
+    id="{id}">
+   {mrf}
 </neuroml>
-"#,
-        id, mrf
+"#
     )
 }
 
 fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
-    trace!("Creating bundle {}", bundle);
+    trace!("Creating bundle {bundle}");
     create_dir_all(&bundle)?;
-    create_dir_all(&format!("{}/mrf", bundle))?;
-    create_dir_all(&format!("{}/acc", bundle))?;
-    create_dir_all(&format!("{}/cat", bundle))?;
+    create_dir_all(&format!("{bundle}/mrf"))?;
+    create_dir_all(&format!("{bundle}/acc"))?;
+    create_dir_all(&format!("{bundle}/cat"))?;
 
     let norm = |v: &str| -> Result<String> {
         let q = Quantity::parse(v)?;
-        let u = lems.normalise_quantity(&q)?;
-        Ok(format!("{}", u.value))
+        let u = lems.normalise_quantity(&q)?.value;
+        Ok(format!("{u}"))
     };
 
     let mut iclamps = Map::new();
@@ -351,9 +347,9 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
                 let id = node
                     .attribute("id")
                     .ok_or_else(|| nml2_error!("Morph has no id"))?;
-                trace!("Writing morphology to {}/mrf/{}", bundle, id);
+                trace!("Writing morphology to {bundle}/mrf/{id}");
                 write(
-                    format!("{}/mrf/{}.nml", bundle, id),
+                    format!("{bundle}/mrf/{id}.nml"),
                     mk_mrf(id, &doc[node.range()]),
                 )?;
             }
@@ -396,7 +392,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
         [net] => {
             trace!("Writing main.py");
             write(
-                &format!("{}/main.py", bundle),
+                &format!("{bundle}/main.py"),
                 mk_main_py(&cells, &iclamps, net)?,
             )?;
             Ok(())
@@ -416,12 +412,10 @@ struct Assign {
 
 impl Assign {
     fn new(m: &str, g: &str, e: &str) -> Result<Self> {
-        let g = Quantity::parse(g)?;
-        let e = Quantity::parse(e)?;
         Ok(Self {
             m: m.to_string(),
-            g,
-            e,
+            g: Quantity::parse(g)?,
+            e: Quantity::parse(e)?,
         })
     }
 }
@@ -456,7 +450,6 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
                                         condDensity.as_deref().unwrap(),
                                         erev.as_str(),
                                     )?;
-                                    eprintln!("{:?}", a);
                                     let region = if segmentGroup.is_empty() {
                                         "all"
                                     } else {
@@ -476,17 +469,14 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
 
     let decor = acc::to_decor(lems, nml)?;
     for (id, ass) in decor {
-        let path = format!("{}/acc/{}.acc", bundle, id);
+        let path = format!("{bundle}/acc/{id}.acc");
         let mut seen = Set::new();
         let mut ass_sm = Vec::new();
         for d in ass.into_iter() {
             match d {
                 acc::Decor::Paint(r, Paintable::Mech(_, _)) => {
                     if !seen.contains(&r) {
-                        ass_sm.push(acc::Decor::Paint(
-                            r.to_string(),
-                            Paintable::Mech(format!("{}_{}", id, r), Map::new()),
-                        ));
+                        ass_sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
                         seen.insert(r.to_string());
                     }
                 }
@@ -494,7 +484,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
             }
         }
 
-        info!("Writing Super Mechanism ACC to {:?}", &path);
+        info!("Writing Super Mechanism ACC to {path:?}");
         write(&path, ass_sm.to_sexp())?;
     }
 
@@ -502,8 +492,7 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
     process_files(nml, |_, node| {
         let tag = node.tag_name().name();
         if lems.derived_from(tag, "baseIonChannel") {
-            let instance = Instance::new(lems, node)?;
-            instances.push(instance);
+            instances.push(Instance::new(lems, node)?);
         }
         Ok(())
     })?;
@@ -580,12 +569,8 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
         n.add_variables(&outputs);
         n.add_variables(&variables);
         let nmodl = nmodl::mk_nmodl(&n)?;
-
-        let path = format!("{}/cat/{}_{}.mod", bundle, id, reg);
-        info!(
-            "Writing Super-Mechanism NMODL for cell '{}' region '{}' to {:?}",
-            id, reg, &path
-        );
+        let path = format!("{bundle}/cat/{id}_{reg}.mod");
+        info!("Writing Super-Mechanism NMODL for cell '{id}' region '{reg}' to {path:?}",);
         write(&path, nmodl)?;
     }
 
