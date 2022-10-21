@@ -1,7 +1,7 @@
 #![allow(soft_unstable)]
 
-use std::collections::BTreeMap as Map;
-use std::collections::BTreeSet as Set;
+pub use std::collections::BTreeMap as Map;
+pub use std::collections::BTreeSet as Set;
 
 pub mod acc;
 pub mod bundle;

@@ -1140,9 +1140,10 @@ pub fn export(
                     trace!("Creating path to {:?}", &path);
                     std::fs::create_dir_all(&path)?;
                 }
-                let file = instance.id.as_deref().ok_or(crate::error::Error::Nml {
-                    what: String::from("Channel must have an id"),
-                })?;
+                let file = instance
+                    .id
+                    .as_deref()
+                    .ok_or(nml2_error!("Channel must have an id"))?;
                 path.push(file);
                 path.set_extension("mod");
                 info!(

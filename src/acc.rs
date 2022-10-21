@@ -30,12 +30,11 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
             if let Some(id) = node.attribute("id") {
                 let mut result = Vec::new();
                 let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
-                for bpp in node.descendants() {
-                    if bpp.tag_name().name() != "biophysicalProperties" {
-                        continue;
+                for bpp in node.children() {
+                    if bpp.tag_name().name() == "biophysicalProperties" {
+                        let prop: BiophysicalProperties = XML::from_node(&bpp);
+                        result.append(&mut biophys(&XML::from_node(&bpp), lems, &inhomogeneous_parameters)?);
                     }
-                    let prop: BiophysicalProperties = XML::from_node(&bpp);
-                    result.append(&mut biophys(&prop, lems, &inhomogeneous_parameters)?);
                 }
                 *cells.entry(id.to_string()).or_default() = result;
             }
@@ -164,7 +163,7 @@ pub trait Sexp {
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ParsedInhomogeneousParameter {
     variable: String,           // p
     region: String,             // apicalDends
@@ -173,13 +172,13 @@ pub struct ParsedInhomogeneousParameter {
     normalize_end: bool, // most distal distance 1 or um (not supported yet)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MechVariableParameter {
     param: ParsedInhomogeneousParameter,
     value: String, // 10 * p
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Paintable {
     Xi(String, String),
     Xo(String, String),
@@ -275,7 +274,7 @@ impl Sexp for Expr {
             Expr::Exp(x) => format!("(exp {})", x.to_sexp()),
             Expr::Log(x) => format!("(log {})", x.to_sexp()),
             Expr::Sqrt(x) => format!("(sqrt {})", x.to_sexp()),
-            Expr::H(x) => format!("(step {})", x.to_sexp()),
+            Expr::Fun(nm, x) => format!("({} {})", if nm == "H" { "step" } else { nm }, x.to_sexp()),
             Expr::ProximalDistanceFromRegion(region) => {
                 format!("(proximal-distance (region \"{}\"))", region)
             }
@@ -292,49 +291,42 @@ impl Sexp for Paintable {
 
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         match self {
-            Paintable::Xi(i, v) => format!("(ion-internal-concentration \"{}\" {})", i, v),
-            Paintable::Xo(i, v) => format!("(ion-external-concentration \"{}\" {})", i, v),
-            Paintable::Er(i, v) => format!("(ion-reversal-potential \"{}\" {})", i, v),
-            Paintable::Em(i, v) => format!(
-                "(ion-reversal-potential-method \"{}\" (mechanism \"{}/{}\"))",
-                i, v, i
-            ),
-            Paintable::Ra(v) => format!("(axial-resistivity {})", v),
-            Paintable::Vm(v) => format!("(membrane-potential {})", v),
-            Paintable::Cm(v) => format!("(membrane-capacitance {})", v),
+            Paintable::Xi(i, v) => format!("(ion-internal-concentration \"{i}\" {v})"),
+            Paintable::Xo(i, v) => format!("(ion-external-concentration \"{i}\" {v})"),
+            Paintable::Er(i, v) => format!("(ion-reversal-potential \"{i}\" {v})"),
+            Paintable::Em(i, v) => {
+                format!("(ion-reversal-potential-method \"{i}\" (mechanism \"{v}/{i}\"))")
+            }
+            Paintable::Ra(v) => format!("(axial-resistivity {v})"),
+            Paintable::Vm(v) => format!("(membrane-potential {v})"),
+            Paintable::Cm(v) => format!("(membrane-capacitance {v})"),
             Paintable::Mech(m, gs) => {
-                let mut result = format!("(density (mechanism \"{}\"", config.add_prefix(m));
-                for (k, v) in gs.iter() {
-                    let x = format!(" (\"{}\" {})", k, v);
-                    result.push_str(&x);
-                }
-                result.push(')');
-                result.push(')');
-                result
+                let gs = gs
+                    .iter()
+                    .map(|(k, v)| format!("(\"{k}\" {v})"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                format!("(density (mechanism \"{}\" {gs}))", config.add_prefix(m))
             }
             Paintable::NonUniformMech { name: m, ps, ns } => {
-                let mut result = format!(
-                    "(scaled-mechanism (density (mechanism \"{}\"",
-                    config.add_prefix(m)
-                );
-                for (k, v) in ps.iter() {
-                    let x = format!(" (\"{}\" {})", k, v);
-                    result.push_str(&x);
-                }
-                result.push(')');
-                result.push(')');
-                for (k, v) in ns.iter() {
-                    let x = format!(" (\"{}\" {})", k, v.value);
-                    result.push_str(&x);
-                }
-                result.push(')');
-                result
+                let ps = ps
+                    .iter()
+                    .map(|(k, v)| format!("(\"{k}\" {v})"))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let ns = ns.iter().map(|(k, v)| format!("(\"{k}\" {})", v.value))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let m = config.add_prefix(m);
+                format!(
+                    "(scaled-mechanism (density (mechanism \"{m}\" {ps})) {ns})",
+                )
             }
         }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Decor {
     Default(Paintable),
     Paint(String, Paintable),
@@ -358,6 +350,54 @@ impl Decor {
             Decor::Default(p) => Ok(Decor::Default(p.normalise(lems)?)),
             Decor::Paint(r, p) => Ok(Decor::Paint(r.clone(), p.normalise(lems)?)),
         }
+    }
+
+    pub fn vm(group: &str, value: &str) -> Self {
+        Decor::new(group, Paintable::Vm(value.to_string()), false)
+    }
+
+    pub fn xi(group: &str, ion: &str, value: &str) -> Self {
+        Decor::new(
+            group,
+            Paintable::Xi(ion.to_string(), value.to_string()),
+            false,
+        )
+    }
+
+    pub fn xo(group: &str, ion: &str, value: &str) -> Self {
+        Decor::new(
+            group,
+            Paintable::Xo(ion.to_string(), value.to_string()),
+            false,
+        )
+    }
+
+    pub fn ra(group: &str, value: &str) -> Self {
+        Decor::new(group, Paintable::Ra(value.to_string()), false)
+    }
+
+    pub fn er(group: &str, ion: &str, value: &str) -> Self {
+        Decor::new(
+            group,
+            Paintable::Er(ion.to_string(), value.to_string()),
+            false,
+        )
+    }
+
+    pub fn mechanism(group: &str, mech: &str, gs: &Map<String, String>) -> Self {
+        Decor::new(group, Paintable::Mech(mech.to_string(), gs.clone()), true)
+    }
+
+    pub fn nernst(ion: &str) -> Self {
+        Decor::new(
+            "",
+            Paintable::Em(ion.to_string(), "nernst".to_string()), // TODO This is poison
+            false,
+        )
+    }
+
+    pub fn cm(group: &str, value: &str) -> Self {
+        Decor::new(group, Paintable::Cm(value.to_string()), false)
     }
 }
 
@@ -428,7 +468,6 @@ fn membrane(
     inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
 ) -> Result<Vec<Decor>> {
     let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
-
     use MembranePropertiesBody::*;
     let mut result = Vec::new();
     for item in &membrane.body {
@@ -449,11 +488,7 @@ fn membrane(
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
                 }
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::Mech(ionChannel.to_string(), gs),
-                    true,
-                ));
+                result.push(Decor::mechanism(segmentGroup, ionChannel, &gs));
             }
             channelDensityNernst(ChannelDensityNernst {
                 ionChannel,
@@ -466,21 +501,13 @@ fn membrane(
                 if !body.is_empty() {
                     return Err(acc_unimplemented("Non-empty body in ChannelDensityNernst"));
                 }
-                let mut gs = Map::new();
-                if let Some(g) = condDensity {
-                    gs.insert(String::from("conductance"), g.clone());
-                }
-                result.push(Decor::new(
-                    "",
-                    // TODO This is poison
-                    Paintable::Em(ion.to_string(), "nernst".to_string()),
-                    false,
-                ));
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::Mech(ionChannel.to_string(), gs),
-                    true,
-                ));
+                let gs = if let Some(g) = condDensity {
+                    Map::from([(String::from("conductance"), g.clone())])
+                } else {
+                    Map::new()
+                };
+                result.push(Decor::mechanism(segmentGroup, ionChannel, &gs));
+                result.push(Decor::nernst(ion));
             }
             channelDensityNonUniform(ChannelDensityNonUniform {
                 ionChannel,
@@ -608,19 +635,11 @@ fn membrane(
             specificCapacitance(SpecificCapacitance {
                 value,
                 segmentGroup,
-            }) => result.push(Decor::new(
-                segmentGroup,
-                Paintable::Cm(value.to_string()),
-                false,
-            )),
+            }) => result.push(Decor::cm(segmentGroup, value)),
             initMembPotential(InitMembPotential {
                 value,
                 segmentGroup,
-            }) => result.push(Decor::new(
-                segmentGroup,
-                Paintable::Vm(value.to_string()),
-                false,
-            )),
+            }) => result.push(Decor::vm(segmentGroup, value)),
             channelPopulation(_)
             | channelDensityVShift(_)
             | channelDensityGHK(_)
@@ -639,24 +658,15 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
     for item in &intra.body {
         match &item {
             species(Species {
-                ion, // the neuroml standard suggests selecting on id instead of ion
+                ion: Some(ion),
                 initialConcentration,
                 initialExtConcentration,
                 segmentGroup,
                 concentrationModel,
                 ..
-            }) if ion.is_some() => {
-                let ion = ion.as_deref().unwrap();
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::Xi(ion.to_string(), initialConcentration.to_string()),
-                    false,
-                ));
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::Xo(ion.to_string(), initialExtConcentration.to_string()),
-                    false,
-                ));
+            }) => {
+                result.push(Decor::xi(segmentGroup, ion, initialConcentration));
+                result.push(Decor::xo(segmentGroup, ion, initialExtConcentration));
                 result.push(Decor::new(
                     segmentGroup,
                     Paintable::Mech(
@@ -672,13 +682,7 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
             resistivity(Resistivity {
                 value,
                 segmentGroup,
-            }) => {
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::Ra(value.to_string()),
-                    false,
-                ));
-            }
+            }) => result.push(Decor::ra(segmentGroup, value)),
             _ => {}
         }
     }
@@ -692,41 +696,30 @@ fn simple_ion(
     group: &str,
     erev: &str,
 ) -> Result<Map<String, String>> {
-    let mut gs = Map::new();
     if known_ions.contains(&ion.to_string()) {
-        match result
-            .iter()
-            .find(|x| matches!(x, Decor::Paint(r, Paintable::Er(i, _e)) if r == group && ion == i))
-        {
-            None => {
-                result.push(Decor::new(
-                    group,
-                    Paintable::Er(ion.to_string(), erev.to_string()),
-                    false,
-                ));
-            }
-            Some(Decor::Paint(_, Paintable::Er(_, e))) if e == erev => {
-                // do nothing
-            }
-            Some(Decor::Paint(_, Paintable::Er(_, e))) if e != erev => {
-                return Err(nml2_error!(
-                    "Overwriting different Er[{}] on {} erev {}.",
-                    ion,
-                    group,
-                    erev
-                ));
-            }
-            Some(_) => {
-                unreachable!()
+        for item in result.iter() {
+            if let Decor::Paint(r, Paintable::Er(i, e)) = item {
+                // We are trying to add the same key with a...
+                if r == group && ion == i {
+                    return if e == erev {
+                        // ... matching value: SKIP
+                        Ok(Default::default())
+                    } else {
+                        // ... mismatch: ERROR
+                        Err(nml2_error!("Overwriting different Er[{ion}] on {group}."))
+                    };
+                }
             }
         }
+        // New value: add it.
+        result.push(Decor::er(group, ion, erev));
+        Ok(Map::new())
     } else {
-        gs.insert(
+        Ok(Map::from([(
             format!("e{}", if ion == "non_specific" { "" } else { ion }),
             erev.to_string(),
-        );
+        )]))
     }
-    Ok(gs)
 }
 
 fn extra(_: &ExtracellularProperties) -> Result<Vec<Decor>> {
