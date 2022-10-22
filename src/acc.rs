@@ -42,7 +42,7 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
 
 pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
     trace!("Creating path {}", pfx);
-    std::fs::create_dir_all(&pfx)?;
+    std::fs::create_dir_all(pfx)?;
 
     let cells = to_decor(lems, nml)?;
     for (cell, decor) in cells {
