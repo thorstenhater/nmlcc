@@ -92,7 +92,7 @@ impl Expr {
     }
 
     pub fn print_to_string(&self) -> String {
-        match &self {
+        let mut res = match &self {
             Expr::F64(x) => format!("{}", x),
             Expr::Var(x) => x.to_string(),
             Expr::Fun(f, x) => format!("{}({})", f, x.print_to_string()),
@@ -128,7 +128,15 @@ impl Expr {
                     .collect::<Vec<_>>()
                     .join("^"),
             },
-        }
+        };
+        // loop {
+            // let old = res.clone();
+            // res = res.replace(" -1 * ", " - ").replace("-1 * ", "- ").replace("+ -", "-");
+            // if old == res {
+                // break;
+            // }
+        // }
+        res
     }
 
     pub fn simplify(&self) -> Self {
