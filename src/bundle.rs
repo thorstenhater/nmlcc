@@ -575,7 +575,8 @@ fn merge_ion_channels(
         let mut variables = Map::new();
         for (ion, mechs) in &ions {
             if !ion.is_empty() && known_ions.contains(ion) {
-                // A non-empty, known ion species X maps to USEION X READ eX WRITE iX
+                // A non-empty, known ion species X maps to
+                //   USEION X READ eX WRITE iX
                 // and we can sum the conductivities M_g_X
                 // where M is the mechanism
                 // NOTE we can probably claim that an empty ion is never known...
@@ -600,7 +601,7 @@ fn merge_ion_channels(
                 // and we sum currents as sum(g_)
                 let i = mechs
                     .iter()
-                    .map(|m| format!("{m}_conductance*(v - {m}_e{ion})"))
+                    .map(|m| format!("{m}_g*(v - {m}_e{ion})"))
                     .collect::<Vec<_>>()
                     .join(" + ");
                 let ix = Stmnt::Ass(format!("i{ion}"), Expr::parse(&i)?);
