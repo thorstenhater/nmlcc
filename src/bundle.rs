@@ -1,5 +1,5 @@
 use crate::{
-    acc::{self, Paintable, Sexp, SexpConfig},
+    acc::{self, Decor, Paintable, Sexp, SexpConfig, ParsedInhomogeneousParameter},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
@@ -10,7 +10,8 @@ use crate::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
         PulseGenerator,
     },
-    nml2_error, nmodl,
+    nml2_error,
+    nmodl::{self, Nmodl},
     xml::XML,
     Map, Set,
 };
@@ -329,7 +330,7 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
 
 fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     trace!("Creating bundle {bundle}");
-    create_dir_all(&bundle)?;
+    create_dir_all(bundle)?;
     create_dir_all(&format!("{bundle}/mrf"))?;
     create_dir_all(&format!("{bundle}/acc"))?;
     create_dir_all(&format!("{bundle}/cat"))?;
@@ -406,100 +407,141 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     }
 }
 
-#[derive(Debug)]
-struct Assign {
-    m: String,
-    g: Quantity,
-    e: Quantity,
-}
+type Assign = (String, Quantity, Quantity);
 
-impl Assign {
-    fn new(m: &str, g: &str, e: &str) -> Result<Self> {
-        Ok(Self {
-            m: m.to_string(),
-            g: Quantity::parse(g)?,
-            e: Quantity::parse(e)?,
-        })
-    }
-}
+pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &str, cat_prefix: &str) -> Result<()> {
+    let celldata = read_cell_data(nml)?;
+    let chans = read_ion_channels(lems, nml)?;
+    let merge = build_super_mechanisms(&celldata, &chans, lems)?;
 
-pub fn export_with_super_mechanisms(
-    lems: &LemsFile,
-    nml: &[String],
-    bundle: &str,
-    cat_prefix: &str,
-) -> Result<()> {
-    use BiophysicalPropertiesBody::*;
-    use MembranePropertiesBody::*;
-    let mut sms: Map<(String, String), Vec<Assign>> = Map::new();
-    // TODO we might want to extend this when finding <species>.
-    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
-    process_files(nml, |_, node| {
-        if node.tag_name().name() == "cell" {
-            let id = node.attribute("id").ok_or(Error::Nml {
-                what: "Cell without id".to_string(),
-            })?;
-            for bpp in node.children() {
-                if bpp.tag_name().name() == "biophysicalProperties" {
-                    let prop: BiophysicalProperties = XML::from_node(&bpp);
-                    for item in &prop.body {
-                        if let membraneProperties(membrane) = item {
-                            for item in &membrane.body {
-                                if let channelDensity(ChannelDensity {
-                                    ionChannel,
-                                    condDensity,
-                                    erev,
-                                    segmentGroup,
-                                    ..
-                                }) = item
-                                {
-                                    let a = Assign::new(
-                                        ionChannel,
-                                        condDensity.as_deref().unwrap(),
-                                        erev.as_str(),
-                                    )?;
-                                    let region = if segmentGroup.is_empty() {
-                                        "all"
-                                    } else {
-                                        segmentGroup
-                                    }
-                                    .to_string();
-                                    sms.entry((id.to_string(), region)).or_default().push(a);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    for (id, cell) in merge {
+        for (reg, chan) in cell.channels {
+            let nmodl = nmodl::mk_nmodl(chan)?;
+            let path = format!("{bundle}/cat/{id}_{reg}.mod");
+            info!("Writing Super-Mechanism NMODL for cell '{id}' region '{reg}' to {path:?}",);
+            write(&path, nmodl)?;
         }
+        let path = format!("{bundle}/acc/{id}.acc");
+        info!("Writing Super Mechanism ACC to {path:?}");
+        write(&path, cell.decor.to_sexp_with_config(&SexpConfig { cat_prefix: cat_prefix.into() }))?;
+    }
+    Ok(())
+}
+
+pub struct Cell {
+    pub decor: Vec<Decor>,
+    pub channels: Vec<(String, Nmodl)>,
+}
+
+pub fn build_super_mechanisms(
+    celldata: &CellData,
+    ins: &[Instance],
+    lems: &LemsFile,
+) -> Result<Map<String, Cell>> {
+    let sms = ion_channel_assignments(&celldata.props, lems)?;
+    let dec = collect_decor(&celldata.props, &celldata.ihp, lems)?;
+    let mrg = merge_ion_channels(&sms, ins)?;
+    let mut result = Map::new();
+    for (cell, decor) in dec {
+        let channels = mrg[&cell].clone();
+        result.insert(cell, Cell { decor, channels });
+    }
+    Ok(result)
+}
+
+pub struct CellData {
+    props: Map<String, BiophysicalProperties>,
+    ihp: Map<String, Map<String, ParsedInhomogeneousParameter>>
+}
+
+fn read_cell_data(nml: &[String]) -> Result<CellData> {
+    let mut props = Map::new();
+    let mut ihp = Map::new();
+    process_files(nml, |_, node| {
+        if node.tag_name().name() != "cell" {
+            return Ok(());
+        }
+        let id = node.attribute("id").ok_or(nml2_error!("Cell without id"))?;
+        ihp.insert(id.to_string(), acc::parse_inhomogeneous_parameters(&node)?);
+        if let Some(p) = node
+            .children()
+            .find(|c| c.tag_name().name() == "biophysicalProperties")
+        {
+            props.insert(id.to_string(), XML::from_node(&p));
+        }
+
         Ok(())
     })?;
+    Ok(CellData { props, ihp })
+}
 
-    let decor = acc::to_decor(lems, nml)?;
-    for (id, ass) in decor {
-        let path = format!("{bundle}/acc/{id}.acc");
-        let mut seen = Set::new();
-        let mut ass_sm = Vec::new();
-        for d in ass.into_iter() {
-            match d {
-                acc::Decor::Paint(r, Paintable::Mech(_, _)) => {
-                    if !seen.contains(&r) {
-                        ass_sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
-                        seen.insert(r.to_string());
+fn ion_channel_assignments(
+    props: &Map<String, BiophysicalProperties>,
+    lems: &LemsFile,
+) -> Result<Map<(String, String), Vec<Assign>>> {
+    use BiophysicalPropertiesBody::*;
+    use MembranePropertiesBody::*;
+
+    let mut result: Map<_, Vec<Assign>> = Map::new();
+    for (id, prop) in props.iter() {
+        for item in prop.body.iter() {
+            if let membraneProperties(membrane) = item {
+                for item in membrane.body.iter() {
+                    if let channelDensity(ChannelDensity {
+                        ionChannel,
+                        condDensity: Some(g),
+                        erev,
+                        segmentGroup,
+                        ..
+                    }) = item
+                    {
+                        let region = if segmentGroup.is_empty() {
+                            String::from("all")
+                        } else {
+                            segmentGroup.to_string()
+                        };
+                        let channel = ionChannel.to_string();
+                        let g = lems.normalise_quantity(&Quantity::parse(g)?)?;
+                        let e = lems.normalise_quantity(&Quantity::parse(erev)?)?;
+                        result
+                            .entry((id.to_string(), region))
+                            .or_default()
+                            .push((channel, g, e));
                     }
                 }
-                _ => ass_sm.push(d),
             }
         }
-        info!("Writing Super Mechanism ACC to {path:?}");
-        write(
-            &path,
-            ass_sm.to_sexp_with_config(&SexpConfig {
-                cat_prefix: cat_prefix.into(),
-            }),
-        )?;
     }
+    Ok(result)
+}
 
+fn collect_decor(
+    props: &Map<String, BiophysicalProperties>,
+    ihp: &Map<String, Map<String, ParsedInhomogeneousParameter>>,
+    lems: &LemsFile,
+) -> Result<Map<String, Vec<Decor>>> {
+    let mut result: Map<String, Vec<Decor>> = Map::new();
+    for (id, prop) in props {
+        let mut seen = Set::new();
+        let mut sm = Vec::new();
+        use tracing::warn;
+        warn!("ugly unwrap");
+        for d in acc::biophys(prop, lems, ihp.get(id).unwrap())? {
+            if let Decor::Paint(r, Paintable::Mech(_, _)) = d {
+                if !seen.contains(&r) {
+                    sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
+                    seen.insert(r.to_string());
+                }
+            } else {
+                sm.push(d);
+            }
+        }
+        result.insert(id.to_string(), sm);
+    }
+    Ok(result)
+}
+
+fn read_ion_channels(lems: &LemsFile, nml: &[String]) -> Result<Vec<Instance>> {
     let mut instances = Vec::new();
     process_files(nml, |_, node| {
         let tag = node.tag_name().name();
@@ -508,24 +550,32 @@ pub fn export_with_super_mechanisms(
         }
         Ok(())
     })?;
+    Ok(instances)
+}
 
-    for ((id, reg), ms) in &sms {
+fn merge_ion_channels(
+    sms: &Map<(String, String), Vec<Assign>>,
+    ins: &[Instance],
+) -> Result<Map<String, Vec<(String, Nmodl)>>> {
+    // TODO we might want to extend this when finding <species>.
+    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
+
+    let mut result: Map<String, Vec<_>> = Map::new();
+    for ((id, reg), ms) in sms {
         let mut coll = Collapsed::new(&Some(format!("{id}_{reg}")));
         let mut ions: Map<_, Vec<_>> = Map::new();
-        for Assign { m, g, e } in ms {
-            // NOTE this could be a find ...
-            for inst in &instances {
+        for (m, g, e) in ms {
+            for inst in ins {
                 if inst.id == Some(m.to_string()) {
                     let mut inst = inst.clone();
                     let ion = inst.attributes.get("species").cloned().unwrap_or_default();
                     // Set Parameters e, g
-                    let g = lems.normalise_quantity(g)?;
-                    let e = lems.normalise_quantity(e)?;
                     inst.component_type
                         .parameters
                         .push(String::from("conductance"));
-                    inst.parameters.insert(String::from("conductance"), g);
-                    inst.parameters.insert(format!("e{ion}"), e);
+                    inst.parameters
+                        .insert(String::from("conductance"), g.clone());
+                    inst.parameters.insert(format!("e{ion}"), e.clone());
                     inst.component_type.parameters.push(format!("e{ion}"));
                     ions.entry(ion.clone()).or_default().push(m.clone());
                     coll.add(&inst, &Context::default(), None)?;
@@ -538,7 +588,8 @@ pub fn export_with_super_mechanisms(
         let mut variables = Map::new();
         for (ion, mechs) in &ions {
             if !ion.is_empty() && known_ions.contains(ion) {
-                // A non-empty, known ion species X maps to USEION X READ eX WRITE iX
+                // A non-empty, known ion species X maps to
+                //   USEION X READ eX WRITE iX
                 // and we can sum the conductivities M_g_X
                 // where M is the mechanism
                 // NOTE we can probably claim that an empty ion is never known...
@@ -563,10 +614,9 @@ pub fn export_with_super_mechanisms(
                 // and we sum currents as sum(g_)
                 let i = mechs
                     .iter()
-                    .map(|m| format!("{m}_conductance*(v - {m}_e{ion})"))
+                    .map(|m| format!("{m}_g*(v - {m}_e{ion})"))
                     .collect::<Vec<_>>()
                     .join(" + ");
-                eprintln!("{i:?}");
                 let ix = Stmnt::Ass(format!("i{ion}"), Expr::parse(&i)?);
                 outputs.insert(format!("i{ion}"), ix);
             }
@@ -576,11 +626,7 @@ pub fn export_with_super_mechanisms(
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);
-        let nmodl = nmodl::mk_nmodl(n)?;
-        let path = format!("{bundle}/cat/{id}_{reg}.mod");
-        info!("Writing Super-Mechanism NMODL for cell '{id}' region '{reg}' to {path:?}",);
-        write(&path, nmodl)?;
+        result.entry(id.clone()).or_default().push((reg.clone(), n));
     }
-
-    Ok(())
+    Ok(result)
 }

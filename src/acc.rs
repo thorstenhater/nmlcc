@@ -48,7 +48,7 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
 }
 
 #[allow(non_snake_case)] // xml..
-fn parse_inhomogeneous_parameters(
+pub fn parse_inhomogeneous_parameters(
     cell: &roxmltree::Node<'_, '_>,
 ) -> Result<Map<String, ParsedInhomogeneousParameter>> {
     let mut inhomogeneous_parameters = Map::new();
@@ -120,7 +120,7 @@ fn parse_inhomogeneous_parameters(
 
 pub fn export(lems: &LemsFile, nml: &[String], pfx: &str, cat_prefix: &str) -> Result<()> {
     trace!("Creating path {}", pfx);
-    std::fs::create_dir_all(&pfx)?;
+    std::fs::create_dir_all(pfx)?;
 
     let cells = to_decor(lems, nml)?;
     for (cell, decor) in cells {
