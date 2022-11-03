@@ -32,9 +32,9 @@ pub fn export(
     nmodl::export(lems, nml, "-*", &format!("{bundle}/cat"), ions)?;
 
     if use_super_mechs {
-        export_with_super_mechanisms(lems, nml, bundle)?;
+        export_with_super_mechanisms(lems, nml, bundle, ions)?;
     } else {
-        acc::export(lems, nml, &format!("{bundle}/acc"))?;
+        acc::export(lems, nml, &format!("{bundle}/acc"), ions)?;
     }
     Ok(())
 }
@@ -410,10 +410,15 @@ struct IonChannel {
     conductance: Quantity,
 }
 
-pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
+pub fn export_with_super_mechanisms(
+    lems: &LemsFile,
+    nml: &[String],
+    bundle: &str,
+    ions: &[String],
+) -> Result<()> {
     let cells = read_cell_data(nml)?;
     let chans = read_ion_channels(lems, nml)?;
-    let merge = build_super_mechanisms(&cells, &chans, lems)?;
+    let merge = build_super_mechanisms(&cells, &chans, lems, ions)?;
 
     for (id, cell) in merge {
         for (reg, chan) in cell.channels {
@@ -438,13 +443,14 @@ pub fn build_super_mechanisms(
     props: &Map<String, BiophysicalProperties>,
     ins: &[Instance],
     lems: &LemsFile,
+    ions: &[String],
 ) -> Result<Map<String, Cell>> {
     let sms = ion_channel_assignments(props, lems)?;
-    let dec = collect_decor(props, lems)?;
-    let mrg = merge_ion_channels(&sms, ins)?;
+    let dec = collect_decor(props, lems, ions)?;
+    let mrg = merge_ion_channels(&sms, ins, ions)?;
     let mut result = Map::new();
     for (cell, decor) in dec {
-        let channels = mrg[&cell].clone();
+        let channels = mrg.get(&cell).cloned().unwrap_or_default();
         result.insert(cell, Cell { decor, channels });
     }
     Ok(result)
@@ -517,12 +523,13 @@ fn ion_channel_assignments(
 fn collect_decor(
     props: &Map<String, BiophysicalProperties>,
     lems: &LemsFile,
+    ions: &[String],
 ) -> Result<Map<String, Vec<Decor>>> {
     let mut result: Map<String, Vec<Decor>> = Map::new();
     for (id, prop) in props {
         let mut seen = Set::new();
         let mut sm = Vec::new();
-        for d in acc::biophys(prop, lems)? {
+        for d in acc::biophys(prop, lems, ions)? {
             if let Decor::Paint(r, Paintable::Mech(_, _)) = d {
                 if !seen.contains(&r) {
                     sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
@@ -552,10 +559,8 @@ fn read_ion_channels(lems: &LemsFile, nml: &[String]) -> Result<Vec<Instance>> {
 fn merge_ion_channels(
     channel_mappings: &Map<(String, String), Vec<IonChannel>>,
     instances: &[Instance],
+    known_ions: &[String],
 ) -> Result<Map<String, Vec<(String, Nmodl)>>> {
-    // TODO we might want to extend this when finding <species>.
-    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
-
     let mut result: Map<String, Vec<_>> = Map::new();
     for ((id, reg), channels) in channel_mappings {
         let mut collapsed = Collapsed::new(&Some(format!("{id}_{reg}")));
@@ -628,7 +633,7 @@ fn merge_ion_channels(
             }
         }
 
-        let mut n = nmodl::Nmodl::from(&collapsed, &known_ions, "-*")?;
+        let mut n = nmodl::Nmodl::from(&collapsed, known_ions, "-*")?;
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);
