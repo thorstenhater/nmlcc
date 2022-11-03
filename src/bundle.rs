@@ -467,7 +467,7 @@ fn read_cell_data(nml: &[String]) -> Result<CellData> {
             return Ok(());
         }
         let id = node.attribute("id").ok_or(nml2_error!("Cell without id"))?;
-        ihp.insert(id.to_string(), acc::parse_inhomogeneous_parameters(&node)?);
+        ihp.insert(id.to_string(), acc::parse_inhomogeneous_parameters(node)?);
         if let Some(p) = node
             .children()
             .find(|c| c.tag_name().name() == "biophysicalProperties")

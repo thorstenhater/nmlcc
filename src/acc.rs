@@ -540,7 +540,7 @@ fn membrane(
                         ));
                     }
                 };
-                let gs = simple_ion(&known_ions, &mut result, ion, segmentGroup, erev)?;
+                let gs = simple_ion(known_ions, &mut result, ion, segmentGroup, erev)?;
                 let mut ns = Map::new();
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
                     ns.insert(
