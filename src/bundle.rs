@@ -1,5 +1,5 @@
 use crate::{
-    acc::{self, Decor, Paintable, Sexp, SexpConfig, ParsedInhomogeneousParameter},
+    acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp, SexpConfig},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
@@ -413,7 +413,13 @@ struct IonChannel {
     conductance: Quantity,
 }
 
-pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &str, ions: &[String], cat_prefix: &str) -> Result<()> {
+pub fn export_with_super_mechanisms(
+    lems: &LemsFile,
+    nml: &[String],
+    bundle: &str,
+    ions: &[String],
+    cat_prefix: &str,
+) -> Result<()> {
     let cells = read_cell_data(nml)?;
     let chans = read_ion_channels(lems, nml)?;
     let merge = build_super_mechanisms(&cells, &chans, lems, ions)?;
@@ -427,7 +433,12 @@ pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &st
         }
         let path = format!("{bundle}/acc/{id}.acc");
         info!("Writing Super Mechanism ACC to {path:?}");
-        write(&path, cell.decor.to_sexp_with_config(&SexpConfig { cat_prefix: cat_prefix.into() }))?;
+        write(
+            &path,
+            cell.decor.to_sexp_with_config(&SexpConfig {
+                cat_prefix: cat_prefix.into(),
+            }),
+        )?;
     }
     Ok(())
 }
@@ -456,7 +467,7 @@ pub fn build_super_mechanisms(
 
 pub struct CellData {
     props: Map<String, BiophysicalProperties>,
-    ihp: Map<String, Map<String, ParsedInhomogeneousParameter>>
+    ihp: Map<String, Map<String, ParsedInhomogeneousParameter>>,
 }
 
 fn read_cell_data(nml: &[String]) -> Result<CellData> {
@@ -535,7 +546,12 @@ fn collect_decor(
     for (id, prop) in props {
         let mut seen = Set::new();
         let mut sm = Vec::new();
-        for d in acc::biophys(prop, lems, ions, ihp.get(id).ok_or(nml2_error!("should never happen"))?)? {
+        for d in acc::biophys(
+            prop,
+            lems,
+            ions,
+            ihp.get(id).ok_or(nml2_error!("should never happen"))?,
+        )? {
             if let Decor::Paint(r, Paintable::Mech(_, _)) = d {
                 if !seen.contains(&r) {
                     sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
