@@ -92,7 +92,7 @@ impl Body {
         match self {
             Body::Empty => *self = Body::Alt(vec![el.clone()]),
             Body::Alt(els) => els.push(el.clone()),
-            _ => panic!("Cannot insert {:?} into {:?}", el, self),
+            _ => panic!("Cannot insert {el:?} into {self:?}"),
         }
     }
 }
@@ -129,7 +129,7 @@ fn simple_type(node: &Node) -> Result<(String, Kind)> {
         match child.tag_name().name() {
             "restriction" => return Ok((name.to_string(), restriction(&child)?)),
             "annotation" => {}
-            t => return Err(format!("Invalid tag '{}' in simple type.", t)),
+            t => return Err(format!("Invalid tag '{t}' in simple type.")),
         }
     }
     Err(String::from("Invalid simple type."))
@@ -156,7 +156,7 @@ fn group_def(node: &Node) -> Result<(String, Body)> {
         match child.tag_name().name() {
             "sequence" => return Ok((name.to_string(), sequence(&child)?)),
             "annotation" => {}
-            t => return Err(format!("Invalid tag '{}' in simple type.", t)),
+            t => return Err(format!("Invalid tag '{t}' in simple type.")),
         }
     }
     Err(String::from("Incomplete Group"))
@@ -170,12 +170,12 @@ fn attribute(node: &Node) -> Result<Member> {
     let data = node
         .attribute("type")
         .map(Kind::from_str)
-        .ok_or_else(|| format!("Untyped attribute '{}' ({:?})", name, pos_from_node(node)))?;
+        .ok_or_else(|| format!("Untyped attribute '{name}' ({:?})", pos_from_node(node)))?;
     let dflt = node.attribute("default").map(|s| s.to_string());
     let count = match node.attribute("use") {
         Some("required") => Count::One,
         Some("optional") => Count::Opt(dflt),
-        Some(e) => return Err(format!("Unknown value for 'use': {}", e)),
+        Some(e) => return Err(format!("Unknown value for 'use': {e}")),
         None => Count::Opt(dflt),
     };
     Ok(Member { name, count, data })
@@ -201,7 +201,7 @@ fn sequence(node: &Node) -> Result<Body> {
             "sequence" | "all" | "choice" => body = Body::merge(&body, &sequence(&child)?),
             "any" => body = Body::merge(&body, &Body::Any),
             "group" => body.insert(&group_ref(&child)?),
-            t => return Err(format!("Invalid tag '{}' in sequence.", t)),
+            t => return Err(format!("Invalid tag '{t}' in sequence.")),
         }
     }
     Ok(body)
@@ -223,7 +223,7 @@ fn extension(node: &Node) -> Result<(Body, Vec<Member>, String)> {
             "annotation" => {}
             "attribute" => members.push(attribute(&child)?),
             "sequence" | "all" | "choice" => body = Body::merge(&body, &sequence(&child)?),
-            e => return Err(format!("Unexpected tag in extension: {:?}", e)),
+            e => return Err(format!("Unexpected tag in extension: {e:?}")),
         }
     }
     Ok((body, members, base))
@@ -237,7 +237,7 @@ fn complex_content(node: &Node) -> Result<(Body, Vec<Member>, String)> {
         match child.tag_name().name() {
             "annotation" => {}
             "extension" => return extension(&child),
-            e => return Err(format!("Unexpected tag in complex content: {:?}", e)),
+            e => return Err(format!("Unexpected tag in complex content: {e:?}")),
         }
     }
     Err(String::from("Invalid complexContent"))
@@ -268,7 +268,7 @@ fn complex_type(node: &Node) -> Result<(String, Type)> {
                 base = Some(bs);
                 members.append(&mut ms);
             }
-            e => return Err(format!("Unexpected tag in complex type: {:?}", e)),
+            e => return Err(format!("Unexpected tag in complex type: {e:?}")),
         }
     }
     Ok((
@@ -327,7 +327,7 @@ fn inherit(tys: &Map<String, Type>) -> Map<String, Type> {
                 t.body = Body::merge(&t.body, &x.body);
                 base = x.base.clone();
             } else {
-                panic!("Found no base type {}", b);
+                panic!("Found no base type {b}");
             }
         }
         t.base = None;
@@ -351,7 +351,7 @@ fn flatten(tys: &Map<String, Type>, groups: &Map<String, Body>) -> Map<String, T
                             if let Some(es) = groups.get(g) {
                                 body = Body::merge(&body, es);
                             } else {
-                                panic!("Found no group {}", g);
+                                panic!("Found no group {g}");
                             }
                         }
                         e => {
@@ -432,7 +432,7 @@ fn emit_src(state: &Schema) -> Result<String> {
         for m in &t.members {
             let name = match m.name.as_ref() {
                 n @ ("as" | "type") => {
-                    format!("r#{}", n)
+                    format!("r#{n}")
                 }
                 "" => "body".to_string(),
                 n => n.to_string(),
@@ -450,7 +450,7 @@ fn emit_src(state: &Schema) -> Result<String> {
                 ".unwrap()"
             };
             let default = if let Count::Opt(Some(d)) = &m.count {
-                format!(".or(Some(\"{}\"))", d)
+                format!(".or(Some(\"{d}\"))")
             } else {
                 "".to_string()
             };
@@ -459,7 +459,7 @@ fn emit_src(state: &Schema) -> Result<String> {
             } else {
                 m.data.to_rs()
             };
-            ty.push(format!("    pub {}: {},", name, kind));
+            ty.push(format!("    pub {name}: {kind},"));
             nd.push(format!(
                 "        let {} = node.attribute(\"{}\"){}.map({}){};",
                 name, m.name, default, convert, unwrap
@@ -482,13 +482,13 @@ fn emit_src(state: &Schema) -> Result<String> {
                 for x in xs {
                     if let Element::Element(k, v) = x {
                         let v = v.to_rs();
-                        bd.push(format!("    {}({}),", k, v));
+                        bd.push(format!("    {k}({v}),"));
                         lp.push(format!(
                             "                \"{}\" => body.push({}Body::{}({}::from_node(&child))),",
                             k, t.name, k, v
                         ));
                     } else {
-                        return Err(format!("Unresolved element {:?}", x));
+                        return Err(format!("Unresolved element {x:?}"));
                     }
                 }
                 lp.push(format!(
@@ -509,7 +509,7 @@ fn emit_src(state: &Schema) -> Result<String> {
 
         nd.push(format!("        {} {{", t.name));
         for attr in &attrs {
-            nd.push(format!("            {},", attr));
+            nd.push(format!("            {attr},"));
         }
         nd.push(String::from("        }"));
         nd.push(String::from("    }"));

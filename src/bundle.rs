@@ -229,17 +229,17 @@ class recipe(A.recipe):
         self.props = A.neuron_cable_properties()
         cat = compile(here / 'local-catalogue.so', here / 'cat')
         self.props.catalogue.extend(cat, '')
-        self.cell_to_morph = {}
-        self.gid_to_cell = {}
-        self.i_clamps = {}
-        self.gid_to_inputs = {}
-        self.gid_to_synapses = {}
-        self.gid_to_detectors = {}
-        self.gid_to_connections = {}
-        self.gid_to_labels = {}
+        self.cell_to_morph = {cell_to_morph}
+        self.gid_to_cell = {gid_to_cell}
+        self.i_clamps = {i_clamps}
+        self.gid_to_inputs = {gid_to_inputs}
+        self.gid_to_synapses = {gid_to_synapses}
+        self.gid_to_detectors = {gid_to_detectors}
+        self.gid_to_connections = {gid_to_connections}
+        self.gid_to_labels = {gid_to_labels}
 
     def num_cells(self):
-        return {}
+        return {count}
 
     def cell_kind(self, _):
         return A.cell_kind.cable
@@ -308,7 +308,7 @@ try:
   print('Ok')
 except:
   print('Failure, are seaborn and matplotlib installed?')
-", cell_to_morph, gid_to_cell, i_clamps, gid_to_inputs, gid_to_synapses, gid_to_detectors, gid_to_connections, gid_to_labels, count))
+"))
 }
 
 fn mk_mrf(id: &str, mrf: &str) -> String {
@@ -328,9 +328,9 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
 fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     trace!("Creating bundle {bundle}");
     create_dir_all(bundle)?;
-    create_dir_all(&format!("{bundle}/mrf"))?;
-    create_dir_all(&format!("{bundle}/acc"))?;
-    create_dir_all(&format!("{bundle}/cat"))?;
+    create_dir_all(format!("{bundle}/mrf"))?;
+    create_dir_all(format!("{bundle}/acc"))?;
+    create_dir_all(format!("{bundle}/cat"))?;
 
     let norm = |v: &str| -> Result<String> {
         let q = Quantity::parse(v)?;
@@ -393,7 +393,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
         [net] => {
             trace!("Writing main.py");
             write(
-                &format!("{bundle}/main.py"),
+                format!("{bundle}/main.py"),
                 mk_main_py(&cells, &iclamps, net)?,
             )?;
             Ok(())
@@ -404,7 +404,11 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     }
 }
 
-type Assign = (String, Quantity, Quantity);
+struct IonChannel {
+    name: String,
+    reversal_potential: Quantity,
+    conductance: Quantity,
+}
 
 pub fn export_with_super_mechanisms(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     let cells = read_cell_data(nml)?;
@@ -468,11 +472,11 @@ fn read_cell_data(nml: &[String]) -> Result<Map<String, BiophysicalProperties>> 
 fn ion_channel_assignments(
     props: &Map<String, BiophysicalProperties>,
     lems: &LemsFile,
-) -> Result<Map<(String, String), Vec<Assign>>> {
+) -> Result<Map<(String, String), Vec<IonChannel>>> {
     use BiophysicalPropertiesBody::*;
     use MembranePropertiesBody::*;
 
-    let mut result: Map<_, Vec<Assign>> = Map::new();
+    let mut result: Map<_, Vec<IonChannel>> = Map::new();
     for (id, prop) in props.iter() {
         for item in prop.body.iter() {
             if let membraneProperties(membrane) = item {
@@ -490,13 +494,18 @@ fn ion_channel_assignments(
                         } else {
                             segmentGroup.to_string()
                         };
-                        let channel = ionChannel.to_string();
-                        let g = lems.normalise_quantity(&Quantity::parse(g)?)?;
-                        let e = lems.normalise_quantity(&Quantity::parse(erev)?)?;
+                        let name = ionChannel.to_string();
+                        let conductance = lems.normalise_quantity(&Quantity::parse(g)?)?;
+                        let reversal_potential =
+                            lems.normalise_quantity(&Quantity::parse(erev)?)?;
                         result
                             .entry((id.to_string(), region))
                             .or_default()
-                            .push((channel, g, e));
+                            .push(IonChannel {
+                                name,
+                                reversal_potential,
+                                conductance,
+                            });
                     }
                 }
             }
@@ -541,31 +550,41 @@ fn read_ion_channels(lems: &LemsFile, nml: &[String]) -> Result<Vec<Instance>> {
 }
 
 fn merge_ion_channels(
-    sms: &Map<(String, String), Vec<Assign>>,
-    ins: &[Instance],
+    channel_mappings: &Map<(String, String), Vec<IonChannel>>,
+    instances: &[Instance],
 ) -> Result<Map<String, Vec<(String, Nmodl)>>> {
     // TODO we might want to extend this when finding <species>.
     let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
 
     let mut result: Map<String, Vec<_>> = Map::new();
-    for ((id, reg), ms) in sms {
-        let mut coll = Collapsed::new(&Some(format!("{id}_{reg}")));
+    for ((id, reg), channels) in channel_mappings {
+        let mut collapsed = Collapsed::new(&Some(format!("{id}_{reg}")));
         let mut ions: Map<_, Vec<_>> = Map::new();
-        for (m, g, e) in ms {
-            for inst in ins {
-                if inst.id == Some(m.to_string()) {
-                    let mut inst = inst.clone();
-                    let ion = inst.attributes.get("species").cloned().unwrap_or_default();
+        for channel in channels {
+            for instance in instances {
+                if instance.id == Some(channel.name.to_string()) {
+                    let mut instance = instance.clone();
+                    let ion = instance
+                        .attributes
+                        .get("species")
+                        .cloned()
+                        .unwrap_or_default();
                     // Set Parameters e, g
-                    inst.component_type
+                    instance
+                        .component_type
                         .parameters
                         .push(String::from("conductance"));
-                    inst.parameters
-                        .insert(String::from("conductance"), g.clone());
-                    inst.parameters.insert(format!("e{ion}"), e.clone());
-                    inst.component_type.parameters.push(format!("e{ion}"));
-                    ions.entry(ion.clone()).or_default().push(m.clone());
-                    coll.add(&inst, &Context::default(), None)?;
+                    instance
+                        .parameters
+                        .insert(String::from("conductance"), channel.conductance.clone());
+                    instance
+                        .parameters
+                        .insert(format!("e{ion}"), channel.reversal_potential.clone());
+                    instance.component_type.parameters.push(format!("e{ion}"));
+                    ions.entry(ion.clone())
+                        .or_default()
+                        .push(channel.name.clone());
+                    collapsed.add(&instance, &Context::default(), None)?;
                 }
             }
         }
@@ -609,7 +628,7 @@ fn merge_ion_channels(
             }
         }
 
-        let mut n = nmodl::Nmodl::from(&coll, &known_ions, "-*")?;
+        let mut n = nmodl::Nmodl::from(&collapsed, &known_ions, "-*")?;
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);

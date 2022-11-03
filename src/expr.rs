@@ -93,9 +93,9 @@ impl Expr {
 
     pub fn print_to_string(&self) -> String {
         match &self {
-            Expr::F64(x) => format!("{}", x),
+            Expr::F64(x) => format!("{x}"),
             Expr::Var(x) => x.to_string(),
-            Expr::Fun(f, x) => format!("{}({})", f, x.print_to_string()),
+            Expr::Fun(f, x) => format!("{f}({})", x.print_to_string()),
             Expr::Exp(x) => format!("exp({})", x.print_to_string()),
             Expr::Log(x) => format!("log({})", x.print_to_string()),
             Expr::Sqrt(x) => format!("({})^0.5", x.print_to_string()), // NB. () needed since we want to call sqrt(...)
@@ -190,7 +190,7 @@ impl Stmnt {
     pub fn print_to_string(&self, ind: usize) -> String {
         match self {
             Stmnt::Ass(n, e) => {
-                format!("{:width$}{} = {}", "", n, e.print_to_string(), width = ind)
+                format!("{:ind$}{n} = {}", "", e.print_to_string())
             }
             Stmnt::Ift(c, t, f) => {
                 if let Some(f) = f.deref() {
@@ -293,7 +293,7 @@ pub enum Boolean {
 impl Boolean {
     pub fn print_to_string(&self) -> String {
         match &self {
-            Boolean::Lit(b) => format!("{}", b),
+            Boolean::Lit(b) => format!("{b}"),
             Boolean::Cmp(o, l, r) => {
                 let op = match o {
                     Cmp::Eq => "==",
@@ -303,14 +303,14 @@ impl Boolean {
                     Cmp::Gt => ">",
                     Cmp::Lt => "<",
                 };
-                format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
+                format!("{} {op} {}", l.print_to_string(), r.print_to_string())
             }
             Boolean::Op(o, l, r) => {
                 let op = match o {
                     Op::And => "&&",
                     Op::Or => "||",
                 };
-                format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
+                format!("{} {op} {}", l.print_to_string(), r.print_to_string())
             }
         }
     }
@@ -651,7 +651,7 @@ mod parse {
         let op = match o {
             "and" => Op::And,
             "or" => Op::Or,
-            x => panic!("Unknown boolean op: {}", x),
+            x => panic!("Unknown boolean op: {x}"),
         };
         Ok((input, Boolean::Op(op, Box::new(l), Box::new(r))))
     }
@@ -666,7 +666,7 @@ mod parse {
             "gt" => Cmp::Gt,
             "leq" => Cmp::Le,
             "geq" => Cmp::Ge,
-            x => panic!("Unknown compare operator: {}", x),
+            x => panic!("Unknown compare operator: {x}"),
         };
         Ok((input, Boolean::Cmp(op, Box::new(l), Box::new(r))))
     }

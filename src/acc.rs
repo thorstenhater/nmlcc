@@ -57,7 +57,7 @@ pub fn export(lems: &LemsFile, nml: &[String], pfx: &str) -> Result<()> {
 
 fn acc_unimplemented(f: &str) -> Error {
     Error::Acc {
-        what: format!("Feature '{}' not implemented for ACC export.", f),
+        what: format!("Feature '{f}' not implemented for ACC export."),
     }
 }
 
@@ -208,7 +208,7 @@ impl Sexp for Decor {
     fn to_sexp(&self) -> String {
         match self {
             Decor::Default(i) => format!("(default {})", i.to_sexp()),
-            Decor::Paint(r, i) => format!("(paint (region \"{}\") {})", r, i.to_sexp()),
+            Decor::Paint(r, i) => format!("(paint (region \"{r}\") {})", i.to_sexp()),
         }
     }
 }

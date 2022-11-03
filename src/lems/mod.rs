@@ -47,7 +47,7 @@ impl Lems {
                         let root = doc.root_element();
                         let raw: raw::Lems = match root.tag_name().name() {
                             "Lems" => Ok(XML::from_node(&doc.root_element())),
-                            t => Err(lems_error(format!("Unknown doc kind {}", t))),
+                            t => Err(lems_error(format!("Unknown doc kind {t}"))),
                         }?;
                         for item in raw.body {
                             match item {
@@ -119,7 +119,7 @@ impl Lems {
             let doc = Document::parse(xml).expect("Cannot parse core");
             let root = doc.root_element();
             if root.tag_name().name() != "Lems" {
-                panic!("Core definition '{}' is not a Lems file.", name);
+                panic!("Core definition '{name}' is not a Lems file.");
             }
             let raw: raw::Lems = XML::from_node(&doc.root_element());
             for item in raw.body {
