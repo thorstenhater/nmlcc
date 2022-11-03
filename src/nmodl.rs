@@ -88,7 +88,7 @@ fn apply_filter(filter: &str, keys: &Set<String>) -> Set<String> {
                 retain.remove(&f.to_string());
             }
         } else {
-            panic!("Unknown filter kind: {}", f);
+            panic!("Unknown filter kind: {f}");
         }
     }
     retain
@@ -124,7 +124,7 @@ impl Nmodl {
                     init.insert(nm.to_string(), Stmnt::Ass(nm.clone(), i.clone()));
                 }
                 if let Some(d) = d {
-                    let dnm = format!("{}'", nm);
+                    let dnm = format!("{nm}'");
                     deriv.insert(dnm.to_string(), Stmnt::Ass(dnm.clone(), d.clone()));
                 }
             }
@@ -203,8 +203,8 @@ impl Nmodl {
                 .collect::<String>();
             let f = from.strip_prefix(&pfx).unwrap_or(from);
             let t = to.strip_prefix(&pfx).unwrap_or(to);
-            let fname = format!("{}{}_to_{}", pfx, f, t);
-            let bname = format!("{}{}_to_{}", pfx, t, f);
+            let fname = format!("{pfx}{f}_to_{t}");
+            let bname = format!("{pfx}{t}_to_{f}");
             let fwd = Stmnt::Ass(fname.clone(), fwd);
             let bwd = Stmnt::Ass(bname.clone(), bwd);
             rates.insert(fname.clone(), bwd.clone());
@@ -230,10 +230,10 @@ impl Nmodl {
         .collect();
         for ion in &species {
             if !ion.is_empty() {
-                symbols.insert(format!("e{}", ion));
-                symbols.insert(format!("i{}", ion));
-                symbols.insert(format!("{}i", ion));
-                symbols.insert(format!("{}o", ion));
+                symbols.insert(format!("e{ion}"));
+                symbols.insert(format!("i{ion}"));
+                symbols.insert(format!("{ion}i"));
+                symbols.insert(format!("{ion}o"));
             }
         }
         symbols.extend(parameters.iter().map(|p: (&String, _)| p.0.to_string()));
@@ -543,11 +543,11 @@ fn nmodl_param_block(n: &Nmodl) -> Result<String> {
     }
     let mut result = vec![String::from("PARAMETER {")];
     for (k, v) in ps.into_iter() {
-        let mut ln = format!("  {}", k);
+        let mut ln = format!("  {k}");
         if let Some(v) = v {
             ln.push_str(&format!(" = {}", v.value));
             if let Some(u) = v.unit.as_ref() {
-                ln.push_str(&format!(" ({})", u));
+                ln.push_str(&format!(" ({u})"));
             }
         }
         result.push(ln);
@@ -562,9 +562,9 @@ fn nmodl_const_block(n: &Nmodl) -> Result<String> {
     }
     let mut result = vec![String::from("CONSTANT {")];
     for (k, v) in &n.constants {
-        let mut ln = format!("  {} = {}", k, v.value);
+        let mut ln = format!("  {k} = {}", v.value);
         if let Some(u) = v.unit.as_ref() {
-            ln.push_str(&format!(" ({})", u));
+            ln.push_str(&format!(" ({u})"));
         }
         result.push(ln);
     }
@@ -599,11 +599,11 @@ fn nmodl_kinetic_block(n: &Nmodl) -> Result<String> {
         result.push('\n');
     }
     for (f, t, rf, rt) in &n.transitions {
-        result.push_str(&format!("  ~ {} <-> {} ({}, {})\n", f, t, rf, rt));
+        result.push_str(&format!("  ~ {f} <-> {t} ({rf}, {rt})\n"));
     }
     for row in &n.states {
         let row = row.iter().cloned().collect::<Vec<_>>().join(" + ");
-        result.push_str(&format!("  CONSERVE {} = 1\n", row));
+        result.push_str(&format!("  CONSERVE {row} = 1\n"));
     }
     result.push_str("}\n\n");
     Ok(result)
@@ -660,7 +660,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
     };
     let mut result = vec![
         String::from("NEURON {\n"),
-        format!("  {} {}\n", kind, n.suffix),
+        format!("  {kind} {}\n", n.suffix),
     ];
     let mut write = n.outputs.keys().cloned().collect::<Set<_>>();
     for k in n.deriv.keys() {
@@ -668,10 +668,10 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         write.insert(s.to_string());
     }
     for ion in &ions {
-        let xi = format!("{}i", ion);
-        let ix = format!("i{}", ion);
-        let xo = format!("{}o", ion);
-        let ex = format!("e{}", ion);
+        let xi = format!("{ion}i");
+        let ix = format!("i{ion}");
+        let xo = format!("{ion}o");
+        let ex = format!("e{ion}");
 
         if n.known_ions.contains(ion) {
             let mut used = false;
@@ -699,7 +699,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
                 } else {
                     String::new()
                 };
-                let usage = format!("  USEION {}{}{}\n", ion, ws, rs);
+                let usage = format!("  USEION {ion}{ws}{rs}\n");
 
                 result.push(usage);
             }
@@ -708,9 +708,9 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
 
     if n.kind == Kind::Density {
         for ion in &ions {
-            let ix = format!("i{}", ion);
+            let ix = format!("i{ion}");
             if write.contains(&ix) && !n.known_ions.contains(ion) {
-                result.push(format!("  NONSPECIFIC_CURRENT {}\n", ix));
+                result.push(format!("  NONSPECIFIC_CURRENT {ix}\n"));
             }
         }
     } else if n.kind == Kind::Junction || n.kind == Kind::Point {
@@ -835,7 +835,7 @@ fn print_dependency_chains(
                 "Unresolved variable {} resulting from {:?} which are\n{}",
                 d, roots, exprs
             );
-            result.push(format!("{} = ???", d));
+            result.push(format!("{d} = ???"));
         }
     }
     Ok(result.join("\n"))
@@ -899,15 +899,15 @@ pub fn to_nmodl(
             let coll = Collapsed::from_instance(&instance)?;
             let mut n = Nmodl::from(&coll, known_ions, &filter)?;
             for ion in &n.species {
-                let ex = format!("e{}", ion);
+                let ex = format!("e{ion}");
                 let gx = String::from("g");
-                let ix = format!("i{}", ion);
-                let xi = format!("{}i", ion);
+                let ix = format!("i{ion}");
+                let xi = format!("{ion}i");
                 if known_ions.contains(ion) {
-                    let (ki, xi) = assign(&format!("{}conc", ion), &xi)?;
+                    let (ki, xi) = assign(&format!("{ion}conc"), &xi)?;
                     n.variables.insert(ki, xi);
                 } else {
-                    filter.push_str(format!("+e{}", ion).as_str());
+                    filter.push_str(format!("+e{ion}").as_str());
                     n.parameters
                         .insert(ex.clone(), Some(Quantity::parse("0 mV")?));
                     n.symbols.insert(ex.clone());
@@ -918,9 +918,9 @@ pub fn to_nmodl(
                     n.variables.insert(g, v);
                 }
                 // NML ion channnels write out conductivities, but NMODL deals in currents.
-                let (ik, ix) = assign(&ix, &format!("{}*(v - {})", gx, ex))?;
+                let (ik, ix) = assign(&ix, &format!("{gx}*(v - {ex})"))?;
                 n.outputs.insert(ik.clone(), ix);
-                let (ki, xi) = assign(&format!("{}conc", ion), &xi)?;
+                let (ki, xi) = assign(&format!("{ion}conc"), &xi)?;
                 n.variables.insert(ki, xi);
             }
             n.kind = Kind::Density;
@@ -940,10 +940,10 @@ pub fn to_nmodl(
                 Some(Quantity::parse("0 mM")?),
             );
             let mut n = Nmodl::from(&coll, known_ions, &filter)?;
-            let xi = format!("{}i", ion);
-            let xo = format!("{}o", ion);
-            let dxi = format!("{}i'", ion);
-            let dxo = format!("{}o'", ion);
+            let xi = format!("{ion}i");
+            let xo = format!("{ion}o");
+            let dxi = format!("{ion}i'");
+            let dxo = format!("{ion}o'");
 
             let ic = "concentration";
             let ec = "extConcentration";
