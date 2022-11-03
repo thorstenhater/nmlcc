@@ -121,7 +121,6 @@ pub fn parse_inhomogeneous_parameters(
 pub fn export(lems: &LemsFile, nml: &[String], pfx: &str, ions: &[String], cat_prefix: &str) -> Result<()> {
     trace!("Creating path {}", pfx);
     std::fs::create_dir_all(pfx)?;
-
     let cells = to_decor(lems, nml, ions)?;
     for (cell, decor) in cells {
         let mut file = PathBuf::from(pfx);
