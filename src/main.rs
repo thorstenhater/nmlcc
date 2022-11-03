@@ -115,7 +115,7 @@ fn main() -> Result<()> {
         }
         Cmd::Acc { nml, dir } => {
             get_runtime_types(&mut lems, &nml)?;
-            acc::export(&lems, &nml, &dir, "")?;
+            acc::export(&lems, &nml, &dir, &ions[..], "")?;
         }
         Cmd::Bundle {
             nml,

@@ -29,7 +29,7 @@ where
         let tree = roxmltree::Document::parse(&xml)?;
         if tree.root_element().tag_name().name() != "neuroml" {
             return Err(Error::Nml {
-                what: format!("Not a NeuroML2 file {:?}", nml),
+                what: format!("Not a NeuroML2 file {nml:?}"),
             });
         }
         for node in tree.descendants() {

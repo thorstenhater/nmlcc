@@ -16,7 +16,7 @@ fn nml2_error<T: Into<String>>(what: T) -> Error {
     Error::Nml { what: what.into() }
 }
 fn type_error(ty: &str) -> Error {
-    nml2_error(format!("No such type: {}", ty))
+    nml2_error(format!("No such type: {ty}"))
 }
 fn unit_error<T: Into<String>>(what: T) -> Error {
     Error::Unit { what: what.into() }
@@ -133,7 +133,7 @@ impl LemsFile {
                     d.to_string(),
                     units
                         .get(&s.to_string())
-                        .unwrap_or_else(|| panic!("No blessed unit '{}'", s))
+                        .unwrap_or_else(|| panic!("No blessed unit '{s}'"))
                         .clone(),
                 )
             })

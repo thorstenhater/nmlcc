@@ -23,7 +23,11 @@ use std::fs::write;
 use std::path::PathBuf;
 use tracing::{info, trace, warn};
 
-pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor>>> {
+pub fn to_decor(
+    lems: &LemsFile,
+    nml: &[String],
+    ions: &[String],
+) -> Result<Map<String, Vec<Decor>>> {
     let mut cells = Map::new();
     process_files(nml, |_, node| {
         if node.tag_name().name() == "cell" {
@@ -32,11 +36,7 @@ pub fn to_decor(lems: &LemsFile, nml: &[String]) -> Result<Map<String, Vec<Decor
                 let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
                 for bpp in node.children() {
                     if bpp.tag_name().name() == "biophysicalProperties" {
-                        result.append(&mut biophys(
-                            &XML::from_node(&bpp),
-                            lems,
-                            &inhomogeneous_parameters,
-                        )?);
+                        result.append(&mut biophys(&XML::from_node(&bpp), lems, ions, &inhomogeneous_parameters)?);
                     }
                 }
                 *cells.entry(id.to_string()).or_default() = result;
@@ -118,11 +118,11 @@ pub fn parse_inhomogeneous_parameters(
     Ok(inhomogeneous_parameters)
 }
 
-pub fn export(lems: &LemsFile, nml: &[String], pfx: &str, cat_prefix: &str) -> Result<()> {
+pub fn export(lems: &LemsFile, nml: &[String], pfx: &str, ions: &[String], cat_prefix: &str) -> Result<()> {
     trace!("Creating path {}", pfx);
     std::fs::create_dir_all(pfx)?;
 
-    let cells = to_decor(lems, nml)?;
+    let cells = to_decor(lems, nml, ions)?;
     for (cell, decor) in cells {
         let mut file = PathBuf::from(pfx);
         file.push(cell);
@@ -140,7 +140,7 @@ pub fn export(lems: &LemsFile, nml: &[String], pfx: &str, cat_prefix: &str) -> R
 
 fn acc_unimplemented(f: &str) -> Error {
     Error::Acc {
-        what: format!("Feature '{}' not implemented for ACC export.", f),
+        what: format!("Feature '{f}' not implemented for ACC export."),
     }
 }
 
@@ -415,11 +415,7 @@ impl Sexp for Decor {
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
         match self {
             Decor::Default(i) => format!("(default {})", i.to_sexp_with_config(config)),
-            Decor::Paint(r, i) => format!(
-                "(paint (region \"{}\") {})",
-                r,
-                i.to_sexp_with_config(config)
-            ),
+            Decor::Paint(r, i) => format!("(paint (region \"{r}\") {})", i.to_sexp_with_config(config)),
         }
     }
 }
@@ -449,13 +445,14 @@ impl Sexp for Vec<Decor> {
 pub fn biophys(
     prop: &BiophysicalProperties,
     lems: &LemsFile,
-    inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
+    ions: &[String],
+    inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>
 ) -> Result<Vec<Decor>> {
     use BiophysicalPropertiesBody::*;
     let mut decor = Vec::new();
     for item in &prop.body {
         match item {
-            membraneProperties(m) => decor.append(&mut membrane(m, inhomogeneous_parameters)?),
+            membraneProperties(m) => decor.append(&mut membrane(m, ions, inhomogeneous_parameters)?),
             intracellularProperties(i) => decor.append(&mut intra(i)?),
             extracellularProperties(e) => decor.append(&mut extra(e)?),
             property(_) | notes(_) | annotation(_) => {}
@@ -470,9 +467,9 @@ pub fn biophys(
 #[allow(non_snake_case)] // xml..
 fn membrane(
     membrane: &MembraneProperties,
+    known_ions: &[String],
     inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
 ) -> Result<Vec<Decor>> {
-    let known_ions = vec![String::from("ca"), String::from("k"), String::from("na")];
     use MembranePropertiesBody::*;
     let mut result = Vec::new();
     for item in &membrane.body {
@@ -489,7 +486,7 @@ fn membrane(
                 if !body.is_empty() {
                     return Err(acc_unimplemented("Non-empty body in MembraneProperties"));
                 }
-                let mut gs = simple_ion(&known_ions, &mut result, ion, segmentGroup, erev)?;
+                let mut gs = simple_ion(known_ions, &mut result, ion, segmentGroup, erev)?;
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
                 }

@@ -275,8 +275,8 @@ impl Collapsed {
                 coll.transitions.push((
                     from.clone(),
                     to.clone(),
-                    format!("{}/{}", pfx, ks.rfwd),
-                    format!("{}/{}", pfx, ks.rbwd),
+                    format!("{pfx}/{}", ks.rfwd),
+                    format!("{pfx}/{}", ks.rbwd),
                 ));
                 states.insert(from);
                 states.insert(to);
