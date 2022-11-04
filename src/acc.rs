@@ -67,7 +67,7 @@ pub fn parse_inhomogeneous_parameters(
         .flat_map(|n| n.children())
         .filter(|n| n.has_tag_name("inhomogeneousParameter"))
     {
-        if let Some(segmentGroup) = ihp.parent().and_then(|p| p.attribute("id")) {
+        if let Some(segment_group_id) = ihp.parent().and_then(|p| p.attribute("id")) {
             use crate::neuroml::raw::InhomogeneousParameterBody::*;
             use crate::neuroml::raw::{DistalDetails, ProximalDetails};
             let ihp: InhomogeneousParameter = XML::from_node(&ihp);
@@ -109,9 +109,8 @@ pub fn parse_inhomogeneous_parameters(
                 ihp.id,
                 ParsedInhomogeneousParameter {
                     variable: ihp.variable,
-                    region: segmentGroup.to_string(),
-                    subtract_the_minimum,
-                    normalize_end,
+                    region: segment_group_id.to_string(),
+                    subtract_the_minimum
                 },
             );
         } else {
@@ -180,15 +179,22 @@ pub trait Sexp {
 pub struct ParsedInhomogeneousParameter {
     variable: String,           // p
     region: String,             // apicalDends
-    subtract_the_minimum: bool, // proximal root or region minimum
-    #[allow(dead_code)]
-    normalize_end: bool, // most distal distance 1 or um (not supported yet)
+    subtract_the_minimum: bool  // proximal root or region minimum
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MechVariableParameter {
     param: ParsedInhomogeneousParameter,
     value: String, // 10 * p
+}
+
+impl ParsedInhomogeneousParameter {
+    fn instantiate(&self, value: &str) -> MechVariableParameter {
+        MechVariableParameter {
+            param: self.clone(),
+            value: value.to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -215,6 +221,12 @@ impl Paintable {
             let u = lems.normalise_quantity(&q)?;
             Ok(format!("{}", u.value))
         };
+        let norm_map = |ps: &Map<String, String>| -> Result<Map<String, String>> {
+            ps
+                .iter()
+                .map(|(k, v)| norm(v).map(|v| (k.to_string(), v)))
+                .collect::<Result<_>>()
+        };
         let r = match self {
             Paintable::Xi(i, v) => Paintable::Xi(i.clone(), norm(v)?),
             Paintable::Xo(i, v) => Paintable::Xo(i.clone(), norm(v)?),
@@ -224,41 +236,32 @@ impl Paintable {
             Paintable::Er(i, v) => Paintable::Er(i.clone(), norm(v)?),
             Paintable::Em(i, m) if m == "nernst" => Paintable::Em(i.clone(), m.clone()),
             Paintable::Em(i, m) => Paintable::Em(i.clone(), norm(m)?),
-            Paintable::Mech(m, ps) => {
-                let ps = ps
-                    .iter()
-                    .map(|(k, v)| norm(v).map(|v| (k.to_string(), v)))
-                    .collect::<Result<_>>()?;
-                Paintable::Mech(m.clone(), ps)
-            }
+            Paintable::Mech(m, ps) => Paintable::Mech(m.clone(), norm_map(ps)?),
             Paintable::NonUniformMech { name: m, ps, ns } => {
-                let ps = ps
-                    .iter()
-                    .map(|(k, v)| norm(v).map(|v| (k.to_string(), v)))
-                    .collect::<Result<_>>()?;
                 let mut ns = ns.clone();
                 for v in ns.values_mut() {
-                    let metric = if v.param.subtract_the_minimum {
-                        Expr::ProximalDistanceFromRegion(v.param.region.to_string())
+                    let ParsedInhomogeneousParameter { variable, region, subtract_the_minimum} = &v.param;
+                    let metric = if *subtract_the_minimum {
+                        Expr::ProximalDistanceFromRegion(region.to_string())
                     } else {
                         Expr::DistanceFromRoot()
                     };
                     let e = Expr::parse(&v.value)?;
                     let e = e.map(&|ex: &Expr| -> Expr {
-                        match ex {
-                            Expr::Var(x) if x == &v.param.variable => metric.clone(),
-                            _ => ex.clone(),
-                        }
+                        if ex.is_var_with_name(variable) {
+                            &metric
+                        } else {
+                            ex
+                        }.clone()
                     });
-                    let as_sexpr = e.to_sexp();
                     *v = MechVariableParameter {
                         param: v.param.clone(),
-                        value: as_sexpr,
+                        value: e.to_sexp(),
                     };
                 }
                 Paintable::NonUniformMech {
                     name: m.clone(),
-                    ps,
+                    ps: norm_map(ps)?,
                     ns,
                 }
             }
@@ -305,6 +308,12 @@ impl Sexp for Paintable {
     }
 
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
+        fn map_to_sexp<'a>(kv: impl Iterator<Item=(&'a String, &'a String)>) -> String {
+            kv
+                .map(|(k, v)| format!("(\"{k}\" {v})"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
         match self {
             Paintable::Xi(i, v) => format!("(ion-internal-concentration \"{i}\" {v})"),
             Paintable::Xo(i, v) => format!("(ion-external-concentration \"{i}\" {v})"),
@@ -316,24 +325,11 @@ impl Sexp for Paintable {
             Paintable::Vm(v) => format!("(membrane-potential {v})"),
             Paintable::Cm(v) => format!("(membrane-capacitance {v})"),
             Paintable::Mech(m, gs) => {
-                let gs = gs
-                    .iter()
-                    .map(|(k, v)| format!("(\"{k}\" {v})"))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                format!("(density (mechanism \"{}\" {gs}))", config.add_prefix(m))
+                format!("(density (mechanism \"{}\" {}))", config.add_prefix(m), &map_to_sexp(gs.iter()))
             }
             Paintable::NonUniformMech { name: m, ps, ns } => {
-                let ps = ps
-                    .iter()
-                    .map(|(k, v)| format!("(\"{k}\" {v})"))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                let ns = ns
-                    .iter()
-                    .map(|(k, v)| format!("(\"{k}\" {})", v.value))
-                    .collect::<Vec<_>>()
-                    .join(" ");
+                let ps = map_to_sexp(ps.iter());
+                let ns = map_to_sexp(ns.iter().map(|(k, v)| (k, &v.value)));
                 let m = config.add_prefix(m);
                 format!("(scaled-mechanism (density (mechanism \"{m}\" {ps})) {ns})",)
             }
@@ -411,6 +407,14 @@ impl Decor {
         )
     }
 
+    pub fn non_uniform_mechanism(segment_group: &str, ion: &str, gs: &Map<String, String>, ns: &Map<String, MechVariableParameter>) -> Self {
+        Decor::new(
+            segment_group,
+            Paintable::NonUniformMech { name: ion.to_string(), ps: gs.clone(), ns: ns.clone(), },
+            true,
+        )
+    }
+
     pub fn cm(group: &str, value: &str) -> Self {
         Decor::new(group, Paintable::Cm(value.to_string()), false)
     }
@@ -485,6 +489,13 @@ fn membrane(
     inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
 ) -> Result<Vec<Decor>> {
     use MembranePropertiesBody::*;
+    fn rename_cond_density_to_conductance(x: &str) -> String {
+        if x == "condDensity" {
+            String::from("conductance")
+        } else {
+            x.to_string()
+        }
+    }
     let mut result = Vec::new();
     for item in &membrane.body {
         match item {
@@ -534,7 +545,7 @@ fn membrane(
             }) => {
                 use crate::neuroml::raw::ChannelDensityNonUniformBody::variableParameter;
                 use crate::neuroml::raw::VariableParameterBody::inhomogeneousValue;
-                let (param, segmentGroup, ihb) = match &body[..] {
+                let (param, segment_group, ihb) = match &body[..] {
                     [variableParameter(VariableParameter {
                         parameter,
                         segmentGroup,
@@ -555,34 +566,16 @@ fn membrane(
                         ));
                     }
                 };
-                let gs = simple_ion(known_ions, &mut result, ion, segmentGroup, erev)?;
+                let ps = simple_ion(known_ions, &mut result, ion, segment_group, erev)?;
                 let mut ns = Map::new();
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
-                    ns.insert(
-                        if param == "condDensity" {
-                            String::from("conductance")
-                        } else {
-                            param.to_string()
-                        },
-                        MechVariableParameter {
-                            param: ihv.clone(),
-                            value: value.to_string(),
-                        },
-                    );
+                    ns.insert(rename_cond_density_to_conductance(param), ihv.instantiate(value));
                 } else {
                     return Err(nml2_error!(
                         "Inhomogeneous parameter definition {ihv} not found"
                     ));
                 }
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::NonUniformMech {
-                        name: ionChannel.to_string(),
-                        ps: gs,
-                        ns,
-                    },
-                    true,
-                ));
+                result.push(Decor::non_uniform_mechanism(segment_group, ionChannel, &ps, &ns));
             }
             channelDensityNonUniformNernst(ChannelDensityNonUniformNernst {
                 ionChannel,
@@ -615,37 +608,14 @@ fn membrane(
                 };
                 let mut ns = Map::new();
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
-                    ns.insert(
-                        if param == "condDensity" {
-                            String::from("conductance")
-                        } else {
-                            param.to_string()
-                        },
-                        MechVariableParameter {
-                            param: ihv.clone(),
-                            value: value.to_string(),
-                        },
-                    );
+                    ns.insert(rename_cond_density_to_conductance(param), ihv.instantiate(value));
                 } else {
                     return Err(nml2_error!(
                         "Inhomogeneous parameter definition {ihv} not found"
                     ));
                 }
-                result.push(Decor::new(
-                    "",
-                    // TODO This is poison
-                    Paintable::Em(ion.to_string(), "nernst".to_string()),
-                    false,
-                ));
-                result.push(Decor::new(
-                    segmentGroup,
-                    Paintable::NonUniformMech {
-                        name: ionChannel.to_string(),
-                        ps: Map::new(),
-                        ns,
-                    },
-                    true,
-                ));
+                result.push(Decor::nernst(ion));
+                result.push(Decor::non_uniform_mechanism(segmentGroup, ionChannel, &Map::new(), &ns));
             }
             spikeThresh(_) => {}
             specificCapacitance(SpecificCapacitance {

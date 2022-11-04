@@ -158,6 +158,13 @@ impl Expr {
         }
         old
     }
+
+    pub fn is_var_with_name(&self, name: &str) -> bool {
+        match self {
+            Expr::Var(x) if name == x => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
