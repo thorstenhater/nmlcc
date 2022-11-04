@@ -110,7 +110,7 @@ pub fn parse_inhomogeneous_parameters(
                 ParsedInhomogeneousParameter {
                     variable: ihp.variable,
                     region: segment_group_id.to_string(),
-                    subtract_the_minimum
+                    subtract_the_minimum,
                 },
             );
         } else {
@@ -179,7 +179,7 @@ pub trait Sexp {
 pub struct ParsedInhomogeneousParameter {
     variable: String,           // p
     region: String,             // apicalDends
-    subtract_the_minimum: bool  // proximal root or region minimum
+    subtract_the_minimum: bool, // proximal root or region minimum
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -222,8 +222,7 @@ impl Paintable {
             Ok(format!("{}", u.value))
         };
         let norm_map = |ps: &Map<String, String>| -> Result<Map<String, String>> {
-            ps
-                .iter()
+            ps.iter()
                 .map(|(k, v)| norm(v).map(|v| (k.to_string(), v)))
                 .collect::<Result<_>>()
         };
@@ -240,7 +239,11 @@ impl Paintable {
             Paintable::NonUniformMech { name: m, ps, ns } => {
                 let mut ns = ns.clone();
                 for v in ns.values_mut() {
-                    let ParsedInhomogeneousParameter { variable, region, subtract_the_minimum} = &v.param;
+                    let ParsedInhomogeneousParameter {
+                        variable,
+                        region,
+                        subtract_the_minimum,
+                    } = &v.param;
                     let metric = if *subtract_the_minimum {
                         Expr::ProximalDistanceFromRegion(region.to_string())
                     } else {
@@ -252,7 +255,8 @@ impl Paintable {
                             &metric
                         } else {
                             ex
-                        }.clone()
+                        }
+                        .clone()
                     });
                     *v = MechVariableParameter {
                         param: v.param.clone(),
@@ -308,9 +312,8 @@ impl Sexp for Paintable {
     }
 
     fn to_sexp_with_config(&self, config: &SexpConfig) -> String {
-        fn map_to_sexp<'a>(kv: impl Iterator<Item=(&'a String, &'a String)>) -> String {
-            kv
-                .map(|(k, v)| format!("(\"{k}\" {v})"))
+        fn map_to_sexp<'a>(kv: impl Iterator<Item = (&'a String, &'a String)>) -> String {
+            kv.map(|(k, v)| format!("(\"{k}\" {v})"))
                 .collect::<Vec<_>>()
                 .join(" ")
         }
@@ -325,7 +328,11 @@ impl Sexp for Paintable {
             Paintable::Vm(v) => format!("(membrane-potential {v})"),
             Paintable::Cm(v) => format!("(membrane-capacitance {v})"),
             Paintable::Mech(m, gs) => {
-                format!("(density (mechanism \"{}\" {}))", config.add_prefix(m), &map_to_sexp(gs.iter()))
+                format!(
+                    "(density (mechanism \"{}\" {}))",
+                    config.add_prefix(m),
+                    &map_to_sexp(gs.iter())
+                )
             }
             Paintable::NonUniformMech { name: m, ps, ns } => {
                 let ps = map_to_sexp(ps.iter());
@@ -407,10 +414,19 @@ impl Decor {
         )
     }
 
-    pub fn non_uniform_mechanism(segment_group: &str, ion: &str, gs: &Map<String, String>, ns: &Map<String, MechVariableParameter>) -> Self {
+    pub fn non_uniform_mechanism(
+        segment_group: &str,
+        ion: &str,
+        gs: &Map<String, String>,
+        ns: &Map<String, MechVariableParameter>,
+    ) -> Self {
         Decor::new(
             segment_group,
-            Paintable::NonUniformMech { name: ion.to_string(), ps: gs.clone(), ns: ns.clone(), },
+            Paintable::NonUniformMech {
+                name: ion.to_string(),
+                ps: gs.clone(),
+                ns: ns.clone(),
+            },
             true,
         )
     }
@@ -569,13 +585,21 @@ fn membrane(
                 let ps = simple_ion(known_ions, &mut result, ion, segment_group, erev)?;
                 let mut ns = Map::new();
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
-                    ns.insert(rename_cond_density_to_conductance(param), ihv.instantiate(value));
+                    ns.insert(
+                        rename_cond_density_to_conductance(param),
+                        ihv.instantiate(value),
+                    );
                 } else {
                     return Err(nml2_error!(
                         "Inhomogeneous parameter definition {ihv} not found"
                     ));
                 }
-                result.push(Decor::non_uniform_mechanism(segment_group, ionChannel, &ps, &ns));
+                result.push(Decor::non_uniform_mechanism(
+                    segment_group,
+                    ionChannel,
+                    &ps,
+                    &ns,
+                ));
             }
             channelDensityNonUniformNernst(ChannelDensityNonUniformNernst {
                 ionChannel,
@@ -608,14 +632,22 @@ fn membrane(
                 };
                 let mut ns = Map::new();
                 if let Some(ihv) = inhomogeneous_parameters.get(ihv) {
-                    ns.insert(rename_cond_density_to_conductance(param), ihv.instantiate(value));
+                    ns.insert(
+                        rename_cond_density_to_conductance(param),
+                        ihv.instantiate(value),
+                    );
                 } else {
                     return Err(nml2_error!(
                         "Inhomogeneous parameter definition {ihv} not found"
                     ));
                 }
                 result.push(Decor::nernst(ion));
-                result.push(Decor::non_uniform_mechanism(segmentGroup, ionChannel, &Map::new(), &ns));
+                result.push(Decor::non_uniform_mechanism(
+                    segmentGroup,
+                    ionChannel,
+                    &Map::new(),
+                    &ns,
+                ));
             }
             spikeThresh(_) => {}
             specificCapacitance(SpecificCapacitance {
