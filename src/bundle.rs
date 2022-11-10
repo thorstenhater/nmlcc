@@ -416,9 +416,8 @@ pub fn export_with_super_mechanisms(
     bundle: &str,
     ions: &[String],
 ) -> Result<()> {
-    let cells = read_cell_data(nml)?;
-    let chans = read_ion_channels(lems, nml)?;
-    let merge = build_super_mechanisms(&cells, &chans, lems, ions)?;
+    let cells = read_cell_data(nml, lems)?;
+    let merge = build_super_mechanisms(&cells, lems, ions)?;
 
     for (id, cell) in merge {
         for (reg, chan) in cell.channels {
@@ -434,42 +433,57 @@ pub fn export_with_super_mechanisms(
     Ok(())
 }
 
+#[derive(Default)]
 pub struct Cell {
     pub decor: Vec<Decor>,
     pub channels: Vec<(String, Nmodl)>,
 }
 
 pub fn build_super_mechanisms(
-    props: &Map<String, BiophysicalProperties>,
-    ins: &[Instance],
+    cells: &CellData,
     lems: &LemsFile,
     ions: &[String],
 ) -> Result<Map<String, Cell>> {
-    let sms = ion_channel_assignments(props, lems)?;
-    let dec = collect_decor(props, lems, ions)?;
-    let mrg = merge_ion_channels(&sms, ins, ions)?;
-    let mut result = Map::new();
-    for (cell, decor) in dec {
-        let channels = mrg.get(&cell).cloned().unwrap_or_default();
-        result.insert(cell, Cell { decor, channels });
-    }
-    Ok(result)
+    let sms = ion_channel_assignments(&cells.bio_phys, lems)?;
+    let dec = split_decor(cells, lems, ions)?;
+    let mrg = merge_ion_channels(&sms, cells, ions)?;
+
+    Ok(dec
+        .into_iter()
+        .map(|(cell, decor)| {
+            let channels = mrg.get(&cell).cloned().unwrap_or_default();
+            (cell, Cell { decor, channels })
+        })
+        .collect())
 }
 
-fn read_cell_data(nml: &[String]) -> Result<Map<String, BiophysicalProperties>> {
-    let mut result = Map::new();
-    process_files(nml, |_, node| {
-        if node.tag_name().name() != "cell" {
-            return Ok(());
-        }
-        let id = node.attribute("id").ok_or(nml2_error!("Cell without id"))?;
-        if let Some(p) = node
-            .children()
-            .find(|c| c.tag_name().name() == "biophysicalProperties")
-        {
-            result.insert(id.to_string(), XML::from_node(&p));
-        }
+#[derive(Default)]
+pub struct CellData {
+    pub bio_phys: Map<String, BiophysicalProperties>,
+    pub density: Vec<Instance>,
+    pub synapse: Vec<Instance>,
+    pub c_model: Vec<Instance>,
+}
 
+fn read_cell_data(nml: &[String], lems: &LemsFile) -> Result<CellData> {
+    let mut result = CellData::default();
+    process_files(nml, |_, node| {
+        let tag = node.tag_name().name();
+        if tag == "cell" {
+            let id = node.attribute("id").ok_or(nml2_error!("Cell without id"))?;
+            node.children()
+                .find(|c| c.tag_name().name() == "biophysicalProperties")
+                .into_iter()
+                .for_each(|p| {
+                    result.bio_phys.insert(id.to_string(), XML::from_node(&p));
+                });
+        } else if lems.derived_from(tag, "baseIonChannel") {
+            result.density.push(Instance::new(lems, node)?);
+        } else if lems.derived_from(tag, "concentrationModel") {
+            result.c_model.push(Instance::new(lems, node)?);
+        } else if lems.derived_from(tag, "baseSynapse") {
+            result.synapse.push(Instance::new(lems, node)?);
+        }
         Ok(())
     })?;
     Ok(result)
@@ -520,23 +534,31 @@ fn ion_channel_assignments(
     Ok(result)
 }
 
-fn collect_decor(
-    props: &Map<String, BiophysicalProperties>,
+fn split_decor(
+    cells: &CellData,
     lems: &LemsFile,
     ions: &[String],
 ) -> Result<Map<String, Vec<Decor>>> {
+    // Now splat in the remaining decor, but skip density mechs (these were merged)
+    let densities = cells
+        .density
+        .iter()
+        .map(|m| m.id.as_deref().unwrap().to_string())
+        .collect::<Set<String>>();
+    eprintln!("Densities: {densities:?}");
     let mut result: Map<String, Vec<Decor>> = Map::new();
-    for (id, prop) in props {
+    for (id, prop) in cells.bio_phys.iter() {
         let mut seen = Set::new();
         let mut sm = Vec::new();
         for d in acc::biophys(prop, lems, ions)? {
-            if let Decor::Paint(r, Paintable::Mech(_, _)) = d {
-                if !seen.contains(&r) {
-                    sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
-                    seen.insert(r.to_string());
+            match d {
+                Decor::Paint(r, Paintable::Mech(name, _)) if densities.contains(&name) => {
+                    if !seen.contains(&r) {
+                        sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
+                        seen.insert(r.to_string());
+                    }
                 }
-            } else {
-                sm.push(d);
+                _ => sm.push(d),
             }
         }
         result.insert(id.to_string(), sm);
@@ -544,21 +566,9 @@ fn collect_decor(
     Ok(result)
 }
 
-fn read_ion_channels(lems: &LemsFile, nml: &[String]) -> Result<Vec<Instance>> {
-    let mut instances = Vec::new();
-    process_files(nml, |_, node| {
-        let tag = node.tag_name().name();
-        if lems.derived_from(tag, "baseIonChannel") {
-            instances.push(Instance::new(lems, node)?);
-        }
-        Ok(())
-    })?;
-    Ok(instances)
-}
-
 fn merge_ion_channels(
-    channel_mappings: &Map<(String, String), Vec<IonChannel>>,
-    instances: &[Instance],
+    channel_mappings: &Map<(String, String), Vec<IonChannel>>, // cell x region -> [channel]
+    cell: &CellData,
     known_ions: &[String],
 ) -> Result<Map<String, Vec<(String, Nmodl)>>> {
     let mut result: Map<String, Vec<_>> = Map::new();
@@ -566,7 +576,7 @@ fn merge_ion_channels(
         let mut collapsed = Collapsed::new(&Some(format!("{id}_{reg}")));
         let mut ions: Map<_, Vec<_>> = Map::new();
         for channel in channels {
-            for instance in instances {
+            for instance in cell.density.iter() {
                 if instance.id == Some(channel.name.to_string()) {
                     let mut instance = instance.clone();
                     let ion = instance

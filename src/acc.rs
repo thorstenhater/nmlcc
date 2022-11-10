@@ -136,7 +136,7 @@ impl Sexp for Paintable {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Decor {
     Default(Paintable),
-    Paint(String, Paintable),
+    Paint(String, Paintable), // region -> what
 }
 
 impl Decor {

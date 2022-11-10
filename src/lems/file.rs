@@ -114,6 +114,7 @@ impl LemsFile {
             ("K", "temperature"),
             ("J_per_K_per_mol", "idealGasConstantDims"),
             ("nS_per_mV", "conductance_per_voltage"),
+            ("mol_per_cm_per_uA_per_ms", "rho_factor") // NOTE(TH) this is questionable
         ];
 
         let dimensions = raw
