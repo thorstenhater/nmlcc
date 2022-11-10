@@ -481,7 +481,9 @@ fn read_cell_data(nml: &[String], lems: &LemsFile) -> Result<CellData> {
         let tag = node.tag_name().name();
         if tag == "cell" {
             let id = node.attribute("id").ok_or(nml2_error!("Cell without id"))?;
-            result.i_param.insert(id.to_string(), acc::parse_inhomogeneous_parameters(node)?);
+            result
+                .i_param
+                .insert(id.to_string(), acc::parse_inhomogeneous_parameters(node)?);
             node.children()
                 .find(|c| c.tag_name().name() == "biophysicalProperties")
                 .into_iter()
@@ -547,7 +549,6 @@ fn ion_channel_assignments(
 
 fn split_decor(
     cells: &CellData,
-    ihp: &Map<String, Map<String, ParsedInhomogeneousParameter>>,
     lems: &LemsFile,
     ions: &[String],
 ) -> Result<Map<String, Vec<Decor>>> {
@@ -557,13 +558,17 @@ fn split_decor(
         .iter()
         .map(|m| m.id.as_deref().unwrap().to_string())
         .collect::<Set<String>>();
-    eprintln!("Densities: {densities:?}");
+    let ihp = &cells.i_param;
     let mut result: Map<String, Vec<Decor>> = Map::new();
     for (id, prop) in cells.bio_phys.iter() {
         let mut seen = Set::new();
         let mut sm = Vec::new();
-
-        for d in acc::biophys(prop, lems, ions, ihp.get(id).ok_or(nml2_error!("should never happen"))?)? {
+        for d in acc::biophys(
+            prop,
+            lems,
+            ions,
+            ihp.get(id).ok_or(nml2_error!("should never happen"))?,
+        )? {
             match d {
                 Decor::Paint(r, Paintable::Mech(name, _)) if densities.contains(&name) => {
                     if !seen.contains(&r) {

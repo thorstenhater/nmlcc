@@ -52,7 +52,6 @@ pub fn to_decor(
     Ok(cells)
 }
 
-#[allow(non_snake_case)] // xml..
 pub fn parse_inhomogeneous_parameters(
     cell: &roxmltree::Node<'_, '_>,
 ) -> Result<Map<String, ParsedInhomogeneousParameter>> {
@@ -163,7 +162,7 @@ impl SexpConfig {
         if mech == "nernst" {
             mech.to_string()
         } else {
-            format!("{}{}", self.cat_prefix, mech)
+            format!("{}{mech}", self.cat_prefix)
         }
     }
 }
@@ -298,7 +297,7 @@ impl Sexp for Expr {
                 format!("({} {})", if nm == "H" { "step" } else { nm }, x.to_sexp())
             }
             Expr::ProximalDistanceFromRegion(region) => {
-                format!("(proximal-distance (region \"{}\"))", region)
+                format!("(proximal-distance (region \"{region}\"))")
             }
             Expr::DistanceFromRoot() => "(distance (root))".to_string(),
         }
@@ -498,7 +497,6 @@ pub fn biophys(
     Ok(decor)
 }
 
-#[allow(non_snake_case)] // xml..
 fn membrane(
     membrane: &MembraneProperties,
     known_ions: &[String],
@@ -609,7 +607,7 @@ fn membrane(
             }) => {
                 use crate::neuroml::raw::ChannelDensityNonUniformNernstBody::variableParameter;
                 use crate::neuroml::raw::VariableParameterBody::inhomogeneousValue;
-                let (param, segmentGroup, ihb) = match &body[..] {
+                let (param, group, ihb) = match &body[..] {
                     [variableParameter(VariableParameter {
                         parameter,
                         segmentGroup,
@@ -643,7 +641,7 @@ fn membrane(
                 }
                 result.push(Decor::nernst(ion));
                 result.push(Decor::non_uniform_mechanism(
-                    segmentGroup,
+                    group,
                     ionChannel,
                     &Map::new(),
                     &ns,
@@ -685,17 +683,14 @@ fn intra(intra: &IntracellularProperties) -> Result<Vec<Decor>> {
             }) => {
                 result.push(Decor::xi(segmentGroup, ion, initialConcentration));
                 result.push(Decor::xo(segmentGroup, ion, initialExtConcentration));
-                result.push(Decor::new(
+                result.push(Decor::mechanism(
                     segmentGroup,
-                    Paintable::Mech(
-                        concentrationModel.to_string(),
-                        Map::from([(
-                            String::from("initialConcentration"),
-                            initialConcentration.to_string(),
-                        )]),
-                    ),
-                    false,
-                ));
+                    concentrationModel,
+                    &Map::from([(
+                        String::from("initialConcentration"),
+                        initialConcentration.to_string(),
+                    )]),
+                ))
             }
             resistivity(Resistivity {
                 value,
