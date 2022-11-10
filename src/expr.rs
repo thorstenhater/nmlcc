@@ -32,6 +32,8 @@ pub enum Expr {
     Exp(Box<Expr>),
     Log(Box<Expr>),
     Sqrt(Box<Expr>),
+    ProximalDistanceFromRegion(String),
+    DistanceFromRoot(),
     // Unknown, but possibly builtin functions
     Fun(String, Box<Expr>),
 }
@@ -128,6 +130,12 @@ impl Expr {
                     .collect::<Vec<_>>()
                     .join("^"),
             },
+            Expr::ProximalDistanceFromRegion(_) => {
+                panic!("ProximalDistanceFromRegion can not be constructed in xml")
+            }
+            Expr::DistanceFromRoot() => {
+                panic!("DistanceFromRoot can not be constructed in xml")
+            }
         }
     }
 
@@ -142,12 +150,17 @@ impl Expr {
                 Expr::Exp(vs) => simplify_exp(vs),
                 Expr::Log(vs) => simplify_log(vs),
                 Expr::Sqrt(vs) => simplify_sqrt(vs),
+                Expr::Fun(n, x) => Expr::Fun(n.into(), Box::new(x.simplify())),
                 e => e.clone(),
             };
             done = old == new;
             old = new
         }
         old
+    }
+
+    pub fn is_var_with_name(&self, name: &str) -> bool {
+        matches!(self, Expr::Var(x) if name == x)
     }
 }
 
@@ -953,6 +966,7 @@ mod test {
                 Expr::Var(String::from("z")),
             ])
         );
+        assert_eq!(Expr::parse("a / a").unwrap(), Expr::F64(1.0));
     }
 
     #[test]

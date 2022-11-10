@@ -1,5 +1,5 @@
 use crate::{
-    acc::{self, Decor, Paintable, Sexp},
+    acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp, SexpConfig},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
@@ -25,6 +25,7 @@ pub fn export(
     bundle: &str,
     use_super_mechs: bool,
     ions: &[String],
+    cat_prefix: &str,
 ) -> Result<()> {
     export_template(lems, nml, bundle)?;
 
@@ -32,9 +33,9 @@ pub fn export(
     nmodl::export(lems, nml, "-*", &format!("{bundle}/cat"), ions)?;
 
     if use_super_mechs {
-        export_with_super_mechanisms(lems, nml, bundle, ions)?;
+        export_with_super_mechanisms(lems, nml, bundle, ions, cat_prefix)?;
     } else {
-        acc::export(lems, nml, &format!("{bundle}/acc"), ions)?;
+        acc::export(lems, nml, &format!("{bundle}/acc"), ions, cat_prefix)?;
     }
     Ok(())
 }
@@ -200,6 +201,8 @@ fn mk_main_py(
     }
     gid_to_labels.push_str("                               }");
 
+    let cat_prefix = "local_";
+
     Ok(format!(
         "#!/usr/bin/env python3
 import arbor as A
@@ -228,7 +231,7 @@ class recipe(A.recipe):
         A.recipe.__init__(self)
         self.props = A.neuron_cable_properties()
         cat = compile(here / 'local-catalogue.so', here / 'cat')
-        self.props.catalogue.extend(cat, '')
+        self.props.catalogue.extend(cat, '{cat_prefix}')
         self.cell_to_morph = {cell_to_morph}
         self.gid_to_cell = {gid_to_cell}
         self.i_clamps = {i_clamps}
@@ -415,20 +418,26 @@ pub fn export_with_super_mechanisms(
     nml: &[String],
     bundle: &str,
     ions: &[String],
+    cat_prefix: &str,
 ) -> Result<()> {
     let cells = read_cell_data(nml, lems)?;
     let merge = build_super_mechanisms(&cells, lems, ions)?;
 
     for (id, cell) in merge {
         for (reg, chan) in cell.channels {
-            let nmodl = nmodl::mk_nmodl(&chan)?;
+            let nmodl = nmodl::mk_nmodl(chan)?;
             let path = format!("{bundle}/cat/{id}_{reg}.mod");
             info!("Writing Super-Mechanism NMODL for cell '{id}' region '{reg}' to {path:?}",);
             write(&path, nmodl)?;
         }
         let path = format!("{bundle}/acc/{id}.acc");
         info!("Writing Super Mechanism ACC to {path:?}");
-        write(&path, cell.decor.to_sexp())?;
+        write(
+            &path,
+            cell.decor.to_sexp_with_config(&SexpConfig {
+                cat_prefix: cat_prefix.into(),
+            }),
+        )?;
     }
     Ok(())
 }
@@ -463,6 +472,7 @@ pub struct CellData {
     pub density: Vec<Instance>,
     pub synapse: Vec<Instance>,
     pub c_model: Vec<Instance>,
+    pub i_param: Map<String, Map<String, ParsedInhomogeneousParameter>>,
 }
 
 fn read_cell_data(nml: &[String], lems: &LemsFile) -> Result<CellData> {
@@ -471,6 +481,7 @@ fn read_cell_data(nml: &[String], lems: &LemsFile) -> Result<CellData> {
         let tag = node.tag_name().name();
         if tag == "cell" {
             let id = node.attribute("id").ok_or(nml2_error!("Cell without id"))?;
+            result.i_param.insert(id.to_string(), acc::parse_inhomogeneous_parameters(node)?);
             node.children()
                 .find(|c| c.tag_name().name() == "biophysicalProperties")
                 .into_iter()
@@ -536,6 +547,7 @@ fn ion_channel_assignments(
 
 fn split_decor(
     cells: &CellData,
+    ihp: &Map<String, Map<String, ParsedInhomogeneousParameter>>,
     lems: &LemsFile,
     ions: &[String],
 ) -> Result<Map<String, Vec<Decor>>> {
@@ -550,7 +562,8 @@ fn split_decor(
     for (id, prop) in cells.bio_phys.iter() {
         let mut seen = Set::new();
         let mut sm = Vec::new();
-        for d in acc::biophys(prop, lems, ions)? {
+
+        for d in acc::biophys(prop, lems, ions, ihp.get(id).ok_or(nml2_error!("should never happen"))?)? {
             match d {
                 Decor::Paint(r, Paintable::Mech(name, _)) if densities.contains(&name) => {
                     if !seen.contains(&r) {

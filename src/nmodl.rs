@@ -373,9 +373,34 @@ impl Nmodl {
         }
         simplify(&mut self.init, &mut self.fixed, &self.keep);
     }
+
+    pub fn simplify(self) -> Self {
+        // for efficiency, consume self
+        fn simplify_map(statements: Map<String, Stmnt>) -> Map<String, Stmnt> {
+            statements
+                .into_iter()
+                .map(|(k, v)| (k, v.simplify()))
+                .collect()
+        }
+        Nmodl {
+            init: simplify_map(self.init),
+            deriv: simplify_map(self.deriv),
+            outputs: simplify_map(self.outputs),
+            variables: simplify_map(self.variables),
+            events: simplify_map(self.events),
+            rates: simplify_map(self.rates),
+            conditions: self
+                .conditions
+                .into_iter()
+                .map(|(k, vs)| (k, vs.iter().map(|v| v.simplify()).collect()))
+                .collect(),
+            ..self
+        }
+    }
 }
 
-pub fn mk_nmodl(n: &Nmodl) -> Result<String> {
+pub fn mk_nmodl(n: Nmodl) -> Result<String> {
+    let n = &n.simplify();
     Ok(vec![
         nmodl_neuron_block(n)?,
         nmodl_const_block(n)?,
@@ -873,7 +898,7 @@ pub fn to_nmodl(
                     return Err(nmodl_error("Gap Junction without defined current 'i'"));
                 }
                 n.kind = Kind::Junction;
-                mk_nmodl(&n)
+                mk_nmodl(n)
             } else {
                 let filter = filter.to_string();
                 let instance = instance.clone();
@@ -886,7 +911,7 @@ pub fn to_nmodl(
                     return Err(nmodl_error("Synapse without defined current 'i'"));
                 }
                 n.kind = Kind::Point;
-                mk_nmodl(&n)
+                mk_nmodl(n)
             }
         }
         "baseIonChannel" => {
@@ -924,7 +949,7 @@ pub fn to_nmodl(
                 n.variables.insert(ki, xi);
             }
             n.kind = Kind::Density;
-            mk_nmodl(&n)
+            mk_nmodl(n)
         }
         "concentrationModel" => {
             let mut filter = filter.to_string();
@@ -1017,7 +1042,7 @@ pub fn to_nmodl(
             if n.state.remove(ec) {
                 n.state.insert(xo.clone());
             }
-            mk_nmodl(&n)
+            mk_nmodl(n)
         }
         _ => Err(nmodl_error(format!(
             "Type {} deriving an expected base {}",
