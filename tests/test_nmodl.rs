@@ -429,7 +429,7 @@ fn simple_ion_channel_unknown_ion() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseIonChannel", &vec![]).unwrap(),
+        to_nmodl(&inst, "+*", "baseIonChannel", &[]).unwrap(),
         r#"NEURON {
   SUFFIX NaConductance
   NONSPECIFIC_CURRENT ina
