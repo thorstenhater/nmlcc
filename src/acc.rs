@@ -156,7 +156,7 @@ pub struct ParsedInhomogeneousParameter {
     metric: Expr,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub struct MechVariableParameter {
     value: String, // 10 * p
 }
