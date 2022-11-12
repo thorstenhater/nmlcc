@@ -161,7 +161,7 @@ pub struct MechVariableParameter {
     value: String, // 10 * p
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum Paintable {
     Xi(String, String),
     Xo(String, String),
