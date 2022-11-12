@@ -1,5 +1,5 @@
 use crate::{
-    acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp, SexpConfig},
+    acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
@@ -432,12 +432,12 @@ pub fn export_with_super_mechanisms(
         }
         let path = format!("{bundle}/acc/{id}.acc");
         info!("Writing Super Mechanism ACC to {path:?}");
-        write(
-            &path,
-            cell.decor.to_sexp_with_config(&SexpConfig {
-                cat_prefix: cat_prefix.into(),
-            }),
-        )?;
+        let decor = cell
+            .decor
+            .iter()
+            .map(|d| d.add_catalogue_prefix(cat_prefix))
+            .collect::<Vec<_>>();
+        write(&path, decor.to_sexp())?;
     }
     Ok(())
 }
