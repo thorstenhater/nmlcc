@@ -161,6 +161,42 @@ pub struct MechVariableParameter {
     value: String, // 10 * p
 }
 
+impl MechVariableParameter {
+    pub fn to_inhomogeneous(&self, inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
+) -> Result<Map<String, MechVariableParameter>> {
+    use crate::neuroml::raw::VariableParameterBody::inhomogeneousValue;
+    if vp.body.len() != 1 {
+        return Err(acc_unimplemented(
+            "InhomogeneousValue must contain a single InhomogeneousParameter",
+        ));
+    }
+    let inhomogeneousValue(ival) = &vp.body[0];
+    let ihv = inhomogeneous_parameters
+        .get(&ival.inhomogeneousParameter)
+        .ok_or(nml2_error!(
+            "Inhomogeneous parameter definition {} not found",
+            ival.inhomogeneousParameter
+        ))?;
+
+    let parameter = rename_cond_density_to_conductance(&vp.parameter);
+
+    let expr = Expr::parse(&ival.value)?
+        .map(&|ex| -> _ {
+            if ex.is_var_with_name(&ihv.variable) {
+                ihv.metric.clone()
+            } else {
+                ex.clone()
+            }
+        })
+        .to_sexp();
+
+    let instance = MechVariableParameter { value: expr };
+
+    let ns = Map::from([(parameter, instance)]);
+    Ok(ns)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum Paintable {
     Xi(String, String),
@@ -450,7 +486,7 @@ pub fn biophys(
     Ok(decor)
 }
 
-fn get_inhomogeneous_parameters(
+fn make_variable_parameter_map(
     vp: &VariableParameter,
     inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
 ) -> Result<Map<String, MechVariableParameter>> {
@@ -554,7 +590,7 @@ fn membrane(
                     ));
                 }
                 let variableParameter(vp) = &body[0];
-                let ns = get_inhomogeneous_parameters(vp, inhomogeneous_parameters)?;
+                let ns = make_variable_parameter_map(vp, inhomogeneous_parameters)?;
                 let ps = simple_ion(known_ions, &mut result, ion, &vp.segmentGroup, erev)?;
                 result.push(Decor::non_uniform_mechanism(
                     &vp.segmentGroup,
@@ -576,7 +612,7 @@ fn membrane(
                     ));
                 }
                 let variableParameter(vp) = &body[0];
-                let ns = get_inhomogeneous_parameters(vp, inhomogeneous_parameters)?;
+                let ns = make_variable_parameter_map(vp, inhomogeneous_parameters)?;
                 result.push(Decor::nernst(ion));
                 result.push(Decor::non_uniform_mechanism(
                     &vp.segmentGroup,
