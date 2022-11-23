@@ -5,11 +5,11 @@ use crate::{
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
     network::{get_cell_id, Connection, Input, Network, Projection},
-    neuroml::process_files,
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
         PulseGenerator,
     },
+    neuroml::{process_files, raw::ChannelDensityNernst},
     nml2_error,
     nmodl::{self, Nmodl},
     xml::XML,
@@ -407,9 +407,16 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     }
 }
 
+#[derive(Clone, Debug)]
+enum RevPot {
+    Const(Quantity),
+    Nernst,
+}
+
+#[derive(Clone, Debug)]
 struct IonChannel {
     name: String,
-    reversal_potential: Quantity,
+    reversal_potential: RevPot,
     conductance: Quantity,
 }
 
@@ -514,31 +521,56 @@ fn ion_channel_assignments(
         for item in prop.body.iter() {
             if let membraneProperties(membrane) = item {
                 for item in membrane.body.iter() {
-                    if let channelDensity(ChannelDensity {
-                        ionChannel,
-                        condDensity: Some(g),
-                        erev,
-                        segmentGroup,
-                        ..
-                    }) = item
-                    {
-                        let region = if segmentGroup.is_empty() {
-                            String::from("all")
-                        } else {
-                            segmentGroup.to_string()
-                        };
-                        let name = ionChannel.to_string();
-                        let conductance = lems.normalise_quantity(&Quantity::parse(g)?)?;
-                        let reversal_potential =
-                            lems.normalise_quantity(&Quantity::parse(erev)?)?;
-                        result
-                            .entry((id.to_string(), region))
-                            .or_default()
-                            .push(IonChannel {
-                                name,
-                                reversal_potential,
-                                conductance,
-                            });
+                    match item {
+                        channelDensity(ChannelDensity {
+                            ionChannel,
+                            condDensity: Some(g),
+                            erev,
+                            segmentGroup,
+                            ..
+                        }) => {
+                            let region = if segmentGroup.is_empty() {
+                                String::from("all")
+                            } else {
+                                segmentGroup.to_string()
+                            };
+                            let name = ionChannel.to_string();
+                            let conductance = lems.normalise_quantity(&Quantity::parse(g)?)?;
+                            let reversal_potential =
+                                RevPot::Const(lems.normalise_quantity(&Quantity::parse(erev)?)?);
+                            result
+                                .entry((id.to_string(), region))
+                                .or_default()
+                                .push(IonChannel {
+                                    name,
+                                    reversal_potential,
+                                    conductance,
+                                });
+                        }
+                        channelDensityNernst(ChannelDensityNernst {
+                            ionChannel,
+                            condDensity: Some(g),
+                            segmentGroup,
+                            ..
+                        }) => {
+                            let region = if segmentGroup.is_empty() {
+                                String::from("all")
+                            } else {
+                                segmentGroup.to_string()
+                            };
+                            let name = ionChannel.to_string();
+                            let conductance = lems.normalise_quantity(&Quantity::parse(g)?)?;
+                            let reversal_potential = RevPot::Nernst;
+                            result
+                                .entry((id.to_string(), region))
+                                .or_default()
+                                .push(IonChannel {
+                                    name,
+                                    reversal_potential,
+                                    conductance,
+                                });
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -610,10 +642,10 @@ fn merge_ion_channels(
                     instance
                         .parameters
                         .insert(String::from("conductance"), channel.conductance.clone());
-                    instance
-                        .parameters
-                        .insert(format!("e{ion}"), channel.reversal_potential.clone());
-                    instance.component_type.parameters.push(format!("e{ion}"));
+                    if let RevPot::Const(q) = &channel.reversal_potential {
+                        instance.parameters.insert(format!("e{ion}"), q.clone());
+                        instance.component_type.parameters.push(format!("e{ion}"));
+                    }
                     ions.entry(ion.clone())
                         .or_default()
                         .push(channel.name.clone());
