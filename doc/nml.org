@@ -964,4 +964,8 @@ First, duplicate the ~ComponentType~ for reference with the usual simplification
 
 We remove the hard-coded ~iCa~ requirement and replace it ad-hoc with ~iX~ where
 ~X~ is given in ~species~. Currently, concentration models *do not work in
-Arbor*, since they would require access to ~area~, which is not exposed.
+Arbor*, since they would require access to ~area~, which is not exposed. We work
+around this by approximating ~A = 4 pi r^2~ which assumes a given CV is roughly
+spherical or a cylinder (we count only ever the mantle, not the contact faces to
+adjacent CVs) that has the same diameter and height. The latter works out to be
+the same formula as a sphere of the same radius.
