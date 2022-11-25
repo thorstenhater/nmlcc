@@ -217,9 +217,14 @@ impl Nmodl {
             ));
         }
 
-        variables.extend([assign("caConc", "cai")?,
-                          assign("temperature", "celsius + 273.15")?,
-                          assign("vpeer", "v_peer")?].into_iter());
+        variables.extend(
+            [
+                assign("caConc", "cai")?,
+                assign("temperature", "celsius + 273.15")?,
+                assign("vpeer", "v_peer")?,
+            ]
+            .into_iter(),
+        );
 
         let mut symbols: Set<_> = [
             String::from("v"),
