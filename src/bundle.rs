@@ -9,7 +9,7 @@ use crate::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
         PulseGenerator,
     },
-    neuroml::{process_files, raw::ChannelDensityNernst},
+    neuroml::{process_files, raw::{ChannelDensityNernst,ChannelDensityNonUniform, ChannelDensityNonUniformNernst}},
     nml2_error,
     nmodl::{self, Nmodl},
     xml::XML,
@@ -417,7 +417,7 @@ enum RevPot {
 struct IonChannel {
     name: String,
     reversal_potential: RevPot,
-    conductance: Quantity,
+    conductance: Option<Quantity>,
 }
 
 pub fn export_with_super_mechanisms(
@@ -515,7 +515,13 @@ fn ion_channel_assignments(
 ) -> Result<Map<(String, String), Vec<IonChannel>>> {
     use BiophysicalPropertiesBody::*;
     use MembranePropertiesBody::*;
-
+    fn segment_group_or_all(x: &str) -> String {
+        if x.is_empty() {
+            String::from("all")
+        } else {
+            x.to_string()
+        }
+    }
     let mut result: Map<_, Vec<IonChannel>> = Map::new();
     for (id, prop) in props.iter() {
         for item in prop.body.iter() {
@@ -529,13 +535,9 @@ fn ion_channel_assignments(
                             segmentGroup,
                             ..
                         }) => {
-                            let region = if segmentGroup.is_empty() {
-                                String::from("all")
-                            } else {
-                                segmentGroup.to_string()
-                            };
+                            let region = segment_group_or_all(segmentGroup);
                             let name = ionChannel.to_string();
-                            let conductance = lems.normalise_quantity(&Quantity::parse(g)?)?;
+                            let conductance = Some(lems.normalise_quantity(&Quantity::parse(g)?)?);
                             let reversal_potential =
                                 RevPot::Const(lems.normalise_quantity(&Quantity::parse(erev)?)?);
                             result
@@ -553,13 +555,52 @@ fn ion_channel_assignments(
                             segmentGroup,
                             ..
                         }) => {
-                            let region = if segmentGroup.is_empty() {
-                                String::from("all")
-                            } else {
-                                segmentGroup.to_string()
-                            };
+                            let region = segment_group_or_all(segmentGroup);
                             let name = ionChannel.to_string();
-                            let conductance = lems.normalise_quantity(&Quantity::parse(g)?)?;
+                            let conductance = Some(lems.normalise_quantity(&Quantity::parse(g)?)?);
+                            let reversal_potential = RevPot::Nernst;
+                            result
+                                .entry((id.to_string(), region))
+                                .or_default()
+                                .push(IonChannel {
+                                    name,
+                                    reversal_potential,
+                                    conductance,
+                                });
+                        }
+                        channelDensityNonUniform(ChannelDensityNonUniform {
+                            ionChannel,
+                            body,
+                            erev,
+                            ..
+                        }) => {
+                            use crate::neuroml::raw::ChannelDensityNonUniformBody::variableParameter;
+                            let variableParameter(vp) = &body[0];
+                            let name = ionChannel.to_string();
+                            let region = segment_group_or_all(&vp.segmentGroup);
+                            let conductance = None;
+                            let reversal_potential =
+                                RevPot::Const(lems.normalise_quantity(&Quantity::parse(erev)?)?);
+                            result
+                                .entry((id.to_string(), region))
+                                .or_default()
+                                .push(IonChannel {
+                                    name,
+                                    reversal_potential,
+                                    conductance
+                                });
+
+                        }
+                        channelDensityNonUniformNernst(ChannelDensityNonUniformNernst {
+                            ionChannel,
+                            body,
+                            ..
+                        }) => {
+                            use crate::neuroml::raw::ChannelDensityNonUniformNernstBody::variableParameter;
+                            let variableParameter(vp) = &body[0];
+                            let region = segment_group_or_all(&vp.segmentGroup);
+                            let name = ionChannel.to_string();
+                            let conductance = None;
                             let reversal_potential = RevPot::Nernst;
                             result
                                 .entry((id.to_string(), region))
@@ -595,16 +636,47 @@ fn split_decor(
     for (id, prop) in cells.bio_phys.iter() {
         let mut seen = Set::new();
         let mut sm = Vec::new();
-        for d in acc::biophys(
+        let biophys = acc::biophys(
             prop,
             lems,
             ions,
             ihp.get(id).ok_or(nml2_error!("should never happen"))?,
-        )? {
+        )?;
+        let mut non_uniform_args: Map<String, Map<String, acc::MechVariableParameter>> = Map::new();
+        for d in biophys.iter() {
+            match d {
+                Decor::Paint(ref r, Paintable::NonUniformMech{ref name, ns, ..}) if densities.contains(name) => {
+                    if !seen.contains(r) {
+                        for (k, v) in ns.iter() {
+                            non_uniform_args
+                                .entry(r.to_owned())
+                                .or_insert_with(Map::new)
+                                .insert(format!("{name}_{k}"), v.to_owned());
+                        }
+                    }
+                }
+                _ => ()
+            }
+        }
+        for d in biophys {
             match d {
                 Decor::Paint(r, Paintable::Mech(name, _)) if densities.contains(&name) => {
                     if !seen.contains(&r) {
-                        sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
+                        if let Some(ns) = non_uniform_args.get(&r) {
+                            sm.push(acc::Decor::non_uniform_mechanism(&r, &format!("{id}_{r}"), &Map::new(), &ns));
+                        } else {
+                            sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
+                        }
+                        seen.insert(r.to_string());
+                    }
+                }
+                Decor::Paint(r, Paintable::NonUniformMech{name, ..}) if densities.contains(&name) => {
+                    if !seen.contains(&r) {
+                        if let Some(ns) = non_uniform_args.get(&r) {
+                            sm.push(acc::Decor::non_uniform_mechanism(&r, &format!("{id}_{r}"), &Map::new(), &ns));
+                        } else {
+                            panic!("no");
+                        }
                         seen.insert(r.to_string());
                     }
                 }
@@ -622,6 +694,7 @@ fn merge_ion_channels(
     known_ions: &[String],
 ) -> Result<Map<String, Vec<(String, Nmodl)>>> {
     let mut result: Map<String, Vec<_>> = Map::new();
+    let mut keep_conductance_params = false;
     for ((id, reg), channels) in channel_mappings {
         let mut collapsed = Collapsed::new(&Some(format!("{id}_{reg}")));
         let mut ions: Map<_, Vec<_>> = Map::new();
@@ -635,13 +708,13 @@ fn merge_ion_channels(
                         .cloned()
                         .unwrap_or_default();
                     // Set Parameters e, g
-                    instance
-                        .component_type
-                        .parameters
-                        .push(String::from("conductance"));
-                    instance
-                        .parameters
-                        .insert(String::from("conductance"), channel.conductance.clone());
+                    if let Some(g) = &channel.conductance {
+                        instance
+                            .parameters
+                            .insert(String::from("conductance"), g.clone());
+                    } else {
+                        keep_conductance_params = true;
+                    }
                     if let RevPot::Const(q) = &channel.reversal_potential {
                         instance.parameters.insert(format!("e{ion}"), q.clone());
                         instance.component_type.parameters.push(format!("e{ion}"));
@@ -693,7 +766,13 @@ fn merge_ion_channels(
             }
         }
 
-        let mut n = nmodl::Nmodl::from(&collapsed, known_ions, "-*")?;
+        let filter = if keep_conductance_params {
+            "-*,+conductance"
+        } else {
+            "-*"
+        };
+
+        let mut n = nmodl::Nmodl::from(&collapsed, known_ions, filter)?;
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);
