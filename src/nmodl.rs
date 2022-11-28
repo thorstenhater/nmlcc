@@ -732,11 +732,17 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
     }
 
     if n.kind == Kind::Density {
+        let mut ns = Vec::new();
         for ion in &ions {
             let ix = format!("i{ion}");
             if write.contains(&ix) && !n.known_ions.contains(ion) {
-                result.push(format!("  NONSPECIFIC_CURRENT {ix}\n"));
+                ns.push(ix);
             }
+        }
+        if ns.len() == 1 {
+            result.push(format!("  NONSPECIFIC_CURRENT {}\n", ns[0]));
+        } else if ns.len() > 1 {
+            result.push(format!("  NONSPECIFIC_CURRENT i\n"));
         }
     } else if n.kind == Kind::Junction || n.kind == Kind::Point {
         result.push(String::from("  NONSPECIFIC_CURRENT i\n"));

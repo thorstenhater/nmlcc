@@ -730,6 +730,7 @@ fn merge_ion_channels(
         // Add iX
         let mut outputs = Map::new();
         let mut variables = Map::new();
+        let mut ns = Vec::new();
         for (ion, mechs) in &ions {
             if !ion.is_empty() && known_ions.contains(ion) {
                 // A non-empty, known ion species X maps to
@@ -761,9 +762,20 @@ fn merge_ion_channels(
                     .map(|m| format!("{m}_g*(v - {m}_e{ion})"))
                     .collect::<Vec<_>>()
                     .join(" + ");
-                let ix = Stmnt::Ass(format!("i{ion}"), Expr::parse(&i)?);
-                outputs.insert(format!("i{ion}"), ix);
+                ns.push((format!("i{ion}"), i));
             }
+        }
+        let ns = ns;
+
+        if ns.len() == 1 {
+            let ix = Stmnt::Ass(ns[0].0.to_owned(), Expr::parse(&ns[0].1)?);
+            outputs.insert(ns[0].0.to_owned(), ix);
+        } else if ns.len() > 1 {
+            // prevent outputting multiple NONSPECIFIC statements
+            // collapse all into a single NONSPECIFIC_CURRENT i
+            let i = ns.iter().map(|(_, v)| v.to_owned()).collect::<Vec<_>>().join(" + ");
+            let ix = Stmnt::Ass(String::from("i"), Expr::parse(&i)?);
+            outputs.insert(String::from("i"), ix);
         }
 
         let filter = if keep_conductance_params {
