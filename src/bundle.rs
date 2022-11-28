@@ -9,7 +9,10 @@ use crate::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
         PulseGenerator,
     },
-    neuroml::{process_files, raw::{ChannelDensityNernst,ChannelDensityNonUniform, ChannelDensityNonUniformNernst}},
+    neuroml::{
+        process_files,
+        raw::{ChannelDensityNernst, ChannelDensityNonUniform, ChannelDensityNonUniformNernst},
+    },
     nml2_error,
     nmodl::{self, Nmodl},
     xml::XML,
@@ -587,9 +590,8 @@ fn ion_channel_assignments(
                                 .push(IonChannel {
                                     name,
                                     reversal_potential,
-                                    conductance
+                                    conductance,
                                 });
-
                         }
                         channelDensityNonUniformNernst(ChannelDensityNonUniformNernst {
                             ionChannel,
@@ -645,7 +647,9 @@ fn split_decor(
         let mut non_uniform_args: Map<String, Map<String, acc::MechVariableParameter>> = Map::new();
         for d in biophys.iter() {
             match d {
-                Decor::Paint(ref r, Paintable::NonUniformMech{ref name, ns, ..}) if densities.contains(name) => {
+                Decor::Paint(ref r, Paintable::NonUniformMech { ref name, ns, .. })
+                    if densities.contains(name) =>
+                {
                     if !seen.contains(r) {
                         for (k, v) in ns.iter() {
                             non_uniform_args
@@ -655,7 +659,7 @@ fn split_decor(
                         }
                     }
                 }
-                _ => ()
+                _ => (),
             }
         }
         for d in biophys {
@@ -663,17 +667,29 @@ fn split_decor(
                 Decor::Paint(r, Paintable::Mech(name, _)) if densities.contains(&name) => {
                     if !seen.contains(&r) {
                         if let Some(ns) = non_uniform_args.get(&r) {
-                            sm.push(acc::Decor::non_uniform_mechanism(&r, &format!("{id}_{r}"), &Map::new(), &ns));
+                            sm.push(acc::Decor::non_uniform_mechanism(
+                                &r,
+                                &format!("{id}_{r}"),
+                                &Map::new(),
+                                &ns,
+                            ));
                         } else {
                             sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
                         }
                         seen.insert(r.to_string());
                     }
                 }
-                Decor::Paint(r, Paintable::NonUniformMech{name, ..}) if densities.contains(&name) => {
+                Decor::Paint(r, Paintable::NonUniformMech { name, .. })
+                    if densities.contains(&name) =>
+                {
                     if !seen.contains(&r) {
                         if let Some(ns) = non_uniform_args.get(&r) {
-                            sm.push(acc::Decor::non_uniform_mechanism(&r, &format!("{id}_{r}"), &Map::new(), &ns));
+                            sm.push(acc::Decor::non_uniform_mechanism(
+                                &r,
+                                &format!("{id}_{r}"),
+                                &Map::new(),
+                                &ns,
+                            ));
                         } else {
                             panic!("no");
                         }
@@ -773,7 +789,11 @@ fn merge_ion_channels(
         } else if ns.len() > 1 {
             // prevent outputting multiple NONSPECIFIC statements
             // collapse all into a single NONSPECIFIC_CURRENT i
-            let i = ns.iter().map(|(_, v)| v.to_owned()).collect::<Vec<_>>().join(" + ");
+            let i = ns
+                .iter()
+                .map(|(_, v)| v.to_owned())
+                .collect::<Vec<_>>()
+                .join(" + ");
             let ix = Stmnt::Ass(String::from("i"), Expr::parse(&i)?);
             outputs.insert(String::from("i"), ix);
         }
