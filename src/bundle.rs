@@ -671,7 +671,7 @@ fn split_decor(
                                 &r,
                                 &format!("{id}_{r}"),
                                 &Map::new(),
-                                &ns,
+                                ns,
                             ));
                         } else {
                             sm.push(acc::Decor::mechanism(&r, &format!("{id}_{r}"), &Map::new()));
@@ -688,7 +688,7 @@ fn split_decor(
                                 &r,
                                 &format!("{id}_{r}"),
                                 &Map::new(),
-                                &ns,
+                                ns,
                             ));
                         } else {
                             panic!("no");
@@ -781,21 +781,24 @@ fn merge_ion_channels(
                 ns.push((format!("i{ion}"), i));
             }
         }
-        let ns = ns;
 
-        if ns.len() == 1 {
-            let ix = Stmnt::Ass(ns[0].0.to_owned(), Expr::parse(&ns[0].1)?);
-            outputs.insert(ns[0].0.to_owned(), ix);
-        } else if ns.len() > 1 {
-            // prevent outputting multiple NONSPECIFIC statements
-            // collapse all into a single NONSPECIFIC_CURRENT i
-            let i = ns
-                .iter()
-                .map(|(_, v)| v.to_owned())
-                .collect::<Vec<_>>()
-                .join(" + ");
-            let ix = Stmnt::Ass(String::from("i"), Expr::parse(&i)?);
-            outputs.insert(String::from("i"), ix);
+        match ns.as_slice() {
+            [] => { }
+            [(name, e)] => {
+                let ix = Stmnt::Ass(name.to_owned(), Expr::parse(e)?);
+                outputs.insert(name.to_owned(), ix);
+            }
+            ns => {
+                // prevent outputting multiple NONSPECIFIC statements
+                // collapse all into a single NONSPECIFIC_CURRENT i
+                let i = ns
+                    .iter()
+                    .map(|(_, v)| v.to_owned())
+                    .collect::<Vec<_>>()
+                    .join(" + ");
+                let ix = Stmnt::Ass(String::from("i"), Expr::parse(&i)?);
+                outputs.insert(String::from("i"), ix);
+            }
         }
 
         let filter = if keep_conductance_params {

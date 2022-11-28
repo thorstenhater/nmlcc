@@ -739,10 +739,15 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
                 ns.push(ix);
             }
         }
-        if ns.len() == 1 {
-            result.push(format!("  NONSPECIFIC_CURRENT {}\n", ns[0]));
-        } else if ns.len() > 1 {
-            result.push(format!("  NONSPECIFIC_CURRENT i\n"));
+        match ns.as_slice() {
+            [] => { }
+            [name] => {
+                result.push(format!("  NONSPECIFIC_CURRENT {}\n", name));
+            }
+            _ => {
+                // collapse multiple NONSPECIFIC_CURRENTs into one
+                result.push("  NONSPECIFIC_CURRENT i\n".to_string());
+            }
         }
     } else if n.kind == Kind::Junction || n.kind == Kind::Point {
         result.push(String::from("  NONSPECIFIC_CURRENT i\n"));
