@@ -783,7 +783,7 @@ fn merge_ion_channels(
         }
 
         match ns.as_slice() {
-            [] => { }
+            [] => {}
             [(name, e)] => {
                 let ix = Stmnt::Ass(name.to_owned(), Expr::parse(e)?);
                 outputs.insert(name.to_owned(), ix);

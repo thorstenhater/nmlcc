@@ -740,7 +740,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
             }
         }
         match ns.as_slice() {
-            [] => { }
+            [] => {}
             [name] => {
                 result.push(format!("  NONSPECIFIC_CURRENT {}\n", name));
             }
