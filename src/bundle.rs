@@ -710,7 +710,7 @@ fn merge_ion_channels(
     known_ions: &[String],
 ) -> Result<Map<String, Vec<(String, Nmodl)>>> {
     let mut result: Map<String, Vec<_>> = Map::new();
-    let mut keep_conductance_params = false;
+    let mut filter = String::from("-*");
     for ((id, reg), channels) in channel_mappings {
         let mut collapsed = Collapsed::new(&Some(format!("{id}_{reg}")));
         let mut ions: Map<_, Vec<_>> = Map::new();
@@ -729,7 +729,7 @@ fn merge_ion_channels(
                             .parameters
                             .insert(String::from("conductance"), g.clone());
                     } else {
-                        keep_conductance_params = true;
+                        filter.push_str(&format!(",+{}/conductance", channel.name));
                     }
                     if let RevPot::Const(q) = &channel.reversal_potential {
                         instance.parameters.insert(format!("e{ion}"), q.clone());
@@ -801,13 +801,7 @@ fn merge_ion_channels(
             }
         }
 
-        let filter = if keep_conductance_params {
-            "-*,+conductance"
-        } else {
-            "-*"
-        };
-
-        let mut n = nmodl::Nmodl::from(&collapsed, known_ions, filter)?;
+        let mut n = nmodl::Nmodl::from(&collapsed, known_ions, &filter)?;
         n.add_outputs(&outputs);
         n.add_variables(&outputs);
         n.add_variables(&variables);
