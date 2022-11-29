@@ -595,7 +595,7 @@ fn ion_channel_assignments(
                             ..
                         }) => {
                             use crate::neuroml::raw::ChannelDensityNonUniformBody::variableParameter;
-                            let variableParameter(vp) = &body[0];
+                            let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniform"))?;
                             let name = ionChannel.to_string();
                             let region = segment_group_or_all(&vp.segmentGroup);
                             let conductance = IonChannelConductanceParameter::DefaultConductance;
@@ -616,7 +616,7 @@ fn ion_channel_assignments(
                             ..
                         }) => {
                             use crate::neuroml::raw::ChannelDensityNonUniformNernstBody::variableParameter;
-                            let variableParameter(vp) = &body[0];
+                            let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniformNernst"))?;
                             let region = segment_group_or_all(&vp.segmentGroup);
                             let name = ionChannel.to_string();
                             let conductance = IonChannelConductanceParameter::DefaultConductance;
