@@ -1,9 +1,4 @@
-use nml2::{
-    lems::file::LemsFile,
-    xml::XML,
-    bundle::ion_channel_assignments,
-    Map
-};
+use nml2::{bundle::ion_channel_assignments, lems::file::LemsFile, xml::XML, Map};
 use roxmltree::Document;
 
 #[test]
@@ -36,15 +31,15 @@ fn check_nonunforms_are_merged() {
             </cell>
         </neuroml>
     "#).unwrap();
-    let biophys = XML::from_node(tree.descendants()
-        .find(|c| c.tag_name().name() == "biophysicalProperties")
-        .iter()
-        .next()
-        .unwrap());
-    let props = Map::from([
-          (String::from("Cell1"), biophys)
-    ]);
-    let sms =ion_channel_assignments(&props, &lems).unwrap();
+    let biophys = XML::from_node(
+        tree.descendants()
+            .find(|c| c.tag_name().name() == "biophysicalProperties")
+            .iter()
+            .next()
+            .unwrap(),
+    );
+    let props = Map::from([(String::from("Cell1"), biophys)]);
+    let sms = ion_channel_assignments(&props, &lems).unwrap();
     assert!(sms.len() == 1);
     let k = (String::from("Cell1"), String::from("g"));
     assert!(sms.contains_key(&k));
