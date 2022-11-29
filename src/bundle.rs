@@ -417,10 +417,27 @@ enum RevPot {
 }
 
 #[derive(Clone, Debug)]
+enum IonChannelConductanceParameter {
+    DefaultConductance, // NonUniform doesn't give it
+    FixedConductance(Quantity)
+}
+
+impl IonChannelConductanceParameter {
+    fn parse(lems: &LemsFile, g: &Option<String>) -> Result<Self> {
+        Ok(if let Some(g) = g {
+            Self::FixedConductance(lems.normalise_quantity(&Quantity::parse(g)?)?)
+        } else {
+            Self::DefaultConductance
+        })
+    }
+}
+
+
+#[derive(Clone, Debug)]
 struct IonChannel {
     name: String,
     reversal_potential: RevPot,
-    conductance: Option<Quantity>,
+    conductance: IonChannelConductanceParameter
 }
 
 pub fn export_with_super_mechanisms(
@@ -533,14 +550,14 @@ fn ion_channel_assignments(
                     match item {
                         channelDensity(ChannelDensity {
                             ionChannel,
-                            condDensity: Some(g),
+                            condDensity: g,
                             erev,
                             segmentGroup,
                             ..
                         }) => {
                             let region = segment_group_or_all(segmentGroup);
                             let name = ionChannel.to_string();
-                            let conductance = Some(lems.normalise_quantity(&Quantity::parse(g)?)?);
+                            let conductance = IonChannelConductanceParameter::parse(lems, g)?;
                             let reversal_potential =
                                 RevPot::Const(lems.normalise_quantity(&Quantity::parse(erev)?)?);
                             result
@@ -554,13 +571,13 @@ fn ion_channel_assignments(
                         }
                         channelDensityNernst(ChannelDensityNernst {
                             ionChannel,
-                            condDensity: Some(g),
+                            condDensity: g,
                             segmentGroup,
                             ..
                         }) => {
                             let region = segment_group_or_all(segmentGroup);
                             let name = ionChannel.to_string();
-                            let conductance = Some(lems.normalise_quantity(&Quantity::parse(g)?)?);
+                            let conductance = IonChannelConductanceParameter::parse(lems, g)?;
                             let reversal_potential = RevPot::Nernst;
                             result
                                 .entry((id.to_string(), region))
@@ -581,7 +598,7 @@ fn ion_channel_assignments(
                             let variableParameter(vp) = &body[0];
                             let name = ionChannel.to_string();
                             let region = segment_group_or_all(&vp.segmentGroup);
-                            let conductance = None;
+                            let conductance = IonChannelConductanceParameter::DefaultConductance;
                             let reversal_potential =
                                 RevPot::Const(lems.normalise_quantity(&Quantity::parse(erev)?)?);
                             result
@@ -602,7 +619,7 @@ fn ion_channel_assignments(
                             let variableParameter(vp) = &body[0];
                             let region = segment_group_or_all(&vp.segmentGroup);
                             let name = ionChannel.to_string();
-                            let conductance = None;
+                            let conductance = IonChannelConductanceParameter::DefaultConductance;
                             let reversal_potential = RevPot::Nernst;
                             result
                                 .entry((id.to_string(), region))
@@ -724,7 +741,7 @@ fn merge_ion_channels(
                         .cloned()
                         .unwrap_or_default();
                     // Set Parameters e, g
-                    if let Some(g) = &channel.conductance {
+                    if let IonChannelConductanceParameter::FixedConductance(g) = &channel.conductance {
                         instance
                             .parameters
                             .insert(String::from("conductance"), g.clone());
