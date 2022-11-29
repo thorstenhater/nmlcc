@@ -616,7 +616,7 @@ fn ion_channel_assignments(
                             ..
                         }) => {
                             use crate::neuroml::raw::ChannelDensityNonUniformNernstBody::variableParameter;
-                            let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniformNernst"))?;
+                            let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniform"))?;
                             let region = segment_group_or_all(&vp.segmentGroup);
                             let name = ionChannel.to_string();
                             let conductance = IonChannelConductanceParameter::DefaultConductance;
@@ -662,18 +662,17 @@ fn split_decor(
             ihp.get(id).ok_or(nml2_error!("should never happen"))?,
         )?;
         let mut non_uniform_args: Map<String, Map<String, acc::MechVariableParameter>> = Map::new();
+        // collect non uniform args as they must be kept as PARAMETERS
         for d in biophys.iter() {
             match d {
                 Decor::Paint(ref r, Paintable::NonUniformMech { ref name, ns, .. })
                     if densities.contains(name) =>
                 {
-                    if !seen.contains(r) {
-                        for (k, v) in ns.iter() {
-                            non_uniform_args
-                                .entry(r.to_owned())
-                                .or_insert_with(Map::new)
-                                .insert(format!("{name}_{k}"), v.to_owned());
-                        }
+                    for (k, v) in ns.iter() {
+                        non_uniform_args
+                            .entry(r.to_owned())
+                            .or_insert_with(Map::new)
+                            .insert(format!("{name}_{k}"), v.to_owned());
                     }
                 }
                 _ => (),
