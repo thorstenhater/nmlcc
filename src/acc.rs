@@ -460,7 +460,9 @@ fn make_variable_parameter_map(
             "InhomogeneousValue must contain a single InhomogeneousParameter",
         ));
     }
-    let inhomogeneousValue(ival) = &vp.body.first().ok_or(nml2_error!("expected InhomogeneousValue in VariableParameter"))?;
+    let inhomogeneousValue(ival) = &vp.body.first().ok_or(nml2_error!(
+        "expected InhomogeneousValue in VariableParameter"
+    ))?;
     let ihv = inhomogeneous_parameters
         .get(&ival.inhomogeneousParameter)
         .ok_or(nml2_error!(
@@ -548,7 +550,9 @@ fn membrane(
                 ..
             }) => {
                 use crate::neuroml::raw::ChannelDensityNonUniformBody::variableParameter;
-                let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniform"))?;
+                let variableParameter(vp) = &body.first().ok_or(nml2_error!(
+                    "expected VariableParameter in ChannelDensityNonUniform"
+                ))?;
                 let ns = make_variable_parameter_map(vp, inhomogeneous_parameters)?;
                 let ps = simple_ion(known_ions, &mut result, ion, &vp.segmentGroup, erev)?;
                 result.push(Decor::non_uniform_mechanism(
@@ -565,7 +569,9 @@ fn membrane(
                 ..
             }) => {
                 use crate::neuroml::raw::ChannelDensityNonUniformNernstBody::variableParameter;
-                let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniformNernst"))?;
+                let variableParameter(vp) = &body.first().ok_or(nml2_error!(
+                    "expected VariableParameter in ChannelDensityNonUniformNernst"
+                ))?;
                 let ns = make_variable_parameter_map(vp, inhomogeneous_parameters)?;
                 result.push(Decor::nernst(ion));
                 result.push(Decor::non_uniform_mechanism(

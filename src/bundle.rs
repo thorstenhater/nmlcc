@@ -419,7 +419,7 @@ enum RevPot {
 #[derive(Clone, Debug)]
 enum IonChannelConductanceParameter {
     DefaultConductance, // NonUniform doesn't give it
-    FixedConductance(Quantity)
+    FixedConductance(Quantity),
 }
 
 impl IonChannelConductanceParameter {
@@ -432,12 +432,11 @@ impl IonChannelConductanceParameter {
     }
 }
 
-
 #[derive(Clone, Debug)]
 struct IonChannel {
     name: String,
     reversal_potential: RevPot,
-    conductance: IonChannelConductanceParameter
+    conductance: IonChannelConductanceParameter,
 }
 
 pub fn export_with_super_mechanisms(
@@ -595,7 +594,9 @@ fn ion_channel_assignments(
                             ..
                         }) => {
                             use crate::neuroml::raw::ChannelDensityNonUniformBody::variableParameter;
-                            let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniform"))?;
+                            let variableParameter(vp) = &body.first().ok_or(nml2_error!(
+                                "expected VariableParameter in ChannelDensityNonUniform"
+                            ))?;
                             let name = ionChannel.to_string();
                             let region = segment_group_or_all(&vp.segmentGroup);
                             let conductance = IonChannelConductanceParameter::DefaultConductance;
@@ -616,7 +617,9 @@ fn ion_channel_assignments(
                             ..
                         }) => {
                             use crate::neuroml::raw::ChannelDensityNonUniformNernstBody::variableParameter;
-                            let variableParameter(vp) = &body.first().ok_or(nml2_error!("expected VariableParameter in ChannelDensityNonUniform"))?;
+                            let variableParameter(vp) = &body.first().ok_or(nml2_error!(
+                                "expected VariableParameter in ChannelDensityNonUniform"
+                            ))?;
                             let region = segment_group_or_all(&vp.segmentGroup);
                             let name = ionChannel.to_string();
                             let conductance = IonChannelConductanceParameter::DefaultConductance;
@@ -740,7 +743,9 @@ fn merge_ion_channels(
                         .cloned()
                         .unwrap_or_default();
                     // Set Parameters e, g
-                    if let IonChannelConductanceParameter::FixedConductance(g) = &channel.conductance {
+                    if let IonChannelConductanceParameter::FixedConductance(g) =
+                        &channel.conductance
+                    {
                         instance
                             .parameters
                             .insert(String::from("conductance"), g.clone());
