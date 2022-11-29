@@ -1,4 +1,5 @@
 use crate::{
+
     acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
@@ -433,7 +434,7 @@ impl IonChannelConductanceParameter {
 }
 
 #[derive(Clone, Debug)]
-struct IonChannel {
+pub struct IonChannel {
     name: String,
     reversal_potential: RevPot,
     conductance: IonChannelConductanceParameter,
@@ -528,7 +529,7 @@ fn read_cell_data(nml: &[String], lems: &LemsFile) -> Result<CellData> {
     Ok(result)
 }
 
-fn ion_channel_assignments(
+pub fn ion_channel_assignments(
     props: &Map<String, BiophysicalProperties>,
     lems: &LemsFile,
 ) -> Result<Map<(String, String), Vec<IonChannel>>> {
