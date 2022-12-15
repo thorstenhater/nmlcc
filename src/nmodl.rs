@@ -139,8 +139,14 @@ impl Nmodl {
                 let mut init = false;
                 for c in cs {
                     ms.push(c.clone());
-                    eprintln!("{}| {nm} = {}", c.0.print_to_string(), c.1.print_to_string());
-                    covers = expr::Boolean::Op(expr::Op::Or, Box::new(c.0.clone()), Box::new(covers)).simplify();
+                    eprintln!(
+                        "{}| {nm} = {}",
+                        c.0.print_to_string(),
+                        c.1.print_to_string()
+                    );
+                    covers =
+                        expr::Boolean::Op(expr::Op::Or, Box::new(c.0.clone()), Box::new(covers))
+                            .simplify();
                     if let expr::Boolean::Lit(true) = covers {
                         eprintln!("COVERING! Stopp!");
                         init = true;
@@ -164,9 +170,7 @@ impl Nmodl {
                 let mut res = Stmnt::Ass(nm.clone(), e);
 
                 while let Some((c, e)) = ms.pop() {
-                    res = Stmnt::Ift(c,
-                                     Box::new(Stmnt::Ass(nm.clone(), e)),
-                                     Box::new(Some(res)));
+                    res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(Some(res)));
                 }
                 variables.insert(nm, res.simplify());
             }

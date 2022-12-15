@@ -498,30 +498,30 @@ BREAKPOINT {
 
 // #[test]
 // fn non_specific_ion_channel() {
-    // let lems = LemsFile::core();
-    // let tree = Document::parse(r#"<?xml version="1.0" encoding="UTF-8"?>
+// let lems = LemsFile::core();
+// let tree = Document::parse(r#"<?xml version="1.0" encoding="UTF-8"?>
 // <neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
-         // xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         // xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
-         // id="NML2_SimpleIonChannel">
-    // <ionChannelHH id="NaConductance" conductance="10pS" species="na">
-        // <gateHHrates id="m" instances="1">
-            // <forwardRate type="HHExpLinearRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
-            // <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
-        // </gateHHrates>
-    // </ionChannelHH>
+// xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+// xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
+// id="NML2_SimpleIonChannel">
+// <ionChannelHH id="NaConductance" conductance="10pS" species="na">
+// <gateHHrates id="m" instances="1">
+// <forwardRate type="HHExpLinearRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
+// <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
+// </gateHHrates>
+// </ionChannelHH>
 
-    // <ionChannelHH id="NaConductance" conductance="10pS" species="k">
-        // <gateHHrates id="m" instances="1">
-            // <forwardRate type="HHExpLinearRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
-            // <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
-        // </gateHHrates>
-    // </ionChannelHH>
+// <ionChannelHH id="NaConductance" conductance="10pS" species="k">
+// <gateHHrates id="m" instances="1">
+// <forwardRate type="HHExpLinearRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
+// <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
+// </gateHHrates>
+// </ionChannelHH>
 // </neuroml>"#).unwrap();
-    // let node = tree
-        // .descendants()
-        // .find(|n| n.has_tag_name("ionChannelHH"))
-        // .unwrap();
-    // let inst = Instance::new(&lems, &node).unwrap();
-    // assert_eq!(to_nmodl(&inst, "-*", "baseIonChannel", &[]).unwrap(), r#""#);
+// let node = tree
+// .descendants()
+// .find(|n| n.has_tag_name("ionChannelHH"))
+// .unwrap();
+// let inst = Instance::new(&lems, &node).unwrap();
+// assert_eq!(to_nmodl(&inst, "-*", "baseIonChannel", &[]).unwrap(), r#""#);
 // }

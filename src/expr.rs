@@ -375,103 +375,143 @@ impl Boolean {
                         // eliminate literals
                         (Boolean::Lit(true), r) => return r.clone(),
                         (l, Boolean::Lit(true)) => return l.clone(),
-                        (Boolean::Lit(false), _) |
-                        (_, Boolean::Lit(false)) => return Boolean::Lit(false),
+                        (Boolean::Lit(false), _) | (_, Boolean::Lit(false)) => {
+                            return Boolean::Lit(false)
+                        }
                         // peek one level into comparisons
                         (Boolean::Cmp(el, xl, yl), Boolean::Cmp(er, xr, yr))
-                            if xl == xr && yl == yr => {
-                                match (&el, &er) {
-                                    // ...
-                                    (u, v) if u == v =>  return Boolean::Cmp(**u, xl.clone(), yl.clone()),
-                                    // contradiction
-                                    (Cmp::Ne, Cmp::Eq) |
-                                    (Cmp::Eq, Cmp::Ne) |
-                                    (Cmp::Gt, Cmp::Lt) |
-                                    (Cmp::Lt, Cmp::Gt) |
-                                    (Cmp::Ge, Cmp::Lt) |
-                                    (Cmp::Lt, Cmp::Ge) |
-                                    (Cmp::Gt, Cmp::Le) |
-                                    (Cmp::Le, Cmp::Gt) => return Boolean::Lit(false),
-                                    // redundant
-                                    (Cmp::Le, Cmp::Eq) |
-                                    (Cmp::Eq, Cmp::Le) |
-                                    (Cmp::Le, Cmp::Lt) |
-                                    (Cmp::Lt, Cmp::Le) => return Boolean::Cmp(Cmp::Le, xl.clone(), yl.clone()),
-                                    (Cmp::Ge, Cmp::Eq) |
-                                    (Cmp::Eq, Cmp::Ge) |
-                                    (Cmp::Ge, Cmp::Gt) |
-                                    (Cmp::Gt, Cmp::Ge) => return Boolean::Cmp(Cmp::Ge, xl.clone(), yl.clone()),
-                                    // intersection
-                                    (Cmp::Ge, Cmp::Le) |
-                                    (Cmp::Le, Cmp::Ge) => return Boolean::Cmp(Cmp::Eq, xl.clone(), yl.clone()),
-                                    _ => unreachable!(),
+                            if xl == xr && yl == yr =>
+                        {
+                            match (&el, &er) {
+                                // ...
+                                (u, v) if u == v => {
+                                    return Boolean::Cmp(**u, xl.clone(), yl.clone())
                                 }
+                                // contradiction
+                                (Cmp::Ne, Cmp::Eq)
+                                | (Cmp::Eq, Cmp::Ne)
+                                | (Cmp::Lt, Cmp::Eq)
+                                | (Cmp::Eq, Cmp::Lt)
+                                | (Cmp::Gt, Cmp::Eq)
+                                | (Cmp::Eq, Cmp::Gt)
+                                | (Cmp::Gt, Cmp::Lt)
+                                | (Cmp::Lt, Cmp::Gt)
+                                | (Cmp::Ge, Cmp::Lt)
+                                | (Cmp::Lt, Cmp::Ge)
+                                | (Cmp::Gt, Cmp::Le)
+                                | (Cmp::Le, Cmp::Gt) => return Boolean::Lit(false),
+                                // redundant
+                                (Cmp::Le, Cmp::Eq)
+                                | (Cmp::Eq, Cmp::Le)
+                                | (Cmp::Le, Cmp::Lt)
+                                | (Cmp::Lt, Cmp::Le) => {
+                                    return Boolean::Cmp(Cmp::Le, xl.clone(), yl.clone())
+                                }
+                                (Cmp::Ge, Cmp::Eq)
+                                | (Cmp::Eq, Cmp::Ge)
+                                | (Cmp::Ge, Cmp::Gt)
+                                | (Cmp::Gt, Cmp::Ge) => {
+                                    return Boolean::Cmp(Cmp::Ge, xl.clone(), yl.clone())
+                                }
+                                (Cmp::Ne, Cmp::Gt) | (Cmp::Gt, Cmp::Ne) => {
+                                    return Boolean::Cmp(Cmp::Gt, xl.clone(), yl.clone())
+                                }
+                                (Cmp::Ne, Cmp::Lt) | (Cmp::Lt, Cmp::Ne) => {
+                                    return Boolean::Cmp(Cmp::Gt, xl.clone(), yl.clone())
+                                }
+                                // intersection
+                                (Cmp::Ge, Cmp::Le) | (Cmp::Le, Cmp::Ge) => {
+                                    return Boolean::Cmp(Cmp::Eq, xl.clone(), yl.clone())
+                                }
+                                _ => unreachable!(),
                             }
-                        (l@Boolean::Cmp(_, xl, yl), Boolean::Cmp(er, xr, yr))
-                            if xl == yr && yl == xr => {
-                                // want to swap the second comparison
-                                let er = match er {
-                                    Cmp::Eq => Cmp::Eq,
-                                    Cmp::Ne => Cmp::Ne,
-                                    Cmp::Ge => Cmp::Le,
-                                    Cmp::Le => Cmp::Ge,
-                                    Cmp::Gt => Cmp::Lt,
-                                    Cmp::Lt => Cmp::Gt,
-                                };
-                                return Boolean::Op(Op::And,
-                                                   Box::new(l.clone()),
-                                                   Box::new(Boolean::Cmp(er,
-                                                                         yr.clone(),
-                                                                         xr.clone())))
-                            }
+                        }
+                        (l @ Boolean::Cmp(_, xl, yl), Boolean::Cmp(er, xr, yr))
+                            if xl == yr && yl == xr =>
+                        {
+                            // want to swap the second comparison
+                            let er = match er {
+                                Cmp::Eq => Cmp::Eq,
+                                Cmp::Ne => Cmp::Ne,
+                                Cmp::Ge => Cmp::Le,
+                                Cmp::Le => Cmp::Ge,
+                                Cmp::Gt => Cmp::Lt,
+                                Cmp::Lt => Cmp::Gt,
+                            };
+                            return Boolean::Op(
+                                Op::And,
+                                Box::new(l.clone()),
+                                Box::new(Boolean::Cmp(er, yr.clone(), xr.clone())),
+                            );
+                        }
                         _ => {}
-                    }
+                    },
                     Op::Or => match (&l, &r) {
                         // eliminate literals
                         (Boolean::Lit(false), r) => return r.clone(),
                         (l, Boolean::Lit(false)) => return l.clone(),
-                        (Boolean::Lit(true), _) |
-                        (_, Boolean::Lit(true)) => return Boolean::Lit(true),
+                        (Boolean::Lit(true), _) | (_, Boolean::Lit(true)) => {
+                            return Boolean::Lit(true)
+                        }
                         // peek one level into comparisons
                         (Boolean::Cmp(el, xl, yl), Boolean::Cmp(er, xr, yr))
-                            if xl == xr && yl == yr => {
-                                match (&el, &er) {
-                                    // ...
-                                    (u, v) if u == v =>  return Boolean::Cmp(**u, xl.clone(), xr.clone()),
-                                    // x > y || x < y => x /= y
-                                    (Cmp::Lt, Cmp::Gt) | (Cmp::Gt, Cmp::Lt) => return Boolean::Cmp(Cmp::Ne, xl.clone(), yl.clone()),
-                                    // tautology
-                                    (Cmp::Ne, Cmp::Eq) | (Cmp::Eq, Cmp::Ne) |
-                                    (Cmp::Ge, Cmp::Le) | (Cmp::Le, Cmp::Ge) |
-                                    (Cmp::Gt, Cmp::Le) | (Cmp::Le, Cmp::Gt) |
-                                    (Cmp::Ge, Cmp::Lt) | (Cmp::Lt, Cmp::Ge) => return Boolean::Lit(true),
-                                    // redundant
-                                    (Cmp::Ge, Cmp::Eq) |
-                                    (Cmp::Eq, Cmp::Ge) => return Boolean::Cmp(Cmp::Ge, xl.clone(), yl.clone()),
-                                    (Cmp::Le, Cmp::Eq) |
-                                    (Cmp::Eq, Cmp::Le) => return Boolean::Cmp(Cmp::Le, xl.clone(), yl.clone()),
-                                    _ => unreachable!(),
+                            if xl == xr && yl == yr =>
+                        {
+                            match (&el, &er) {
+                                // ...
+                                (u, v) if u == v => {
+                                    return Boolean::Cmp(**u, xl.clone(), xr.clone())
                                 }
+                                // x > y || x < y => x /= y
+                                (Cmp::Lt, Cmp::Gt) | (Cmp::Gt, Cmp::Lt) => {
+                                    return Boolean::Cmp(Cmp::Ne, xl.clone(), yl.clone())
+                                }
+                                // tautology
+                                (Cmp::Ne, Cmp::Eq)
+                                | (Cmp::Eq, Cmp::Ne)
+                                | (Cmp::Ge, Cmp::Le)
+                                | (Cmp::Le, Cmp::Ge)
+                                | (Cmp::Gt, Cmp::Le)
+                                | (Cmp::Le, Cmp::Gt)
+                                | (Cmp::Ge, Cmp::Lt)
+                                | (Cmp::Lt, Cmp::Ge) => return Boolean::Lit(true),
+                                // redundant
+                                (Cmp::Ge, Cmp::Eq) | (Cmp::Eq, Cmp::Ge) => {
+                                    return Boolean::Cmp(Cmp::Ge, xl.clone(), yl.clone())
+                                }
+                                (Cmp::Le, Cmp::Eq) | (Cmp::Eq, Cmp::Le) => {
+                                    return Boolean::Cmp(Cmp::Le, xl.clone(), yl.clone())
+                                }
+                                // return the weaker condition
+                                (Cmp::Gt, Cmp::Ne)
+                                | (Cmp::Ne, Cmp::Gt)
+                                | (Cmp::Lt, Cmp::Ne)
+                                | (Cmp::Ne, Cmp::Lt) => {
+                                    return Boolean::Cmp(Cmp::Ne, xl.clone(), yl.clone())
+                                }
+                                _ => unreachable!(),
                             }
-                        (l@Boolean::Cmp(_, xl, yl), Boolean::Cmp(er, xr, yr))
-                            if xl == yr && yl == xr => {
-                                // want to swap the second comparison
-                                let er = match er {
-                                    Cmp::Eq => Cmp::Eq,
-                                    Cmp::Ne => Cmp::Ne,
-                                    Cmp::Ge => Cmp::Le,
-                                    Cmp::Le => Cmp::Ge,
-                                    Cmp::Gt => Cmp::Lt,
-                                    Cmp::Lt => Cmp::Gt,
-                                };
-                                return Boolean::Op(Op::Or,
-                                                   Box::new(l.clone()),
-                                                   Box::new(Boolean::Cmp(er,
-                                                                         yr.clone(),
-                                                                         xr.clone())))
-                            }
+                        }
+                        (l @ Boolean::Cmp(_, xl, yl), Boolean::Cmp(er, xr, yr))
+                            if xl == yr && yl == xr =>
+                        {
+                            // want to swap the second comparison
+                            let er = match er {
+                                Cmp::Eq => Cmp::Eq,
+                                Cmp::Ne => Cmp::Ne,
+                                Cmp::Ge => Cmp::Le,
+                                Cmp::Le => Cmp::Ge,
+                                Cmp::Gt => Cmp::Lt,
+                                Cmp::Lt => Cmp::Gt,
+                            };
+                            return Boolean::Op(
+                                Op::Or,
+                                Box::new(l.clone()),
+                                Box::new(Boolean::Cmp(er, yr.clone(), xr.clone())),
+                            );
+                        }
                         _ => {}
-                    }
+                    },
                 }
                 Boolean::Op(*o, Box::new(l), Box::new(r))
             }
@@ -1154,18 +1194,29 @@ mod test {
         assert_eq!(Boolean::parse("23 .gt. 42").unwrap(), Boolean::Lit(false));
         assert_eq!(Boolean::parse("23 .lt. 42").unwrap(), Boolean::Lit(true));
         assert_eq!(Boolean::parse("x .eq. x").unwrap(), Boolean::Lit(true));
-        assert_eq!(Boolean::parse("(x .gt. y) .and. (x .lt. z)").unwrap(),
-                   Boolean::Op(Op::And,
-                               Box::new(Boolean::parse("x .gt. y").unwrap()),
-                               Box::new(Boolean::parse("x .lt. z").unwrap())));
-        assert_eq!(Boolean::parse("(x .gt. y) .and. (x .lt. y)").unwrap(),
-                   Boolean::Lit(false));
-        assert_eq!(Boolean::parse("(x .gt. y) .or. (x .lt. y)").unwrap(),
-                   Boolean::parse("x .neq. y").unwrap());
-        assert_eq!(Boolean::parse("(x .neq. y) .or. (x .eq. y)").unwrap(),
-                   Boolean::Lit(true));
-        assert_eq!(Boolean::parse("(x .neq. y) .and. (x .eq. y)").unwrap(),
-                   Boolean::Lit(false));
+        assert_eq!(
+            Boolean::parse("(x .gt. y) .and. (x .lt. z)").unwrap(),
+            Boolean::Op(
+                Op::And,
+                Box::new(Boolean::parse("x .gt. y").unwrap()),
+                Box::new(Boolean::parse("x .lt. z").unwrap())
+            )
+        );
+        assert_eq!(
+            Boolean::parse("(x .gt. y) .and. (x .lt. y)").unwrap(),
+            Boolean::Lit(false)
+        );
+        assert_eq!(
+            Boolean::parse("(x .gt. y) .or. (x .lt. y)").unwrap(),
+            Boolean::parse("x .neq. y").unwrap()
+        );
+        assert_eq!(
+            Boolean::parse("(x .neq. y) .or. (x .eq. y)").unwrap(),
+            Boolean::Lit(true)
+        );
+        assert_eq!(
+            Boolean::parse("(x .neq. y) .and. (x .eq. y)").unwrap(),
+            Boolean::Lit(false)
+        );
     }
-
 }
