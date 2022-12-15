@@ -136,39 +136,30 @@ impl Nmodl {
                 let nm = var.name.to_string();
                 let mut covers = expr::Boolean::Lit(false);
                 let mut ms = Vec::new();
-                let mut init = false;
                 for c in cs {
                     ms.push(c.clone());
-                    eprintln!(
-                        "{}| {nm} = {}",
-                        c.0.print_to_string(),
-                        c.1.print_to_string()
-                    );
                     covers =
                         expr::Boolean::Op(expr::Op::Or, Box::new(c.0.clone()), Box::new(covers))
                             .simplify();
                     if let expr::Boolean::Lit(true) = covers {
-                        eprintln!("COVERING! Stopp!");
-                        init = true;
                         break;
                     }
-                    eprintln!("Acc: {}", covers.print_to_string());
                 }
 
-                if !init {
+                // If cover is not yet achieved, we must add the default value
+                if !matches!(covers, expr::Boolean::Lit(true)) {
                     if let Some(d) = df {
                         ms.push((Boolean::Lit(true), d.clone()));
                     } else {
-                        ms.push((Boolean::Lit(true), expr::Expr::F64(0.0)));
-                        // return Err(nml2_error!("Variable {nm} might be used uninitialized!"));
+                        return Err(nml2_error!("Variable {nm} might be used uninitialized!"));
                     }
                 }
 
-                // Here we have at least one item in the or have bailed before.
-                // We also know the case chain is covering, so we can ignore the condition.
-                let (_, e) = ms.pop().unwrap();
+                // Convert the chain from the back into if/else
+                // - have at least one item or would have bailed before.
+                // - case chain is covering, so can ignore the _last_ condition.
+                let e = ms.pop().unwrap().1;
                 let mut res = Stmnt::Ass(nm.clone(), e);
-
                 while let Some((c, e)) = ms.pop() {
                     res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(Some(res)));
                 }

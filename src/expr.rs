@@ -429,7 +429,7 @@ impl Boolean {
                         (l @ Boolean::Cmp(_, xl, yl), Boolean::Cmp(er, xr, yr))
                             if xl == yr && yl == xr =>
                         {
-                            // want to swap the second comparison
+                            // to swap the second comparison invert the operator
                             let er = match er {
                                 Cmp::Eq => Cmp::Eq,
                                 Cmp::Ne => Cmp::Ne,
@@ -495,7 +495,7 @@ impl Boolean {
                         (l @ Boolean::Cmp(_, xl, yl), Boolean::Cmp(er, xr, yr))
                             if xl == yr && yl == xr =>
                         {
-                            // want to swap the second comparison
+                            // to swap the second comparison invert the operator
                             let er = match er {
                                 Cmp::Eq => Cmp::Eq,
                                 Cmp::Ne => Cmp::Ne,
