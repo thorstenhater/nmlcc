@@ -217,10 +217,18 @@ impl Nmodl {
             ));
         }
 
-        variables.extend([assign("caConc", "cai")?, assign("vpeer", "v_peer")?].into_iter());
+        variables.extend(
+            [
+                assign("caConc", "cai")?,
+                assign("temperature", "celsius + 273.15")?,
+                assign("vpeer", "v_peer")?,
+            ]
+            .into_iter(),
+        );
 
         let mut symbols: Set<_> = [
             String::from("v"),
+            String::from("celsius"),
             String::from("area"),
             String::from("diam"),
             String::from("v_peer"),
@@ -985,6 +993,11 @@ pub fn to_nmodl(
             let ec = "extConcentration";
             let dic = "concentration'";
             let dec = "extConcentration'";
+
+            // TODO(TH) this is a rough approximation, might be broken.
+            info!("Using synthetic area variable A = pi diam^2! Assumes CV of width=height.");
+            let (a, area) = assign("surfaceArea", "3.14159265359 * diam * diam")?;
+            n.variables.insert(a, area);
 
             if !n.outputs.contains_key(ec) && !n.deriv.contains_key(dec) {
                 n.init.remove(ec);
