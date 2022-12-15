@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::{fs::write, iter::once};
 use tracing::{info, trace, warn};
 
+use crate::expr::{self, Boolean};
 use crate::{
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
@@ -133,24 +134,41 @@ impl Nmodl {
         for var in &coll.variables {
             if let VarKind::Derived(cs, df) = &var.kind {
                 let nm = var.name.to_string();
+                let mut covers = expr::Boolean::Lit(false);
+                let mut ms = Vec::new();
                 let mut init = false;
-                let d = if let Some(d) = df {
-                    init = true;
-                    d.clone()
-                } else {
-                    warn!("Variable '{}' default case undefined, assuming zero.", nm);
-                    Expr::F64(0.0)
-                };
-                let mut res = Stmnt::Ass(nm.clone(), d);
-                let mut cs = cs.clone();
-                while let Some((c, e)) = cs.pop() {
-                    init = true;
-                    res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(Some(res)));
+                for c in cs {
+                    ms.push(c.clone());
+                    eprintln!("{}| {nm} = {}", c.0.print_to_string(), c.1.print_to_string());
+                    covers = expr::Boolean::Op(expr::Op::Or, Box::new(c.0.clone()), Box::new(covers)).simplify();
+                    if let expr::Boolean::Lit(true) = covers {
+                        eprintln!("COVERING! Stopp!");
+                        init = true;
+                        break;
+                    }
+                    eprintln!("Acc: {}", covers.print_to_string());
                 }
+
                 if !init {
-                    return Err(nml2_error!("Variable '{}' undefined.", nm));
+                    if let Some(d) = df {
+                        ms.push((Boolean::Lit(true), d.clone()));
+                    } else {
+                        ms.push((Boolean::Lit(true), expr::Expr::F64(0.0)));
+                        // return Err(nml2_error!("Variable {nm} might be used uninitialized!"));
+                    }
                 }
-                variables.insert(nm, res);
+
+                // Here we have at least one item in the or have bailed before.
+                // We also know the case chain is covering, so we can ignore the condition.
+                let (_, e) = ms.pop().unwrap();
+                let mut res = Stmnt::Ass(nm.clone(), e);
+
+                while let Some((c, e)) = ms.pop() {
+                    res = Stmnt::Ift(c,
+                                     Box::new(Stmnt::Ass(nm.clone(), e)),
+                                     Box::new(Some(res)));
+                }
+                variables.insert(nm, res.simplify());
             }
         }
 

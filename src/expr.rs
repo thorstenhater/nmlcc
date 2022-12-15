@@ -330,7 +330,6 @@ impl Boolean {
 
     pub fn parse(input: &str) -> Result<Self> {
         if let Ok((_, result)) = parse::boolean(input) {
-            eprintln!("{:?}", result);
             Ok(result.simplify())
         } else {
             Err(parse_error!("Could not parse {}", input))
@@ -374,7 +373,8 @@ impl Boolean {
                 match o {
                     Op::And => match (&l, &r) {
                         // eliminate literals
-                        (Boolean::Lit(true), Boolean::Lit(true)) => return Boolean::Lit(true),
+                        (Boolean::Lit(true), r) => return r.clone(),
+                        (l, Boolean::Lit(true)) => return l.clone(),
                         (Boolean::Lit(false), _) |
                         (_, Boolean::Lit(false)) => return Boolean::Lit(false),
                         // peek one level into comparisons
@@ -428,8 +428,9 @@ impl Boolean {
                     }
                     Op::Or => match (&l, &r) {
                         // eliminate literals
-                        (Boolean::Lit(false), Boolean::Lit(false)) => return Boolean::Lit(false),
-                        (Boolean::Lit(true), _) => return Boolean::Lit(true),
+                        (Boolean::Lit(false), r) => return r.clone(),
+                        (l, Boolean::Lit(false)) => return l.clone(),
+                        (Boolean::Lit(true), _) |
                         (_, Boolean::Lit(true)) => return Boolean::Lit(true),
                         // peek one level into comparisons
                         (Boolean::Cmp(el, xl, yl), Boolean::Cmp(er, xr, yr))
