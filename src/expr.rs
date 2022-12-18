@@ -32,6 +32,8 @@ pub enum Expr {
     Exp(Box<Expr>),
     Log(Box<Expr>),
     Sqrt(Box<Expr>),
+    ProximalDistanceFromRegion(String),
+    DistanceFromRoot(),
     // Unknown, but possibly builtin functions
     Fun(String, Box<Expr>),
 }
@@ -92,10 +94,10 @@ impl Expr {
     }
 
     pub fn print_to_string(&self) -> String {
-        let mut res = match &self {
-            Expr::F64(x) => format!("{}", x),
+        match &self {
+            Expr::F64(x) => format!("{x}"),
             Expr::Var(x) => x.to_string(),
-            Expr::Fun(f, x) => format!("{}({})", f, x.print_to_string()),
+            Expr::Fun(f, x) => format!("{f}({})", x.print_to_string()),
             Expr::Exp(x) => format!("exp({})", x.print_to_string()),
             Expr::Log(x) => format!("log({})", x.print_to_string()),
             Expr::Sqrt(x) => format!("({})^0.5", x.print_to_string()), // NB. () needed since we want to call sqrt(...)
@@ -128,15 +130,13 @@ impl Expr {
                     .collect::<Vec<_>>()
                     .join("^"),
             },
-        };
-        // loop {
-            // let old = res.clone();
-            // res = res.replace(" -1 * ", " - ").replace("-1 * ", "- ").replace("+ -", "-");
-            // if old == res {
-                // break;
-            // }
-        // }
-        res
+            Expr::ProximalDistanceFromRegion(_) => {
+                panic!("ProximalDistanceFromRegion can not be constructed in xml")
+            }
+            Expr::DistanceFromRoot() => {
+                panic!("DistanceFromRoot can not be constructed in xml")
+            }
+        }
     }
 
     pub fn simplify(&self) -> Self {
@@ -150,12 +150,17 @@ impl Expr {
                 Expr::Exp(vs) => simplify_exp(vs),
                 Expr::Log(vs) => simplify_log(vs),
                 Expr::Sqrt(vs) => simplify_sqrt(vs),
+                Expr::Fun(n, x) => Expr::Fun(n.into(), Box::new(x.simplify())),
                 e => e.clone(),
             };
             done = old == new;
             old = new
         }
         old
+    }
+
+    pub fn is_var_with_name(&self, name: &str) -> bool {
+        matches!(self, Expr::Var(x) if name == x)
     }
 }
 
@@ -198,7 +203,7 @@ impl Stmnt {
     pub fn print_to_string(&self, ind: usize) -> String {
         match self {
             Stmnt::Ass(n, e) => {
-                format!("{:width$}{} = {}", "", n, e.print_to_string(), width = ind)
+                format!("{:ind$}{n} = {}", "", e.print_to_string())
             }
             Stmnt::Ift(c, t, f) => {
                 if let Some(f) = f.deref() {
@@ -301,7 +306,7 @@ pub enum Boolean {
 impl Boolean {
     pub fn print_to_string(&self) -> String {
         match &self {
-            Boolean::Lit(b) => format!("{}", b),
+            Boolean::Lit(b) => format!("{b}"),
             Boolean::Cmp(o, l, r) => {
                 let op = match o {
                     Cmp::Eq => "==",
@@ -311,14 +316,14 @@ impl Boolean {
                     Cmp::Gt => ">",
                     Cmp::Lt => "<",
                 };
-                format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
+                format!("{} {op} {}", l.print_to_string(), r.print_to_string())
             }
             Boolean::Op(o, l, r) => {
                 let op = match o {
                     Op::And => "&&",
                     Op::Or => "||",
                 };
-                format!("{} {} {}", l.print_to_string(), op, r.print_to_string())
+                format!("{} {op} {}", l.print_to_string(), r.print_to_string())
             }
         }
     }
@@ -659,7 +664,7 @@ mod parse {
         let op = match o {
             "and" => Op::And,
             "or" => Op::Or,
-            x => panic!("Unknown boolean op: {}", x),
+            x => panic!("Unknown boolean op: {x}"),
         };
         Ok((input, Boolean::Op(op, Box::new(l), Box::new(r))))
     }
@@ -674,7 +679,7 @@ mod parse {
             "gt" => Cmp::Gt,
             "leq" => Cmp::Le,
             "geq" => Cmp::Ge,
-            x => panic!("Unknown compare operator: {}", x),
+            x => panic!("Unknown compare operator: {x}"),
         };
         Ok((input, Boolean::Cmp(op, Box::new(l), Box::new(r))))
     }
@@ -961,6 +966,7 @@ mod test {
                 Expr::Var(String::from("z")),
             ])
         );
+        assert_eq!(Expr::parse("a / a").unwrap(), Expr::F64(1.0));
     }
 
     #[test]
