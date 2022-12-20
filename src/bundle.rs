@@ -4,10 +4,10 @@ use crate::{
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
-    network::{get_cell_id, Connection, Input, Network, Projection},
+    network::{get_cell_id, Connection, Network, Projection, self},
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
-        PulseGenerator,
+        PulseGenerator, PoissonFiringSynapse,
     },
     neuroml::{
         process_files,
@@ -45,7 +45,7 @@ pub fn export(
 
 fn mk_main_py(
     cells: &[(String, String)],
-    iclamps: &Map<String, (f64, f64, f64)>,
+    stimuli: &Map<String, Input>,
     net: &Network,
 ) -> Result<String> {
     let mut cell_to_morph = String::from("{");
@@ -69,7 +69,7 @@ fn mk_main_py(
     }
 
     let mut labels = Map::new();
-    for Input {
+    for network::Input {
         source,
         target,
         segment,
@@ -108,10 +108,17 @@ fn mk_main_py(
     gid_to_inputs.push('}');
 
     let mut i_clamps = String::from("{");
-    for (lbl, iclamp) in iclamps {
-        i_clamps.push_str(&format!("'{lbl}': {iclamp:?}, "))
+    let mut poisson = String::from("{");
+    let mut regular = String::from("{");
+    for (lbl, stimulus) in stimuli {
+        match stimulus {
+            Input::Pulse(delay, dt, stop) => i_clamps.push_str(&format!("'{lbl}': ({delay}, {dt}, {stop}), ")),
+            Input::Poisson(syn, avg, wgt) => poisson.push_str(&format!("'{lbl}': ({syn}, {avg}, {wgt})")),
+        }
     }
     i_clamps.push('}');
+    poisson.push('}');
+    regular.push('}');
 
     // In arbor
     let mut detectors = Map::new();
@@ -238,6 +245,8 @@ class recipe(A.recipe):
         self.cell_to_morph = {cell_to_morph}
         self.gid_to_cell = {gid_to_cell}
         self.i_clamps = {i_clamps}
+        self.poisson = {poisson}
+        self.regular = {regular}
         self.gid_to_inputs = {gid_to_inputs}
         self.gid_to_synapses = {gid_to_synapses}
         self.gid_to_detectors = {gid_to_detectors}
@@ -266,8 +275,9 @@ class recipe(A.recipe):
         dec.discretization(A.cv_policy_every_segment())
         if gid in self.gid_to_inputs:
             for tag, inp in self.gid_to_inputs[gid]:
-                lag, dur, amp = self.i_clamps[inp]
-                dec.place(f'\"{{tag}}\"', A.iclamp(lag, dur, amp), f'ic_{{inp}}@{{tag}}')
+                if inp in self.i_clamps:
+                    lag, dur, amp = self.i_clamps[inp]
+                    dec.place(f'\"{{tag}}\"', A.iclamp(lag, dur, amp), f'ic_{{inp}}@{{tag}}')
         if gid in self.gid_to_synapses:
             for tag, syn in self.gid_to_synapses[gid]:
                 dec.place(f'\"{{tag}}\"', A.synapse(syn), f'syn_{{syn}}@{{tag}}')
@@ -290,6 +300,18 @@ class recipe(A.recipe):
                 conn = A.connection((src, f'sd@{{dec}}'), f'syn_{{syn}}@{{loc}}', w, d)
                 res.append(conn)
         return res
+
+    def event_generators(self, gid):
+        res = []
+        if gid in self.gid_to_inputs:
+            for tag, inp in self.gid_to_inputs[gid]:
+                if inp in self.poisson_generators:
+                    syn, avg, wgt = self.poisson_generators[inp]
+                    res.append(A.event_generator(f'syn_{{syn}}@{{tag}}', wgt, A.poisson_schedule(0, avg, gid)))
+                if inp in self.regular:
+                    raise \"oops\"
+        return res
+
 
 ctx = A.context()
 mdl = recipe()
@@ -331,6 +353,11 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
     )
 }
 
+enum Input {
+    Pulse(f64, f64, f64),
+    Poisson(String, f64, f64),
+}
+
 fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     trace!("Creating bundle {bundle}");
     create_dir_all(bundle)?;
@@ -344,7 +371,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
         Ok(format!("{u}"))
     };
 
-    let mut iclamps = Map::new();
+    let mut inputs = Map::new();
     let mut cells = Vec::new();
     let mut nets = Vec::new();
     process_files(nml, |_, node| {
@@ -375,16 +402,29 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
             }
             "pulseGenerator" => {
                 let ic: PulseGenerator = XML::from_node(node);
-                iclamps.insert(
+                inputs.insert(
                     ic.id.to_string(),
-                    (
+                    Input::Pulse(
                         norm(&ic.delay)?.parse::<f64>().unwrap(),
                         norm(&ic.duration)?.parse::<f64>().unwrap(),
                         norm(&ic.amplitude)?.parse::<f64>().unwrap(),
                     ),
                 );
             }
+            "poissonFiringSynapse" => {
+                let ic: PoissonFiringSynapse = XML::from_node(node);
+                let weight = 1.0;
+                inputs.insert(
+                    ic.id.to_string(),
+                    Input::Poisson(
+                        ic.synapse,
+                        norm(&ic.averageRate)?.parse::<f64>().unwrap(),
+                        weight,
+                    ),
+                );
+            }
             "network" => {
+                eprintln!("Found network: {:?}", node.attribute("id"));
                 let inst = Instance::new(lems, node)?;
                 let net = Network::new(&inst)?;
                 nets.push(net);
@@ -400,7 +440,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
             trace!("Writing main.py");
             write(
                 format!("{bundle}/main.py"),
-                mk_main_py(&cells, &iclamps, net)?,
+                mk_main_py(&cells, &inputs, net)?,
             )?;
             Ok(())
         }
