@@ -4,10 +4,10 @@ use crate::{
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
-    network::{get_cell_id, Connection, Network, Projection, self},
+    network::{self, get_cell_id, Connection, Network, Projection},
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
-        PulseGenerator, PoissonFiringSynapse,
+        PoissonFiringSynapse, PulseGenerator,
     },
     neuroml::{
         process_files,
@@ -91,9 +91,11 @@ fn mk_main_py(
         inputs.entry(gid).or_insert_with(Vec::new).push(val);
         match stimuli.get(source) {
             Some(Input::Poisson(synapse, _, _)) => {
-                synapses.entry(gid)
-                .or_insert_with(Set::new)
-                .insert((*segment, fraction.clone(), synapse.clone()));
+                synapses.entry(gid).or_insert_with(Set::new).insert((
+                    *segment,
+                    fraction.clone(),
+                    synapse.clone(),
+                ));
             }
             Some(_) => todo!(),
             None => {}
@@ -137,10 +139,11 @@ fn mk_main_py(
                 .entry(from_gid)
                 .or_insert_with(Set::new)
                 .insert((from.segment, from.fraction.clone()));
-            synapses
-                .entry(to_gid)
-                .or_insert_with(Set::new)
-                .insert((to.segment, to.fraction.clone(), synapse.clone()));
+            synapses.entry(to_gid).or_insert_with(Set::new).insert((
+                to.segment,
+                to.fraction.clone(),
+                synapse.clone(),
+            ));
             conns.entry(to_gid).or_insert_with(Vec::new).push((
                 from_gid,
                 from.to_label(),
@@ -157,14 +160,17 @@ fn mk_main_py(
     let mut regular = String::from("{");
     for (lbl, stimulus) in stimuli {
         match stimulus {
-            Input::Pulse(delay, dt, stop) => i_clamps.push_str(&format!("'{lbl}': ({delay}, {dt}, {stop}), ")),
-            Input::Poisson(syn, avg, wgt) => poisson.push_str(&format!("'{lbl}': ('{syn}', {avg}, {wgt})")),
+            Input::Pulse(delay, dt, stop) => {
+                i_clamps.push_str(&format!("'{lbl}': ({delay}, {dt}, {stop}), "))
+            }
+            Input::Poisson(syn, avg, wgt) => {
+                poisson.push_str(&format!("'{lbl}': ('{syn}', {avg}, {wgt})"))
+            }
         }
     }
     i_clamps.push('}');
     poisson.push('}');
     regular.push('}');
-
 
     let mut gid_to_synapses = String::from("{\n");
     for (gid, vs) in &synapses {
