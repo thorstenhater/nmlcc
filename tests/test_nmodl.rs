@@ -2,6 +2,8 @@ use nml2::{instance::Instance, lems::file::LemsFile, nmodl::to_nmodl};
 
 use roxmltree::Document;
 
+use pretty_assertions::assert_eq;
+
 fn ions() -> Vec<String> {
     vec![String::from("na"), String::from("ca"), String::from("k")]
 }
@@ -211,11 +213,7 @@ INITIAL {
   if (gates_m_forwardRate_x != 0) {
     gates_m_forwardRate_r = gates_m_forwardRate_rate * gates_m_forwardRate_x * (1 + -1 * exp(-1 * gates_m_forwardRate_x))^-1
   } else {
-    if (gates_m_forwardRate_x == 0) {
-      gates_m_forwardRate_r = gates_m_forwardRate_rate
-    } else {
-      gates_m_forwardRate_r = 0
-    }
+    gates_m_forwardRate_r = gates_m_forwardRate_rate
   }
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_h_forwardRate_r = gates_h_forwardRate_rate * exp((v + -1 * gates_h_forwardRate_midpoint) * gates_h_forwardRate_scale^-1)
@@ -233,11 +231,7 @@ DERIVATIVE dstate {
   if (gates_m_forwardRate_x != 0) {
     gates_m_forwardRate_r = gates_m_forwardRate_rate * gates_m_forwardRate_x * (1 + -1 * exp(-1 * gates_m_forwardRate_x))^-1
   } else {
-    if (gates_m_forwardRate_x == 0) {
-      gates_m_forwardRate_r = gates_m_forwardRate_rate
-    } else {
-      gates_m_forwardRate_r = 0
-    }
+    gates_m_forwardRate_r = gates_m_forwardRate_rate
   }
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_m_tau = (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
@@ -284,11 +278,7 @@ INITIAL {
   if (gates_m_forwardRate_x != 0) {
     gates_m_forwardRate_r = gates_m_forwardRate_x * (1 + -1 * exp(-1 * gates_m_forwardRate_x))^-1
   } else {
-    if (gates_m_forwardRate_x == 0) {
-      gates_m_forwardRate_r = 1
-    } else {
-      gates_m_forwardRate_r = 0
-    }
+    gates_m_forwardRate_r = 1
   }
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_h_forwardRate_r = 0.07000000029802322 * exp(-0.05 * (65 + v))
@@ -306,11 +296,7 @@ DERIVATIVE dstate {
   if (gates_m_forwardRate_x != 0) {
     gates_m_forwardRate_r = gates_m_forwardRate_x * (1 + -1 * exp(-1 * gates_m_forwardRate_x))^-1
   } else {
-    if (gates_m_forwardRate_x == 0) {
-      gates_m_forwardRate_r = 1
-    } else {
-      gates_m_forwardRate_r = 0
-    }
+    gates_m_forwardRate_r = 1
   }
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_m_tau = (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
@@ -465,11 +451,7 @@ INITIAL {
   if (gates_m_forwardRate_x != 0) {
     gates_m_forwardRate_r = gates_m_forwardRate_rate * gates_m_forwardRate_x * (1 + -1 * exp(-1 * gates_m_forwardRate_x))^-1
   } else {
-    if (gates_m_forwardRate_x == 0) {
-      gates_m_forwardRate_r = gates_m_forwardRate_rate
-    } else {
-      gates_m_forwardRate_r = 0
-    }
+    gates_m_forwardRate_r = gates_m_forwardRate_rate
   }
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_h_forwardRate_r = gates_h_forwardRate_rate * exp((v + -1 * gates_h_forwardRate_midpoint) * gates_h_forwardRate_scale^-1)
@@ -487,11 +469,7 @@ DERIVATIVE dstate {
   if (gates_m_forwardRate_x != 0) {
     gates_m_forwardRate_r = gates_m_forwardRate_rate * gates_m_forwardRate_x * (1 + -1 * exp(-1 * gates_m_forwardRate_x))^-1
   } else {
-    if (gates_m_forwardRate_x == 0) {
-      gates_m_forwardRate_r = gates_m_forwardRate_rate
-    } else {
-      gates_m_forwardRate_r = 0
-    }
+    gates_m_forwardRate_r = gates_m_forwardRate_rate
   }
   gates_m_inf = gates_m_forwardRate_r * (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
   gates_m_tau = (gates_m_forwardRate_r + gates_m_reverseRate_r)^-1
@@ -517,3 +495,33 @@ BREAKPOINT {
 "#
     );
 }
+
+// #[test]
+// fn non_specific_ion_channel() {
+// let lems = LemsFile::core();
+// let tree = Document::parse(r#"<?xml version="1.0" encoding="UTF-8"?>
+// <neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
+// xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+// xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
+// id="NML2_SimpleIonChannel">
+// <ionChannelHH id="NaConductance" conductance="10pS" species="na">
+// <gateHHrates id="m" instances="1">
+// <forwardRate type="HHExpLinearRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
+// <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
+// </gateHHrates>
+// </ionChannelHH>
+
+// <ionChannelHH id="NaConductance" conductance="10pS" species="k">
+// <gateHHrates id="m" instances="1">
+// <forwardRate type="HHExpLinearRate" rate="1per_ms" midpoint="-40mV" scale="10mV"/>
+// <reverseRate type="HHExpRate" rate="4per_ms" midpoint="-65mV" scale="-18mV"/>
+// </gateHHrates>
+// </ionChannelHH>
+// </neuroml>"#).unwrap();
+// let node = tree
+// .descendants()
+// .find(|n| n.has_tag_name("ionChannelHH"))
+// .unwrap();
+// let inst = Instance::new(&lems, &node).unwrap();
+// assert_eq!(to_nmodl(&inst, "-*", "baseIonChannel", &[]).unwrap(), r#""#);
+// }

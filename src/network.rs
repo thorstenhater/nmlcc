@@ -287,8 +287,8 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
                         .unwrap_or(&String::from("0.5"))
                         .to_string();
                     let cell = get_cell_id(
-                        attr.get("preCellId")
-                            .ok_or_else(|| nml2_error!("No preCellId."))?,
+                        attr.get("postCellId")
+                            .ok_or_else(|| nml2_error!("No postCellId."))?,
                     )?
                     .1;
                     let segment = attr

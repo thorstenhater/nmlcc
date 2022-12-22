@@ -12,6 +12,7 @@ tracing            = { version = "^0.1" }
 tracing-subscriber = { version = "^0.2" }
 anyhow             = { version = "^1.0.0", features = ["backtrace"] }
 thiserror          = { version = "^1.0.0" }
+pretty_assertions  = { version = "^1.3.0" }
 
 [[bin]]
 name = "nmlcc"
