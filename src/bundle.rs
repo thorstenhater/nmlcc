@@ -4,10 +4,10 @@ use crate::{
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
-    network::{get_cell_id, Connection, Input, Network, Projection},
+    network::{self, get_cell_id, Connection, Network, Projection},
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
-        PulseGenerator,
+        PoissonFiringSynapse, PulseGenerator,
     },
     neuroml::{
         process_files,
@@ -45,7 +45,7 @@ pub fn export(
 
 fn mk_main_py(
     cells: &[(String, String)],
-    iclamps: &Map<String, (f64, f64, f64)>,
+    stimuli: &Map<String, Input>,
     net: &Network,
 ) -> Result<String> {
     let mut cell_to_morph = String::from("{");
@@ -68,8 +68,8 @@ fn mk_main_py(
         }
     }
 
-    let mut labels = Map::new();
-    for Input {
+    let mut synapses: Map<i64, Set<(i64, String, String)>> = Map::new();
+    for network::Input {
         source,
         target,
         segment,
@@ -86,13 +86,20 @@ fn mk_main_py(
         } else {
             return Err(nml2_error!("Indexing into an unknown population: {pop}."));
         };
-        let key: i64 = (fst + idx) as i64;
+        let gid: i64 = (fst + idx) as i64;
         let val = (source.clone(), segment, fraction);
-        inputs.entry(key).or_insert_with(Vec::new).push(val);
-        labels
-            .entry(key)
-            .or_insert_with(Set::new)
-            .insert((*segment, fraction.clone()));
+        inputs.entry(gid).or_insert_with(Vec::new).push(val);
+        match stimuli.get(source) {
+            Some(Input::Poisson(synapse, _, _)) => {
+                synapses.entry(gid).or_insert_with(Set::new).insert((
+                    *segment,
+                    fraction.clone(),
+                    synapse.clone(),
+                ));
+            }
+            Some(_) => todo!(),
+            None => {}
+        }
     }
     gid_to_cell.push(']');
     gid_to_pop.push(']');
@@ -101,21 +108,14 @@ fn mk_main_py(
     for (key, vals) in inputs {
         gid_to_inputs.push_str(&format!("\n                                 {key}: ["));
         for (src, seg, frac) in vals {
-            gid_to_inputs.push_str(&format!("(\"seg_{seg}_frac_{frac}\", \"{src}\"), "));
+            gid_to_inputs.push_str(&format!("({seg}, '{frac}', \"{src}\"), "));
         }
         gid_to_inputs.push_str("], ");
     }
     gid_to_inputs.push('}');
 
-    let mut i_clamps = String::from("{");
-    for (lbl, iclamp) in iclamps {
-        i_clamps.push_str(&format!("'{lbl}': {iclamp:?}, "))
-    }
-    i_clamps.push('}');
-
     // In arbor
     let mut detectors = Map::new();
-    let mut synapses = Map::new();
     let mut conns = Map::new();
     for Projection {
         synapse,
@@ -135,22 +135,15 @@ fn mk_main_py(
         {
             let from_gid = pre + from.cell;
             let to_gid = post + to.cell;
-            labels
-                .entry(from_gid)
-                .or_insert_with(Set::new)
-                .insert((from.segment, from.fraction.clone()));
-            labels
-                .entry(to_gid)
-                .or_insert_with(Set::new)
-                .insert((to.segment, to.fraction.clone()));
             detectors
                 .entry(from_gid)
                 .or_insert_with(Set::new)
-                .insert(from.to_label());
-            synapses
-                .entry(to_gid)
-                .or_insert_with(Set::new)
-                .insert((to.to_label(), synapse.clone()));
+                .insert((from.segment, from.fraction.clone()));
+            synapses.entry(to_gid).or_insert_with(Set::new).insert((
+                to.segment,
+                to.fraction.clone(),
+                synapse.clone(),
+            ));
             conns.entry(to_gid).or_insert_with(Vec::new).push((
                 from_gid,
                 from.to_label(),
@@ -162,11 +155,28 @@ fn mk_main_py(
         }
     }
 
+    let mut i_clamps = String::from("{");
+    let mut poisson = String::from("{");
+    let mut regular = String::from("{");
+    for (lbl, stimulus) in stimuli {
+        match stimulus {
+            Input::Pulse(delay, dt, stop) => {
+                i_clamps.push_str(&format!("'{lbl}': ({delay}, {dt}, {stop}), "))
+            }
+            Input::Poisson(syn, avg, wgt) => {
+                poisson.push_str(&format!("'{lbl}': ('{syn}', {avg}, {wgt})"))
+            }
+        }
+    }
+    i_clamps.push('}');
+    poisson.push('}');
+    regular.push('}');
+
     let mut gid_to_synapses = String::from("{\n");
     for (gid, vs) in &synapses {
         gid_to_synapses.push_str(&format!("                                  {gid}: ["));
-        for (t, s) in vs {
-            gid_to_synapses.push_str(&format!("(\"{t}\", \"{s}\"), "));
+        for (seg, frac, syn) in vs {
+            gid_to_synapses.push_str(&format!("({seg}, '{frac}', \"{syn}\"), "));
         }
         gid_to_synapses.push_str("],\n");
     }
@@ -175,8 +185,8 @@ fn mk_main_py(
     let mut gid_to_detectors = String::from("{\n");
     for (gid, vs) in &detectors {
         gid_to_detectors.push_str(&format!("                                  {gid}: ["));
-        for v in vs {
-            gid_to_detectors.push_str(&format!("\"{v}\", "));
+        for (seg, frac) in vs {
+            gid_to_detectors.push_str(&format!("({seg}, '{frac}'), "));
         }
         gid_to_detectors.push_str("],\n");
     }
@@ -194,16 +204,6 @@ fn mk_main_py(
     }
     gid_to_connections.push_str("                               }");
 
-    let mut gid_to_labels = String::from("{\n");
-    for (gid, vs) in &labels {
-        gid_to_labels.push_str(&format!("                                {gid}: ["));
-        for (seg, frac) in vs {
-            gid_to_labels.push_str(&format!("({seg}, {frac}), "));
-        }
-        gid_to_labels.push_str("],\n");
-    }
-    gid_to_labels.push_str("                               }");
-
     let cat_prefix = "local_";
 
     Ok(format!(
@@ -213,6 +213,7 @@ import arbor as A
 import subprocess as sp
 from pathlib import Path
 from time import perf_counter as pc
+import sys
 
 here = Path(__file__).parent
 
@@ -232,17 +233,20 @@ def compile(fn, cat):
 class recipe(A.recipe):
     def __init__(self):
         A.recipe.__init__(self)
+        self.seed = 42
+        self.prefix = '{cat_prefix}'
         self.props = A.neuron_cable_properties()
         cat = compile(here / 'local-catalogue.so', here / 'cat')
-        self.props.catalogue.extend(cat, '{cat_prefix}')
+        self.props.catalogue.extend(cat, self.prefix)
         self.cell_to_morph = {cell_to_morph}
         self.gid_to_cell = {gid_to_cell}
         self.i_clamps = {i_clamps}
+        self.poisson_generators = {poisson}
+        self.regular_generators = {regular}
         self.gid_to_inputs = {gid_to_inputs}
         self.gid_to_synapses = {gid_to_synapses}
         self.gid_to_detectors = {gid_to_detectors}
         self.gid_to_connections = {gid_to_connections}
-        self.gid_to_labels = {gid_to_labels}
 
     def num_cells(self):
         return {count}
@@ -259,22 +263,23 @@ class recipe(A.recipe):
         lbl.append(nml.named_segments())
         lbl.append(nml.groups())
         lbl['all'] = '(all)'
-        if gid in self.gid_to_labels:
-            for seg, frac in self.gid_to_labels[gid]:
-                lbl[f'seg_{{seg}}_frac_{{frac}}'] = f'(on-components {{frac}} (segment {{seg}}))'
         dec = A.load_component(f'{{here}}/acc/{{cid}}.acc').component
         dec.discretization(A.cv_policy_every_segment())
         if gid in self.gid_to_inputs:
-            for tag, inp in self.gid_to_inputs[gid]:
-                lag, dur, amp = self.i_clamps[inp]
-                dec.place(f'\"{{tag}}\"', A.iclamp(lag, dur, amp), f'ic_{{inp}}@{{tag}}')
+            for seg, frac, inp in self.gid_to_inputs[gid]:
+                tag = f'(on-components {{frac}} (region \"{{seg}}\"))'
+                if inp in self.i_clamps:
+                    lag, dur, amp = self.i_clamps[inp]
+                    dec.place(tag, A.iclamp(lag, dur, amp), f'ic_{{inp}}@seg_{{seg}}_frac_{{frac}}')
         if gid in self.gid_to_synapses:
-            for tag, syn in self.gid_to_synapses[gid]:
-                dec.place(f'\"{{tag}}\"', A.synapse(syn), f'syn_{{syn}}@{{tag}}')
+            for seg, frac, syn in self.gid_to_synapses[gid]:
+                tag = f'(on-components {{frac}} (region \"{{seg}}\"))'
+                dec.place(tag, A.synapse(self.prefix + syn), f'syn_{{syn}}@seg_{{seg}}_frac_{{frac}}')
         if gid in self.gid_to_detectors:
-            for tag in self.gid_to_detectors[gid]:
-                dec.place(f'\"{{tag}}\"', A.spike_detector(-40), f'sd@{{tag}}') # -40 is a phony value!!!
-        return A.cable_cell(nml.morphology, lbl, dec)
+            for seg, frac in self.gid_to_detectors[gid]:
+                tag = f'(on-components {{frac}} (region \"{{seg}}\"))'
+                dec.place(tag, A.threshold_detector(-40), f'sd@seg_{{seg}}_frac_{{frac}}') # -40 is a phony value!!!
+        return A.cable_cell(nml.morphology, dec, lbl)
 
     def probes(self, _):
         # Example: probe center of the root (likely the soma)
@@ -287,9 +292,22 @@ class recipe(A.recipe):
         res = []
         if gid in self.gid_to_connections:
             for src, dec, syn, loc, w, d in self.gid_to_connections[gid]:
-                conn = A.connection((src, f'sd@{{dec}}'), f'syn_{{syn}}@{{loc}}', w, d)
+                conn = A.connection((src, A.cell_local_label(f'sd@{{dec}}', A.selection_policy.round_robin)), A.cell_local_label(f'syn_{{syn}}@{{loc}}', A.selection_policy.round_robin), w, d)
                 res.append(conn)
         return res
+
+    def event_generators(self, gid):
+        res = []
+        if gid in self.gid_to_inputs:
+            for seg, frac, inp in self.gid_to_inputs[gid]:
+                tag = f'(on-components {{frac}} (region \"{{seg}}\"))'
+                if inp in self.poisson_generators:
+                    syn, avg, wgt = self.poisson_generators[inp]
+                    res.append(A.event_generator(f'syn_{{syn}}@seg_{{seg}}_frac_{{frac}}', wgt, A.poisson_schedule(0, avg, gid)))
+                if inp in self.regular_generators:
+                    raise \"oops\"
+        return res
+
 
 ctx = A.context()
 mdl = recipe()
@@ -331,6 +349,11 @@ fn mk_mrf(id: &str, mrf: &str) -> String {
     )
 }
 
+enum Input {
+    Pulse(f64, f64, f64),
+    Poisson(String, f64, f64),
+}
+
 fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> {
     trace!("Creating bundle {bundle}");
     create_dir_all(bundle)?;
@@ -344,7 +367,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
         Ok(format!("{u}"))
     };
 
-    let mut iclamps = Map::new();
+    let mut inputs = Map::new();
     let mut cells = Vec::new();
     let mut nets = Vec::new();
     process_files(nml, |_, node| {
@@ -375,16 +398,29 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
             }
             "pulseGenerator" => {
                 let ic: PulseGenerator = XML::from_node(node);
-                iclamps.insert(
+                inputs.insert(
                     ic.id.to_string(),
-                    (
+                    Input::Pulse(
                         norm(&ic.delay)?.parse::<f64>().unwrap(),
                         norm(&ic.duration)?.parse::<f64>().unwrap(),
                         norm(&ic.amplitude)?.parse::<f64>().unwrap(),
                     ),
                 );
             }
+            "poissonFiringSynapse" => {
+                let ic: PoissonFiringSynapse = XML::from_node(node);
+                let weight = 1.0;
+                inputs.insert(
+                    ic.id.to_string(),
+                    Input::Poisson(
+                        ic.synapse,
+                        norm(&ic.averageRate)?.parse::<f64>().unwrap(),
+                        weight,
+                    ),
+                );
+            }
             "network" => {
+                eprintln!("Found network: {:?}", node.attribute("id"));
                 let inst = Instance::new(lems, node)?;
                 let net = Network::new(&inst)?;
                 nets.push(net);
@@ -400,7 +436,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
             trace!("Writing main.py");
             write(
                 format!("{bundle}/main.py"),
-                mk_main_py(&cells, &iclamps, net)?,
+                mk_main_py(&cells, &inputs, net)?,
             )?;
             Ok(())
         }

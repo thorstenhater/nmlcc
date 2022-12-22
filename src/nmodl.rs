@@ -226,6 +226,8 @@ impl Nmodl {
             .into_iter(),
         );
 
+        parameters.insert(String::from("celsius"), None);
+
         let mut symbols: Set<_> = [
             String::from("v"),
             String::from("celsius"),

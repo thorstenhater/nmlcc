@@ -853,11 +853,14 @@ optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~.
   - targets are written as
     - id, default = 0
     - fraction, default = 0.5
-- stimuli derive =basePointCurrent=
+- current stimuli derive =basePointCurrent=
   - pulse, sine, cosine
-- relevant tags:
-  - =explicitInput= ::
-  - =inputList= ::
+  - these we need to rewrite into ~i_clamp~
+  - relevant tags:
+    - =explicitInput= ::
+    - =inputList= ::
+- /spike/ inputs on the other hand, become ~event_generator~
+  - these derive from ~baseSpikeSource~
 
 *** Example
 
@@ -865,12 +868,15 @@ optional. Alternatively it seems (?) we can address using ~pop/<id>/Cell~.
 <pulseGenerator id="pulseGen1" delay="100ms" duration="100ms" amplitude="0.10nA"/>
 <pulseGenerator id="pulseGen2" delay="300ms" duration="100ms" amplitude="0.35nA"/>
 
+<poissonFiringSynapse id="poisson1" averageRate="50.0 per_s" synapse="syn" spikeTarget="./syn"/>
+
 <network id="HHCellNetwork">
     <population id="hhpop" component="hhcell" size="1"/>
     <explicitInput target="hhpop[0]" input="pulseGen1"/>
     <explicitInput target="hhpop[0]" input="pulseGen2"/>
 </network>
 #+end_src
+
 ** Connectivity: From NML2 to Arbor
 In Arbor, we need these items to produce a spike-based connection
 - Source :: a spike detector bound to a locset, eg
