@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::{fs::write, iter::once};
 use tracing::{info, trace, warn};
 
+use crate::expr::{self, Boolean};
 use crate::{
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
@@ -133,24 +134,36 @@ impl Nmodl {
         for var in &coll.variables {
             if let VarKind::Derived(cs, df) = &var.kind {
                 let nm = var.name.to_string();
-                let mut init = false;
-                let d = if let Some(d) = df {
-                    init = true;
-                    d.clone()
-                } else {
-                    warn!("Variable '{}' default case undefined, assuming zero.", nm);
-                    Expr::F64(0.0)
-                };
-                let mut res = Stmnt::Ass(nm.clone(), d);
-                let mut cs = cs.clone();
-                while let Some((c, e)) = cs.pop() {
-                    init = true;
+                let mut covers = expr::Boolean::Lit(false);
+                let mut ms = Vec::new();
+                for c in cs {
+                    ms.push(c.clone());
+                    covers =
+                        expr::Boolean::Op(expr::Op::Or, Box::new(c.0.clone()), Box::new(covers))
+                            .simplify();
+                    if let expr::Boolean::Lit(true) = covers {
+                        break;
+                    }
+                }
+
+                // If cover is not yet achieved, we must add the default value
+                if !matches!(covers, expr::Boolean::Lit(true)) {
+                    if let Some(d) = df {
+                        ms.push((Boolean::Lit(true), d.clone()));
+                    } else {
+                        return Err(nml2_error!("Variable {nm} might be used uninitialized!"));
+                    }
+                }
+
+                // Convert the chain from the back into if/else
+                // - have at least one item or would have bailed before.
+                // - case chain is covering, so can ignore the _last_ condition.
+                let e = ms.pop().unwrap().1;
+                let mut res = Stmnt::Ass(nm.clone(), e);
+                while let Some((c, e)) = ms.pop() {
                     res = Stmnt::Ift(c, Box::new(Stmnt::Ass(nm.clone(), e)), Box::new(Some(res)));
                 }
-                if !init {
-                    return Err(nml2_error!("Variable '{}' undefined.", nm));
-                }
-                variables.insert(nm, res);
+                variables.insert(nm, res.simplify());
             }
         }
 
