@@ -361,8 +361,9 @@ struct recipe: public arb::recipe {
         if (gid_to_connections.count(gid)) {
             for (const auto& [src, dec, syn, loc, wgt, del]: gid_to_connections.at(gid)) {
                 auto from = mk_gid(src, \"sd@\" + dec);
+                auto delay = std::max(min_delay, del);
                 auto to = mk_lid(\"syn_\" + syn + \"@\" + loc);
-                res.emplace_back(from, to, wgt, del);
+                res.emplace_back(from, to, wgt, delay);
             }
         }
         return res;
@@ -406,9 +407,14 @@ struct recipe: public arb::recipe {
     arb::cable_cell_global_properties gprop;
 
     std::filesystem::path here;
+
+    double min_delay = 0.025;
 };
 
 int main(int argc, char* argv[]) {
+    double dt = 0.025;  // ms
+    double T  = 1000.0; // ms
+
     if (argc != 2) {
         std::cerr << \"Usage: main <network>\\n\";
         return -42;
@@ -417,10 +423,11 @@ int main(int argc, char* argv[]) {
     auto net = std::string{argv[1]};
     auto ctx = arb::make_context();
     auto mdl = recipe(cwd, net);
+    mdl.min_delay = dt;
     auto ddc = arb::partition_load_balance(mdl, ctx);
     auto sim = arb::simulation(mdl, ctx, ddc);
-
-    sim.run(1000, 0.025);
+    sim.set_binning_policy(arb::binning_kind::regular, dt);
+    sim.run(T, dt);
 }
 ".to_string())
 }
