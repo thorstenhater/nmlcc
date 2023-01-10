@@ -55,11 +55,17 @@ enum Cmd {
     },
     /// DWIM creation of an Arbor simulation template
     Bundle {
-        /// NeuroML2 compliant XML file
+        /// NeuroML2 compliant XML files
         nml: String,
         /// Try to combine channels per segment group
         #[clap(short, long)]
         super_mechanisms: bool,
+        /// Export a C++ simulation file
+        #[clap(long)]
+        cxx: bool,
+        /// Export a Python simulation file
+        #[clap(long, default_value="true")]
+        py: bool,
         /// Change catalogue prefix.
         /// Set to empty string if mechanisms do not collide with internal mechanisms
         #[clap(short, long, default_value = "local_")]
@@ -122,15 +128,14 @@ fn main() -> Result<()> {
             dir,
             super_mechanisms,
             cat_prefix,
+            cxx, py
         } => {
-            get_runtime_types(&mut lems, &[nml.clone()])?;
+            get_runtime_types(&mut lems, &[nml.to_string()])?;
             bundle::export(
                 &lems,
-                &[nml],
-                &dir,
-                super_mechanisms,
+                &[nml.to_string()],
                 &ions[..],
-                &cat_prefix,
+                bundle::Bundle { dir, cxx, py, super_mechanisms, cat_prefix }
             )?;
         }
     }

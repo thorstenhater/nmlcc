@@ -239,8 +239,6 @@ impl Nmodl {
             .into_iter(),
         );
 
-        parameters.insert(String::from("celsius"), None);
-
         let mut symbols: Set<_> = [
             String::from("v"),
             String::from("celsius"),
@@ -581,7 +579,7 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
 fn nmodl_param_block(n: &Nmodl) -> Result<String> {
     let mut ps = n.parameters.clone();
     let read = read_variable(n)?;
-    for p in ["diam"] {
+    for p in ["diam", "celsius"] {
         if read.contains(p) {
             ps.insert(p.to_string(), None);
         }

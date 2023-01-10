@@ -13,13 +13,15 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct Network {
-    pub temperature: f64,
+    pub name: String,
+    pub temperature: Option<f64>,
     pub inputs: Vec<Input>,
     pub populations: Map<String, Population>,
     pub projections: Vec<Projection>,
 }
 
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Input {
     /// id of source
     pub source: String,
@@ -74,13 +76,11 @@ impl Network {
             .as_deref()
             .ok_or_else(|| nml2_error!("Instance has no id attribute."))?
             .to_string();
-        let temperature = if let Some(t) = inst.attributes.get("temperature") {
-            t.parse::<f64>()
-                .map_err(|_| nml2_error!("Could not parse T='{}'", t))?
-        } else {
-            warn!("No temperature given, resorting to 0K!");
-            0.0
-        };
+
+        let temperature = inst
+            .attributes
+            .get("temperature")
+            .and_then(|t| t.parse::<f64>().ok());
 
         let populations = if let Some(pops) = inst.children.get("populations") {
             get_populations(pops)?
@@ -101,6 +101,7 @@ impl Network {
             Vec::new()
         };
         Ok(Network {
+            name: id,
             temperature,
             inputs,
             populations,
