@@ -67,7 +67,7 @@ struct SimulationData {
     cell_to_morph: Map<String, String>,
     gid_to_inputs: Map<i64, Vec<(i64, String, String)>>,
     gid_to_synapses: Map<i64, Vec<(i64, String, String)>>,
-    gid_to_detectors: Map<i64, Vec<(i64, String)>>,
+    gid_to_detectors: Map<i64, Vec<(i64, String, f64)>>,
     gid_to_connections: Map<i64, Vec<ConnectionData>>,
     // Inputs & Stimuli
     i_clamps: Map<String, (f64, f64, f64)>,
@@ -80,6 +80,7 @@ struct SimulationData {
 impl SimulationData {
     fn new(
         cell_to_morph: &Map<String, String>,
+        cell_to_threshold: &Map<String, f64>,
         stimuli: &Map<String, Input>,
         net: &Network,
     ) -> Result<Self> {
@@ -130,7 +131,6 @@ impl SimulationData {
             }
         }
 
-        // In arbor
         let mut gid_to_detectors: Map<_, Vec<_>> = Map::new();
         let mut gid_to_connections = Map::new();
         for Projection {
@@ -140,8 +140,8 @@ impl SimulationData {
             connections,
         } in &net.projections
         {
-            let pre = pop_to_gid[pre] as i64;
-            let post = pop_to_gid[post] as i64;
+            let pre_gid = pop_to_gid[pre] as i64;
+            let post_gid = pop_to_gid[post] as i64;
             for Connection {
                 from,
                 to,
@@ -149,12 +149,14 @@ impl SimulationData {
                 delay,
             } in connections
             {
-                let from_gid = pre + from.cell;
-                let to_gid = post + to.cell;
+                let pre_cell_id = &net.populations[pre].component;
+                let threshold = cell_to_threshold[pre_cell_id];
+                let from_gid = pre_gid + from.cell;
+                let to_gid = post_gid + to.cell;
                 gid_to_detectors
                     .entry(from_gid)
                     .or_default()
-                    .push((from.segment, from.fraction.clone()));
+                    .push((from.segment, from.fraction.clone(), threshold));
                 gid_to_synapses.entry(to_gid).or_default().push((
                     to.segment,
                     to.fraction.clone(),
@@ -344,10 +346,10 @@ struct recipe: public arb::recipe {
         }
 
         if (gid_to_detectors.count(gid)) {
-            for (const auto& [seg, frac]: gid_to_detectors.at(gid)) {
+            for (const auto& [seg, frac, thr]: gid_to_detectors.at(gid)) {
                 auto tag = on_segment(seg, frac);
                 auto lbl = mk_label(\"sd\", seg, frac);
-                decor.place(tag, arb::threshold_detector{-40}, lbl); // TODO figure out a better threshold.
+                decor.place(tag, arb::threshold_detector{thr}, lbl);
             }
         }
 
@@ -396,7 +398,7 @@ struct recipe: public arb::recipe {
     std::unordered_map<std::string, std::string> cell_to_morph;
     std::unordered_map<int, std::vector<std::tuple<int, std::string, std::string>>> gid_to_inputs;
     std::unordered_map<int, std::vector<std::tuple<int, std::string, std::string>>> gid_to_synapses;
-    std::unordered_map<int, std::vector<std::tuple<int, std::string>>> gid_to_detectors;
+    std::unordered_map<int, std::vector<std::tuple<int, std::string, double>>> gid_to_detectors;
     std::unordered_map<int, std::vector<std::tuple<int, std::string, std::string, std::string, double, double>>> gid_to_connections;
     std::unordered_map<std::string, std::tuple<double, double, double>> i_clamps;
     std::unordered_map<std::string, std::tuple<>> regular_generators;
@@ -512,9 +514,9 @@ class recipe(A.recipe):
                 tag = f'(on-components {frac} (region \"{seg}\"))'
                 dec.place(tag, A.synapse(self.prefix + syn), f'syn_{syn}@seg_{seg}_frac_{frac}')
         if gid in self.gid_to_detectors:
-            for seg, frac in self.gid_to_detectors[gid]:
+            for seg, frac, thr in self.gid_to_detectors[gid]:
                 tag = f'(on-components {frac} (region \"{seg}\"))'
-                dec.place(tag, A.threshold_detector(-40), f'sd@seg_{seg}_frac_{frac}') # -40 is a phony value!!!
+                dec.place(tag, A.threshold_detector(thr), f'sd@seg_{seg}_frac_{frac}')
         return A.cable_cell(nml.morphology, dec, lbl)
 
     def probes(self, _):
@@ -611,6 +613,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
 
     let mut inputs = Map::new();
     let mut cells = Map::new();
+    let mut thresholds = Map::new();
     let mut nets = Vec::new();
     process_files(nml, |_, node| {
         let doc = node.document().input_text();
@@ -635,6 +638,13 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
                             .attribute("id")
                             .ok_or_else(|| nml2_error!("Morph has no id"))?;
                         cells.insert(cell.to_string(), morph.to_string());
+                    }
+                }
+                for spk in node.descendants() {
+                    if spk.tag_name().name() == "spikeThresh" {
+                        let val = spk.attribute("value").ok_or_else(|| nml2_error!("SpikeThresh has no value"))?;
+                        let val = Quantity::parse(val)?;
+                        thresholds.insert(cell.to_string(), val.value);
                     }
                 }
             }
@@ -674,7 +684,7 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     for net in &nets {
         write(
             format!("{bundle}/dat/{}.json", net.name),
-            serde_json::to_string_pretty(&SimulationData::new(&cells, &inputs, net)?).unwrap(),
+            serde_json::to_string_pretty(&SimulationData::new(&cells, &thresholds, &inputs, net)?).unwrap(),
         )?;
     }
     Ok(())
@@ -936,7 +946,7 @@ fn split_decor(
         )?;
         let mut non_uniform_args: Map<String, Map<String, acc::MechVariableParameter>> = Map::new();
         // collect non uniform args as they must be kept as PARAMETERS
-        for d in biophys.iter() {
+        for d in biophys.decor.iter() {
             match d {
                 Decor::Paint(ref r, Paintable::NonUniformMech { ref name, ns, .. })
                     if densities.contains(name) =>
@@ -951,7 +961,7 @@ fn split_decor(
                 _ => (),
             }
         }
-        for d in biophys {
+        for d in biophys.decor {
             match d {
                 Decor::Paint(r, Paintable::Mech(name, _)) if densities.contains(&name) => {
                     if !seen.contains(&r) {
