@@ -1122,6 +1122,21 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
             *v = y;
         }
 
+        // Now try to de-duplicate RHS as a precursor to CSE
+        // This is slightly awkward as Expr (and thus Stmnt) cannot be Eq
+        // nor Ord (just Partial) due to the f64 contained.
+        let mut unique_assignments: Vec<(String, Expr)> = Vec::new();
+        for (k, v) in new.iter_mut() {
+            if let Stmnt::Ass(_, val) = v {
+                if let Some((q, w)) = unique_assignments.iter().find(|it| it.1 == *val) {
+                    let res = Stmnt::Ass(k.clone(), Expr::Var(q.clone()));
+                    *v = res;
+                } else {
+                    unique_assignments.push((k.clone(), val.clone()));
+                }
+            }
+        }
+
         if new == *variables {
             break;
         }
