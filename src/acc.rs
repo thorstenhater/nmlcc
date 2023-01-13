@@ -23,7 +23,7 @@ use std::fs::write;
 use std::path::PathBuf;
 use tracing::{info, trace, warn};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, PartialOrd)]
 pub struct Cell {
     pub decor: Vec<Decor>,
     pub spike_threshold: Option<f64>,
