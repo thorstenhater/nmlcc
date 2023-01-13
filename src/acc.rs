@@ -31,11 +31,9 @@ pub struct Cell {
 
 impl Cell {
     fn append(&mut self, rhs: &Self) -> Result<()> {
-        if let Some(v) = self.spike_threshold {
-            if let Some(u) = rhs.spike_threshold {
-                if u != v {
-                    return Err(nml2_error!("Duplicated, mismatching spike threshold."));
-                }
+        if self.spike_threshold.is_some() {
+            if self.spike_threshold.is_some() && self.spike_threshold != rhs.spike_threshold {
+                return Err(nml2_error!("Duplicated, mismatching spike threshold."));
             }
         } else {
             self.spike_threshold = rhs.spike_threshold;
