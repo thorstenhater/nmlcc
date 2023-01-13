@@ -64,7 +64,7 @@ enum Cmd {
         #[clap(long)]
         cxx: bool,
         /// Export a Python simulation file
-        #[clap(long, default_value="true")]
+        #[clap(long, default_value = "true")]
         py: bool,
         /// Change catalogue prefix.
         /// Set to empty string if mechanisms do not collide with internal mechanisms
@@ -128,14 +128,21 @@ fn main() -> Result<()> {
             dir,
             super_mechanisms,
             cat_prefix,
-            cxx, py
+            cxx,
+            py,
         } => {
             get_runtime_types(&mut lems, &[nml.to_string()])?;
             bundle::export(
                 &lems,
-                &[nml.to_string()],
+                &[nml],
                 &ions[..],
-                bundle::Bundle { dir, cxx, py, super_mechanisms, cat_prefix }
+                bundle::Bundle {
+                    dir,
+                    cxx,
+                    py,
+                    super_mechanisms,
+                    cat_prefix,
+                },
             )?;
         }
     }

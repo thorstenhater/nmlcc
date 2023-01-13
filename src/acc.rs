@@ -45,11 +45,7 @@ impl Cell {
     }
 }
 
-pub fn to_cell_list(
-    lems: &LemsFile,
-    nml: &[String],
-    ions: &[String],
-) -> Result<Map<String, Cell>> {
+pub fn to_cell_list(lems: &LemsFile, nml: &[String], ions: &[String]) -> Result<Map<String, Cell>> {
     let mut cells = Map::new();
     process_files(nml, |_, node| {
         if node.tag_name().name() == "cell" {
@@ -153,7 +149,8 @@ pub fn export(
         file.push(name);
         file.set_extension("acc");
         info!("Writing ACC to {:?}", &file);
-        let decor = cell.decor
+        let decor = cell
+            .decor
             .iter()
             .map(|d| d.add_catalogue_prefix(cat_prefix))
             .collect::<Vec<_>>();
@@ -539,13 +536,17 @@ fn membrane(
                 ..
             }) => {
                 if !body.is_empty() {
-                    return Err(acc_unimplemented("Non-empty body in ChannelDensityProperties"));
+                    return Err(acc_unimplemented(
+                        "Non-empty body in ChannelDensityProperties",
+                    ));
                 }
                 let mut gs = simple_ion(known_ions, &mut result.decor, ion, segmentGroup, erev)?;
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
                 }
-                result.decor.push(Decor::mechanism(segmentGroup, ionChannel, &gs));
+                result
+                    .decor
+                    .push(Decor::mechanism(segmentGroup, ionChannel, &gs));
             }
             channelDensityNernst(ChannelDensityNernst {
                 ionChannel,
@@ -563,7 +564,9 @@ fn membrane(
                 } else {
                     Map::new()
                 };
-                result.decor.push(Decor::mechanism(segmentGroup, ionChannel, &gs));
+                result
+                    .decor
+                    .push(Decor::mechanism(segmentGroup, ionChannel, &gs));
                 result.decor.push(Decor::nernst(ion));
             }
             channelDensityNonUniform(ChannelDensityNonUniform {

@@ -31,13 +31,7 @@ pub struct Bundle {
     pub cat_prefix: String,
 }
 
-
-pub fn export(
-    lems: &LemsFile,
-    nml: &[String],
-    ions: &[String],
-    cfg: Bundle,
-) -> Result<()> {
+pub fn export(lems: &LemsFile, nml: &[String], ions: &[String], cfg: Bundle) -> Result<()> {
     export_template(lems, nml, &cfg.dir)?;
 
     // We always export these to keep synapse etc alive
@@ -46,7 +40,13 @@ pub fn export(
     if cfg.super_mechanisms {
         export_with_super_mechanisms(lems, nml, &cfg.dir, ions, &cfg.cat_prefix)?;
     } else {
-        acc::export(lems, nml, &format!("{}/acc", &cfg.dir), ions, &cfg.cat_prefix)?;
+        acc::export(
+            lems,
+            nml,
+            &format!("{}/acc", &cfg.dir),
+            ions,
+            &cfg.cat_prefix,
+        )?;
     }
     if cfg.py {
         write(&format!("{}/main.py", &cfg.dir), mk_main_py()?)?;
@@ -127,7 +127,7 @@ impl SimulationData {
                         synapse.clone(),
                     ));
                 }
-                None | Some(Input::Pulse(..)) => {},
+                None | Some(Input::Pulse(..)) => {}
             }
         }
 
@@ -153,10 +153,11 @@ impl SimulationData {
                 let threshold = cell_to_threshold[pre_cell_id];
                 let from_gid = pre_gid + from.cell;
                 let to_gid = post_gid + to.cell;
-                gid_to_detectors
-                    .entry(from_gid)
-                    .or_default()
-                    .push((from.segment, from.fraction.clone(), threshold));
+                gid_to_detectors.entry(from_gid).or_default().push((
+                    from.segment,
+                    from.fraction.clone(),
+                    threshold,
+                ));
                 gid_to_synapses.entry(to_gid).or_default().push((
                     to.segment,
                     to.fraction.clone(),
@@ -206,7 +207,7 @@ impl SimulationData {
 }
 
 fn mk_bash() -> Result<String> {
-   Ok("#!/usr/bin/env bash
+    Ok("#!/usr/bin/env bash
 
 set -euxo pipefail
 
@@ -215,8 +216,8 @@ cmake --build build
 cp build/main .
 arbor-build-catalogue local cat
 ./main $*
-".to_string())
-
+"
+    .to_string())
 }
 
 fn mk_cmake() -> Result<String> {
@@ -642,7 +643,9 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
                 }
                 for spk in node.descendants() {
                     if spk.tag_name().name() == "spikeThresh" {
-                        let val = spk.attribute("value").ok_or_else(|| nml2_error!("SpikeThresh has no value"))?;
+                        let val = spk
+                            .attribute("value")
+                            .ok_or_else(|| nml2_error!("SpikeThresh has no value"))?;
                         let val = Quantity::parse(val)?;
                         thresholds.insert(cell.to_string(), val.value);
                     }
@@ -684,7 +687,8 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     for net in &nets {
         write(
             format!("{bundle}/dat/{}.json", net.name),
-            serde_json::to_string_pretty(&SimulationData::new(&cells, &thresholds, &inputs, net)?).unwrap(),
+            serde_json::to_string_pretty(&SimulationData::new(&cells, &thresholds, &inputs, net)?)
+                .unwrap(),
         )?;
     }
     Ok(())

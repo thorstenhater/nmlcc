@@ -1128,8 +1128,8 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
         let mut unique_assignments: Vec<(String, Expr)> = Vec::new();
         for (k, v) in new.iter_mut() {
             if let Stmnt::Ass(_, val) = v {
-                if let Some((q, w)) = unique_assignments.iter().find(|it| it.1 == *val) {
-                    let res = Stmnt::Ass(k.clone(), Expr::Var(q.clone()));
+                if let Some(it) = unique_assignments.iter().find(|it| it.1 == *val) {
+                    let res = Stmnt::Ass(k.clone(), Expr::Var(it.0.clone()));
                     *v = res;
                 } else {
                     unique_assignments.push((k.clone(), val.clone()));
