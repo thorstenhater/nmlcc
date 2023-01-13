@@ -54,12 +54,12 @@ pub fn export(lems: &LemsFile, nml: &[String], ions: &[String], cfg: Bundle) -> 
         )?;
     }
     if cfg.py {
-        write(&format!("{}/main.py", &cfg.dir), MAIN_PY)?;
+        write(format!("{}/main.py", &cfg.dir), MAIN_PY)?;
     }
     if cfg.cxx {
-        write(&format!("{}/run.sh", &cfg.dir), RUN_SH)?;
-        write(&format!("{}/CMakeLists.txt", &cfg.dir), CMAKE)?;
-        write(&format!("{}/main.cxx", &cfg.dir), MAIN_CXX)?;
+        write(format!("{}/run.sh", &cfg.dir), RUN_SH)?;
+        write(format!("{}/CMakeLists.txt", &cfg.dir), CMAKE)?;
+        write(format!("{}/main.cxx", &cfg.dir), MAIN_CXX)?;
     }
     Ok(())
 }
