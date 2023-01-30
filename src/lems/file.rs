@@ -55,8 +55,7 @@ fn normalise_quantity(
             }
         } else {
             Err(unit_error(format!(
-                "Failed to find unit {} for quantity {:?}",
-                u, quantity
+                "Failed to find unit {u} for quantity {quantity:?}"
             )))
         }
     } else {
