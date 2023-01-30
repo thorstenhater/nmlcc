@@ -1091,6 +1091,7 @@ pub fn to_nmodl(
 fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, keep: &Set<String>) {
     loop {
         let mut new = Map::new();
+        // Update constants and a=b assignments
         for (k, v) in variables.iter() {
             match v {
                 Stmnt::Ass(k, x @ Expr::F64(_)) if !keep.contains(k) => {
@@ -1105,6 +1106,7 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
             }
         }
 
+        // Substitute in from simple assignments
         for v in new.values_mut() {
             let y = v
                 .map(&|e| {
