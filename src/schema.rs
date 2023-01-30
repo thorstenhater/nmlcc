@@ -461,8 +461,8 @@ fn emit_src(state: &Schema) -> Result<String> {
             };
             ty.push(format!("    pub {name}: {kind},"));
             nd.push(format!(
-                "        let {} = node.attribute(\"{}\"){}.map({}){};",
-                name, m.name, default, convert, unwrap
+                "        let {name} = node.attribute(\"{}\"){default}.map({convert}){unwrap};",
+                m.name
             ));
         }
         match t.body {
@@ -484,15 +484,15 @@ fn emit_src(state: &Schema) -> Result<String> {
                         let v = v.to_rs();
                         bd.push(format!("    {k}({v}),"));
                         lp.push(format!(
-                            "                \"{}\" => body.push({}Body::{}({}::from_node(&child))),",
-                            k, t.name, k, v
+                            "                \"{k}\" => body.push({}Body::{k}({v}::from_node(&child))),",
+                            t.name
                         ));
                     } else {
                         return Err(format!("Unresolved element {x:?}"));
                     }
                 }
                 lp.push(format!(
-                    "                t => panic!(\"Unexpected tag {{}} in body of {}.\", t)",
+                    "                t => panic!(\"Unexpected tag {{t}} in body of {}.\")",
                     t.name
                 ));
                 lp.push(String::from("            };"));
