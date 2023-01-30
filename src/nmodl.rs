@@ -763,7 +763,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         match ns.as_slice() {
             [] => {}
             [name] => {
-                result.push(format!("  NONSPECIFIC_CURRENT {}\n", name));
+                result.push(format!("  NONSPECIFIC_CURRENT {name}\n"));
             }
             _ => {
                 // collapse multiple NONSPECIFIC_CURRENTs into one
@@ -856,10 +856,7 @@ fn sorted_dependencies_of(
                 continue 'a;
             }
         }
-        return Err(nmodl_error(format!(
-            "Could not resolve variables {:?}",
-            todo
-        )));
+        return Err(nmodl_error(format!("Could not resolve variables {todo:?}")));
     }
     Ok(result)
 }
@@ -1082,8 +1079,7 @@ pub fn to_nmodl(
             mk_nmodl(n)
         }
         _ => Err(nmodl_error(format!(
-            "Type {} deriving an expected base {}",
-            ty, base
+            "Type {ty} deriving an expected base {base}"
         ))),
     }
 }
