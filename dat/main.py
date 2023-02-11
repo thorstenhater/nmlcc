@@ -39,15 +39,15 @@ class recipe(A.recipe):
         with open((here / network).with_suffix('.json')) as fd:
             data = json.load(fd)
 
-        self.gid_to_cell = data['gid_to_cell']
+        self.gid_to_cell = { int(k): v for k, v in data['gid_to_cell'].items() }
+        self.gid_to_inputs = { int(k): v for k, v in data['gid_to_inputs'].items() }
+        self.gid_to_synapses = { int(k): v for k, v in data['gid_to_synapses'].items() }
+        self.gid_to_detectors = { int(k): v for k, v in data['gid_to_detectors'].items() }
+        self.gid_to_connections = { int(k): v for k, v in data['gid_to_connections'].items() }
         self.cell_to_morph = data['cell_to_morph']
         self.i_clamps = data['i_clamps']
         self.poisson_generators = data['poisson_generators']
         self.regular_generators = data['regular_generators']
-        self.gid_to_inputs = data['gid_to_inputs']
-        self.gid_to_synapses = data['gid_to_synapses']
-        self.gid_to_detectors = data['gid_to_detectors']
-        self.gid_to_connections = data['gid_to_connections']
         self.count = data['count']
 
     def num_cells(self):
@@ -102,12 +102,13 @@ class recipe(A.recipe):
         res = []
         if gid in self.gid_to_inputs:
             for seg, frac, inp in self.gid_to_inputs[gid]:
-                tag = f'(on-components {frac} (region \"{seg}\"))'
                 if inp in self.poisson_generators:
                     syn, avg, wgt = self.poisson_generators[inp]
                     res.append(A.event_generator(f'syn_{syn}@seg_{seg}_frac_{frac}', wgt, A.poisson_schedule(0, avg, gid)))
-                if inp in self.regular_generators:
-                    raise \"oops\"
+                elif inp in self.regular_generators:
+                    raise RuntimeError("")
+                else:
+                    pass
         return res
 
 if len(sys.argv) != 2:
