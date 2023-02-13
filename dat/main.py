@@ -106,7 +106,7 @@ class recipe(A.recipe):
                     syn, avg, wgt = self.poisson_generators[inp]
                     res.append(A.event_generator(f'syn_{syn}@seg_{seg}_frac_{frac}', wgt, A.poisson_schedule(0, avg, gid)))
                 elif inp in self.regular_generators:
-                    raise RuntimeError("")
+                    raise NotImplementedError()
                 else:
                     pass
         return res
