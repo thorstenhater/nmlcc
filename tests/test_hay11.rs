@@ -1,5 +1,3 @@
-use tempfile;
-use std::process::Command;
 use nml2::{
     bundle,
     error::Result,
@@ -7,6 +5,8 @@ use nml2::{
     neuroml,
     xml::XML,
 };
+use std::process::Command;
+use tempfile;
 
 fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
     // from main.rs .. should import actually
@@ -21,7 +21,10 @@ fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
 
 #[test]
 fn hay11() -> Result<()> {
-    let nml = String::from(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/hay11/TestL5PC.net.nml"));
+    let nml = String::from(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/hay11/TestL5PC.net.nml"
+    ));
     let tmpdir = tempfile::TempDir::new()?;
     let dir = String::from(tmpdir.path().to_str().unwrap());
     let cxx = true;
@@ -48,14 +51,14 @@ fn hay11() -> Result<()> {
     let main_py = main_py.replace("sim.run(1000, 0.025)", "sim.run(10, 0.025)");
     std::fs::write(path_main_py, main_py)?;
     Command::new("python3")
-            .args(["main.py", "dat/network_L5bPyrCellHayEtAl2011.json"])
-            .current_dir(tmpdir.path())
-            .status()?;
+        .args(["main.py", "dat/network_L5bPyrCellHayEtAl2011.json"])
+        .current_dir(tmpdir.path())
+        .status()?;
     assert!(tmpdir.path().join("result.pdf").exists());
     Command::new("bash")
-            .args(["run.sh", "network_L5bPyrCellHayEtAl2011"])
-            .current_dir(tmpdir.path())
-            .status()?;
+        .args(["run.sh", "network_L5bPyrCellHayEtAl2011"])
+        .current_dir(tmpdir.path())
+        .status()?;
     tmpdir.close()?;
     Ok(())
 }
