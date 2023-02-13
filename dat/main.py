@@ -39,7 +39,7 @@ class recipe(A.recipe):
         with open((here / network).with_suffix('.json')) as fd:
             data = json.load(fd)
 
-        self.gid_to_cell = { int(k): v for k, v in data['gid_to_cell'].items() }
+        self.gid_to_cell = data['gid_to_cell'].items()
         self.gid_to_inputs = { int(k): v for k, v in data['gid_to_inputs'].items() }
         self.gid_to_synapses = { int(k): v for k, v in data['gid_to_synapses'].items() }
         self.gid_to_detectors = { int(k): v for k, v in data['gid_to_detectors'].items() }
