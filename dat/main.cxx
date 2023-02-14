@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <iterator>
+#include <stdexcept>
 
 #include <arbor/context.hpp>
 #include <arbor/load_balance.hpp>
@@ -18,9 +19,9 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
+// TODO make this actually work, for now, we rely on Python to compile this...
 arb::mechanism_catalogue compile(const std::filesystem::path& here) {
-    auto fn = here / \"local-catalogue.so\";
-    return arb::load_catalogue(fn);
+    return arb::load_catalogue(here / "local-catalogue.so");
 }
 
 std::string read_file(const std::filesystem::path& fn) {
@@ -34,7 +35,7 @@ arb::locset on_segment(size_t seg, const std::string& frac) {
 };
 
 std::string mk_label(const std::string& pfx, size_t seg, const std::string& frac) {
-    return pfx + \"@seg_\" + std::to_string(seg) + \"_frac_\" + frac;
+    return pfx + "@seg_" + std::to_string(seg) + "_frac_" + frac;
 }
 
 arb::cell_local_label_type mk_lid(const std::string& l) {
@@ -52,19 +53,19 @@ struct recipe: public arb::recipe {
         gprop.default_parameters = arb::neuron_parameter_defaults;
         gprop.catalogue.import(cat, prefix);
 
-        std::ifstream fd{(here / \"dat\" / network).replace_extension(\"json\")};
+        std::ifstream fd{(here / "dat" / network).replace_extension("json")};
         auto data = json::parse(fd);
 
-        gid_to_cell = data[\"gid_to_cell\"];
-        cell_to_morph = data[\"cell_to_morph\"];
-        i_clamps = data[\"i_clamps\"];
-        poisson_generators = data[\"poisson_generators\"];
-        regular_generators = data[\"regular_generators\"];
-        for (const auto& [k, v]: data[\"gid_to_inputs\"].items()) gid_to_inputs[std::stoi(k)] = v;
-        for (const auto& [k, v]: data[\"gid_to_synapses\"].items()) gid_to_synapses[std::stoi(k)] = v;
-        for (const auto& [k, v]: data[\"gid_to_detectors\"].items()) gid_to_detectors[std::stoi(k)] = v;
-        for (const auto& [k, v]: data[\"gid_to_connections\"].items()) gid_to_connections[std::stoi(k)] = v;
-        count = data[\"count\"];
+        gid_to_cell = data["gid_to_cell"];
+        cell_to_morph = data["cell_to_morph"];
+        i_clamps = data["i_clamps"];
+        poisson_generators = data["poisson_generators"];
+        regular_generators = data["regular_generators"];
+        for (const auto& [k, v]: data["gid_to_inputs"].items()) gid_to_inputs[std::stoi(k)] = v;
+        for (const auto& [k, v]: data["gid_to_synapses"].items()) gid_to_synapses[std::stoi(k)] = v;
+        for (const auto& [k, v]: data["gid_to_detectors"].items()) gid_to_detectors[std::stoi(k)] = v;
+        for (const auto& [k, v]: data["gid_to_connections"].items()) gid_to_connections[std::stoi(k)] = v;
+        count = data["count"];
     }
 
     std::any get_global_properties(arb::cell_kind) const override { return gprop; }
@@ -75,14 +76,14 @@ struct recipe: public arb::recipe {
         const auto& cid = gid_to_cell.at(gid);
         const auto& mid = cell_to_morph.at(cid);
 
-        auto mrf = read_file((here / \"mrf\" / mid).replace_extension(\"nml\"));
-        auto acc = read_file((here / \"acc\" / cid).replace_extension(\"acc\"));
+        auto mrf = read_file((here / "mrf" / mid).replace_extension("nml"));
+        auto acc = read_file((here / "acc" / cid).replace_extension("acc"));
 
         auto nml = arborio::neuroml{mrf};
         auto morph = nml.morphology(mid, arborio::neuroml_options::allow_spherical_root);
 
         auto label = arb::label_dict{};
-        label.set(\"all\", arb::reg::all());
+        label.set("all", arb::reg::all());
         label.import(morph->segments);
         label.import(morph->named_segments);
         label.import(morph->groups);
@@ -93,7 +94,7 @@ struct recipe: public arb::recipe {
             for (const auto& [seg, frac, inp]: gid_to_inputs.at(gid)) {
                 if (i_clamps.count(inp)) {
                     auto tag = on_segment(seg, frac);
-                    auto lbl = mk_label(\"ic_\" + inp, seg, frac);
+                    auto lbl = mk_label("ic_" + inp, seg, frac);
                     const auto& [lag, dur, amp] = i_clamps.at(inp);
                     decor.place(tag, arb::i_clamp{lag, dur, amp}, lbl);
                 }
@@ -103,7 +104,7 @@ struct recipe: public arb::recipe {
         if (gid_to_synapses.count(gid)) {
             for (const auto& [seg, frac, syn]: gid_to_synapses.at(gid)) {
                 auto tag = on_segment(seg, frac);
-                auto lbl = mk_label(\"syn_\" + syn, seg, frac);
+                auto lbl = mk_label("syn_" + syn, seg, frac);
                 decor.place(tag, arb::synapse{prefix + syn}, lbl);
             }
         }
@@ -111,7 +112,7 @@ struct recipe: public arb::recipe {
         if (gid_to_detectors.count(gid)) {
             for (const auto& [seg, frac, thr]: gid_to_detectors.at(gid)) {
                 auto tag = on_segment(seg, frac);
-                auto lbl = mk_label(\"sd\", seg, frac);
+                auto lbl = mk_label("sd", seg, frac);
                 decor.place(tag, arb::threshold_detector{thr}, lbl);
             }
         }
@@ -125,9 +126,9 @@ struct recipe: public arb::recipe {
         std::vector<arb::cell_connection> res;
         if (gid_to_connections.count(gid)) {
             for (const auto& [src, dec, syn, loc, wgt, del]: gid_to_connections.at(gid)) {
-                auto from = mk_gid(src, \"sd@\" + dec);
+                auto from = mk_gid(src, "sd@" + dec);
                 auto delay = std::max(min_delay, del);
-                auto to = mk_lid(\"syn_\" + syn + \"@\" + loc);
+                auto to = mk_lid("syn_" + syn + "@" + loc);
                 res.emplace_back(from, to, wgt, delay);
             }
         }
@@ -140,17 +141,17 @@ struct recipe: public arb::recipe {
             for (const auto& [seg, frac, inp]: gid_to_inputs.at(gid)) {
                 if (poisson_generators.count(inp)) {
                     const auto& [syn, avg, wgt] = poisson_generators.at(inp);
-                    auto tgt = mk_label(\"syn_\" + syn, seg, frac);
+                    auto tgt = mk_label("syn_" + syn, seg, frac);
                     res.push_back(arb::poisson_generator(tgt, wgt, 0, avg, std::mt19937_64{gid}));
                 }
                 else if (regular_generators.count(inp)) {
-                    throw std::runtime_error{\"Regular generators not implemented yet.\"};
+                    throw std::runtime_error{"Regular generators not implemented yet."};
                 }
                 else if (i_clamps.count(inp)) {
                     // OK, handled those above
                 }
                 else {
-                    // throw std::runtime_error{\"Unknown generator type.\"};
+                    throw std::runtime_error{"Unknown generator type."};
                 }
             }
         }
@@ -168,7 +169,7 @@ struct recipe: public arb::recipe {
     std::unordered_map<std::string, std::tuple<std::string, double, double>> poisson_generators;
 
     arb::cell_size_type count;
-    std::string prefix = \"local_\";
+    std::string prefix = "local_";
     arb::cable_cell_global_properties gprop;
 
     std::filesystem::path here;
@@ -181,7 +182,7 @@ int main(int argc, char* argv[]) {
     double T  = 1000.0; // ms
 
     if (argc != 2) {
-        std::cerr << \"Usage: main <network>\\n\";
+        std::cerr << "Usage: main <network>\n";
         return -42;
     }
     auto cwd = std::filesystem::path{argv[0]}.parent_path();
