@@ -84,6 +84,7 @@ struct SimulationData {
 
 impl SimulationData {
     fn new(
+        lems: &LemsFile,
         cell_to_morph: &Map<String, String>,
         cell_to_threshold: &Map<String, f64>,
         stimuli: &Map<String, Input>,
@@ -168,6 +169,8 @@ impl SimulationData {
                     to.fraction.clone(),
                     synapse.clone(),
                 ));
+                let weight = lems.normalise_quantity(weight)?.value;
+                let delay = lems.normalise_quantity(delay)?.value;
                 gid_to_connections
                     .entry(to_gid)
                     .or_insert_with(Vec::new)
@@ -176,8 +179,8 @@ impl SimulationData {
                         from.to_label(),
                         synapse.to_string(),
                         to.to_label(),
-                        *weight,
-                        *delay,
+                        weight,
+                        delay,
                     ));
             }
         }
@@ -321,8 +324,14 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
     for net in &nets {
         write(
             format!("{bundle}/dat/{}.json", net.name),
-            serde_json::to_string_pretty(&SimulationData::new(&cells, &thresholds, &inputs, net)?)
-                .unwrap(),
+            serde_json::to_string_pretty(&SimulationData::new(
+                lems,
+                &cells,
+                &thresholds,
+                &inputs,
+                net,
+            )?)
+            .unwrap(),
         )?;
     }
     Ok(())

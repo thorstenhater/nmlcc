@@ -935,7 +935,15 @@ pub fn to_nmodl(
                 let mut n = Nmodl::from(&coll, known_ions, &filter)?;
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
-                    n.outputs.insert(k, v);
+                    let Stmnt::Ass(lhs, rhs) = v
+                    else {
+                        return Err(nmodl_error("Current 'i' is not defined via assignment."));
+                    };
+                    // NOTE: NeuroML defines synaptic currents _opposite_ to ARB/NRN. Bah.o
+                    n.outputs.insert(
+                        k,
+                        Stmnt::Ass(lhs, Expr::Mul(vec![Expr::F64(-1.0), rhs]).simplify()),
+                    );
                 } else {
                     return Err(nmodl_error("Synapse without defined current 'i'"));
                 }
