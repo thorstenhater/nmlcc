@@ -257,9 +257,15 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
         let doc = node.document().input_text();
         match node.tag_name().name() {
             "morphology" => {
-                let id = node
-                    .attribute("id")
-                    .ok_or_else(|| nml2_error!("Morph has no id"))?;
+                let cell = node
+                    .parent()
+                    .ok_or(nml2_error!("Morphology has no parent"))?;
+                if cell.tag_name().name() != "cell" {
+                    return Err(nml2_error!("Morphology must have cell as parent"));
+                }
+                let morph_id = node.attribute("id").ok_or(nml2_error!("Morph has no id"))?;
+                let cell_id = cell.attribute("id").ok_or(nml2_error!("Cell has no id"))?;
+                let id = &format!("{cell_id}_{morph_id}");
                 trace!("Writing morphology to {bundle}/mrf/{id}");
                 write(
                     format!("{bundle}/mrf/{id}.nml"),
