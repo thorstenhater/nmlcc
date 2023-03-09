@@ -44,7 +44,7 @@ fn normalise_quantity(
                     trace!("Adjusting {} -> {} by {}", v.symbol, w.symbol, f);
                 }
                 Ok(Quantity {
-                    value: quantity.value / f,
+                    value: quantity.value / f + v.offset - w.offset,
                     unit: Some(w.symbol.to_string()),
                 })
             } else {
@@ -55,8 +55,7 @@ fn normalise_quantity(
             }
         } else {
             Err(unit_error(format!(
-                "Failed to find unit {} for quantity {:?}",
-                u, quantity
+                "Failed to find unit {u} for quantity {quantity:?}"
             )))
         }
     } else {

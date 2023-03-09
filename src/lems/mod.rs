@@ -66,8 +66,7 @@ impl Lems {
                 done.push(name.to_string());
             } else {
                 return Err(lems_error(format!(
-                    "Could not find LEMS file {} in paths {:?}",
-                    name, paths
+                    "Could not find LEMS file {name} in paths {paths:?}"
                 )));
             }
         }

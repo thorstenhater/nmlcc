@@ -23,28 +23,45 @@ use std::fs::write;
 use std::path::PathBuf;
 use tracing::{info, trace, warn};
 
-pub fn to_decor(
-    lems: &LemsFile,
-    nml: &[String],
-    ions: &[String],
-) -> Result<Map<String, Vec<Decor>>> {
+#[derive(Debug, Default, PartialEq, PartialOrd)]
+pub struct Cell {
+    pub decor: Vec<Decor>,
+    pub spike_threshold: Option<f64>,
+}
+
+impl Cell {
+    fn append(&mut self, rhs: &Self) -> Result<()> {
+        if self.spike_threshold.is_some() {
+            if self.spike_threshold.is_some() && self.spike_threshold != rhs.spike_threshold {
+                return Err(nml2_error!("Duplicated, mismatching spike threshold."));
+            }
+        } else {
+            self.spike_threshold = rhs.spike_threshold;
+        }
+        self.decor.extend_from_slice(&rhs.decor[..]);
+        Ok(())
+    }
+}
+
+pub fn to_cell_list(lems: &LemsFile, nml: &[String], ions: &[String]) -> Result<Map<String, Cell>> {
     let mut cells = Map::new();
     process_files(nml, |_, node| {
         if node.tag_name().name() == "cell" {
             if let Some(id) = node.attribute("id") {
-                let mut result = Vec::new();
+                let mut cell: Cell = Default::default();
                 let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
                 for bpp in node.children() {
                     if bpp.tag_name().name() == "biophysicalProperties" {
-                        result.append(&mut biophys(
+                        let tmp = &mut biophys(
                             &XML::from_node(&bpp),
                             lems,
                             ions,
                             &inhomogeneous_parameters,
-                        )?);
+                        )?;
+                        cell.append(tmp)?;
                     }
                 }
-                *cells.entry(id.to_string()).or_default() = result;
+                *cells.entry(id.to_string()).or_default() = cell;
             }
         }
         Ok(())
@@ -124,13 +141,14 @@ pub fn export(
 ) -> Result<()> {
     trace!("Creating path {}", pfx);
     std::fs::create_dir_all(pfx)?;
-    let cells = to_decor(lems, nml, ions)?;
-    for (cell, decor) in cells {
+    let cells = to_cell_list(lems, nml, ions)?;
+    for (name, cell) in cells {
         let mut file = PathBuf::from(pfx);
-        file.push(cell);
+        file.push(name);
         file.set_extension("acc");
         info!("Writing ACC to {:?}", &file);
-        let decor = decor
+        let decor = cell
+            .decor
             .iter()
             .map(|d| d.add_catalogue_prefix(cat_prefix))
             .collect::<Vec<_>>();
@@ -431,23 +449,24 @@ pub fn biophys(
     lems: &LemsFile,
     ions: &[String],
     inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
-) -> Result<Vec<Decor>> {
+) -> Result<Cell> {
     use BiophysicalPropertiesBody::*;
-    let mut decor = Vec::new();
+    let mut result: Cell = Default::default();
     for item in &prop.body {
         match item {
             membraneProperties(m) => {
-                decor.append(&mut membrane(m, ions, inhomogeneous_parameters)?)
+                let cell = &mut membrane(m, ions, inhomogeneous_parameters)?;
+                result.append(cell)?;
             }
-            intracellularProperties(i) => decor.append(&mut intra(i)?),
-            extracellularProperties(e) => decor.append(&mut extra(e)?),
+            intracellularProperties(i) => result.decor.append(&mut intra(i)?),
+            extracellularProperties(e) => result.decor.append(&mut extra(e)?),
             property(_) | notes(_) | annotation(_) => {}
         }
     }
-    for it in decor.iter_mut() {
+    for it in result.decor.iter_mut() {
         *it = it.normalise(lems)?;
     }
-    Ok(decor)
+    Ok(result)
 }
 
 fn make_variable_parameter_map(
@@ -500,9 +519,9 @@ fn membrane(
     membrane: &MembraneProperties,
     known_ions: &[String],
     inhomogeneous_parameters: &Map<String, ParsedInhomogeneousParameter>,
-) -> Result<Vec<Decor>> {
+) -> Result<Cell> {
     use MembranePropertiesBody::*;
-    let mut result = Vec::new();
+    let mut result: Cell = Default::default();
     for item in &membrane.body {
         match item {
             channelDensity(ChannelDensity {
@@ -515,13 +534,17 @@ fn membrane(
                 ..
             }) => {
                 if !body.is_empty() {
-                    return Err(acc_unimplemented("Non-empty body in MembraneProperties"));
+                    return Err(acc_unimplemented(
+                        "Non-empty body in ChannelDensityProperties",
+                    ));
                 }
-                let mut gs = simple_ion(known_ions, &mut result, ion, segmentGroup, erev)?;
+                let mut gs = simple_ion(known_ions, &mut result.decor, ion, segmentGroup, erev)?;
                 if let Some(g) = condDensity {
                     gs.insert(String::from("conductance"), g.clone());
                 }
-                result.push(Decor::mechanism(segmentGroup, ionChannel, &gs));
+                result
+                    .decor
+                    .push(Decor::mechanism(segmentGroup, ionChannel, &gs));
             }
             channelDensityNernst(ChannelDensityNernst {
                 ionChannel,
@@ -539,8 +562,10 @@ fn membrane(
                 } else {
                     Map::new()
                 };
-                result.push(Decor::mechanism(segmentGroup, ionChannel, &gs));
-                result.push(Decor::nernst(ion));
+                result
+                    .decor
+                    .push(Decor::mechanism(segmentGroup, ionChannel, &gs));
+                result.decor.push(Decor::nernst(ion));
             }
             channelDensityNonUniform(ChannelDensityNonUniform {
                 ionChannel,
@@ -554,8 +579,8 @@ fn membrane(
                     "expected VariableParameter in ChannelDensityNonUniform"
                 ))?;
                 let ns = make_variable_parameter_map(vp, inhomogeneous_parameters)?;
-                let ps = simple_ion(known_ions, &mut result, ion, &vp.segmentGroup, erev)?;
-                result.push(Decor::non_uniform_mechanism(
+                let ps = simple_ion(known_ions, &mut result.decor, ion, &vp.segmentGroup, erev)?;
+                result.decor.push(Decor::non_uniform_mechanism(
                     &vp.segmentGroup,
                     ionChannel,
                     &ps,
@@ -573,23 +598,23 @@ fn membrane(
                     "expected VariableParameter in ChannelDensityNonUniformNernst"
                 ))?;
                 let ns = make_variable_parameter_map(vp, inhomogeneous_parameters)?;
-                result.push(Decor::nernst(ion));
-                result.push(Decor::non_uniform_mechanism(
+                result.decor.push(Decor::nernst(ion));
+                result.decor.push(Decor::non_uniform_mechanism(
                     &vp.segmentGroup,
                     ionChannel,
                     &Map::new(),
                     &ns,
                 ));
             }
-            spikeThresh(_) => {}
+            spikeThresh(v) => result.spike_threshold = Some(Quantity::parse(&v.value)?.value),
             specificCapacitance(SpecificCapacitance {
                 value,
                 segmentGroup,
-            }) => result.push(Decor::cm(segmentGroup, value)),
+            }) => result.decor.push(Decor::cm(segmentGroup, value)),
             initMembPotential(InitMembPotential {
                 value,
                 segmentGroup,
-            }) => result.push(Decor::vm(segmentGroup, value)),
+            }) => result.decor.push(Decor::vm(segmentGroup, value)),
             channelPopulation(_)
             | channelDensityVShift(_)
             | channelDensityGHK(_)

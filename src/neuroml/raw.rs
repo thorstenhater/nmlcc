@@ -58,7 +58,7 @@ impl XML for AdExIaFCell {
                 "notes" => body.push(AdExIaFCellBody::notes(String::from_node(&child))),
                 "property" => body.push(AdExIaFCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AdExIaFCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of AdExIaFCell.")
+                t => panic!("Unexpected tag {} in body of AdExIaFCell.", t)
             };
         }
         AdExIaFCell {
@@ -114,7 +114,7 @@ impl XML for AlphaCondSynapse {
                 "notes" => body.push(AlphaCondSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaCondSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaCondSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of AlphaCondSynapse.")
+                t => panic!("Unexpected tag {} in body of AlphaCondSynapse.", t)
             };
         }
         AlphaCondSynapse {
@@ -159,7 +159,7 @@ impl XML for AlphaCurrSynapse {
                 "notes" => body.push(AlphaCurrSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaCurrSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaCurrSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of AlphaCurrSynapse.")
+                t => panic!("Unexpected tag {} in body of AlphaCurrSynapse.", t)
             };
         }
         AlphaCurrSynapse {
@@ -205,7 +205,7 @@ impl XML for AlphaCurrentSynapse {
                 "notes" => body.push(AlphaCurrentSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaCurrentSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaCurrentSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of AlphaCurrentSynapse.")
+                t => panic!("Unexpected tag {} in body of AlphaCurrentSynapse.", t)
             };
         }
         AlphaCurrentSynapse {
@@ -254,7 +254,7 @@ impl XML for AlphaSynapse {
                 "notes" => body.push(AlphaSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of AlphaSynapse.")
+                t => panic!("Unexpected tag {} in body of AlphaSynapse.", t)
             };
         }
         AlphaSynapse {
@@ -326,7 +326,7 @@ impl XML for BaseCell {
                 "notes" => body.push(BaseCellBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BaseCell.")
+                t => panic!("Unexpected tag {} in body of BaseCell.", t)
             };
         }
         BaseCell {
@@ -369,7 +369,7 @@ impl XML for BaseCellMembPotCap {
                 "notes" => body.push(BaseCellMembPotCapBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseCellMembPotCapBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseCellMembPotCapBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BaseCellMembPotCap.")
+                t => panic!("Unexpected tag {} in body of BaseCellMembPotCap.", t)
             };
         }
         BaseCellMembPotCap {
@@ -415,7 +415,7 @@ impl XML for BaseConductanceBasedSynapse {
                 "notes" => body.push(BaseConductanceBasedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseConductanceBasedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseConductanceBasedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BaseConductanceBasedSynapse.")
+                t => panic!("Unexpected tag {} in body of BaseConductanceBasedSynapse.", t)
             };
         }
         BaseConductanceBasedSynapse {
@@ -464,7 +464,7 @@ impl XML for BaseConductanceBasedSynapseTwo {
                 "notes" => body.push(BaseConductanceBasedSynapseTwoBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseConductanceBasedSynapseTwoBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseConductanceBasedSynapseTwoBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BaseConductanceBasedSynapseTwo.")
+                t => panic!("Unexpected tag {} in body of BaseConductanceBasedSynapseTwo.", t)
             };
         }
         BaseConductanceBasedSynapseTwo {
@@ -595,7 +595,7 @@ impl XML for BaseCurrentBasedSynapse {
                 "notes" => body.push(BaseCurrentBasedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseCurrentBasedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseCurrentBasedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BaseCurrentBasedSynapse.")
+                t => panic!("Unexpected tag {} in body of BaseCurrentBasedSynapse.", t)
             };
         }
         BaseCurrentBasedSynapse {
@@ -678,7 +678,7 @@ impl XML for BasePynnSynapse {
                 "notes" => body.push(BasePynnSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BasePynnSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BasePynnSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BasePynnSynapse.")
+                t => panic!("Unexpected tag {} in body of BasePynnSynapse.", t)
             };
         }
         BasePynnSynapse {
@@ -720,7 +720,7 @@ impl XML for BaseSynapse {
                 "notes" => body.push(BaseSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BaseSynapse.")
+                t => panic!("Unexpected tag {} in body of BaseSynapse.", t)
             };
         }
         BaseSynapse {
@@ -761,7 +761,7 @@ impl XML for BaseVoltageDepSynapse {
                 "notes" => body.push(BaseVoltageDepSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseVoltageDepSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseVoltageDepSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BaseVoltageDepSynapse.")
+                t => panic!("Unexpected tag {} in body of BaseVoltageDepSynapse.", t)
             };
         }
         BaseVoltageDepSynapse {
@@ -822,7 +822,7 @@ impl XML for BiophysicalProperties {
                 "notes" => body.push(BiophysicalPropertiesBody::notes(String::from_node(&child))),
                 "property" => body.push(BiophysicalPropertiesBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BiophysicalPropertiesBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BiophysicalProperties.")
+                t => panic!("Unexpected tag {} in body of BiophysicalProperties.", t)
             };
         }
         BiophysicalProperties {
@@ -869,7 +869,7 @@ impl XML for BiophysicalProperties2CaPools {
                 "notes" => body.push(BiophysicalProperties2CaPoolsBody::notes(String::from_node(&child))),
                 "property" => body.push(BiophysicalProperties2CaPoolsBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BiophysicalProperties2CaPoolsBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BiophysicalProperties2CaPools.")
+                t => panic!("Unexpected tag {} in body of BiophysicalProperties2CaPools.", t)
             };
         }
         BiophysicalProperties2CaPools {
@@ -948,7 +948,7 @@ impl XML for BlockingPlasticSynapse {
                 "notes" => body.push(BlockingPlasticSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BlockingPlasticSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BlockingPlasticSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of BlockingPlasticSynapse.")
+                t => panic!("Unexpected tag {} in body of BlockingPlasticSynapse.", t)
             };
         }
         BlockingPlasticSynapse {
@@ -1018,7 +1018,7 @@ impl XML for Cell {
                 "notes" => body.push(CellBody::notes(String::from_node(&child))),
                 "property" => body.push(CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Cell.")
+                t => panic!("Unexpected tag {} in body of Cell.", t)
             };
         }
         Cell {
@@ -1071,7 +1071,7 @@ impl XML for Cell2CaPools {
                 "notes" => body.push(Cell2CaPoolsBody::notes(String::from_node(&child))),
                 "property" => body.push(Cell2CaPoolsBody::property(Property::from_node(&child))),
                 "annotation" => body.push(Cell2CaPoolsBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Cell2CaPools.")
+                t => panic!("Unexpected tag {} in body of Cell2CaPools.", t)
             };
         }
         Cell2CaPools {
@@ -1140,7 +1140,7 @@ impl XML for ChannelDensity {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelDensity.")
+                t => panic!("Unexpected tag {} in body of ChannelDensity.", t)
             };
         }
         ChannelDensity {
@@ -1254,7 +1254,7 @@ impl XML for ChannelDensityNernst {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNernstBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelDensityNernst.")
+                t => panic!("Unexpected tag {} in body of ChannelDensityNernst.", t)
             };
         }
         ChannelDensityNernst {
@@ -1303,7 +1303,7 @@ impl XML for ChannelDensityNernstCa2 {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNernstCa2Body::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelDensityNernstCa2.")
+                t => panic!("Unexpected tag {} in body of ChannelDensityNernstCa2.", t)
             };
         }
         ChannelDensityNernstCa2 {
@@ -1348,7 +1348,7 @@ impl XML for ChannelDensityNonUniform {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNonUniformBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelDensityNonUniform.")
+                t => panic!("Unexpected tag {} in body of ChannelDensityNonUniform.", t)
             };
         }
         ChannelDensityNonUniform {
@@ -1389,7 +1389,7 @@ impl XML for ChannelDensityNonUniformGHK {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNonUniformGHKBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelDensityNonUniformGHK.")
+                t => panic!("Unexpected tag {} in body of ChannelDensityNonUniformGHK.", t)
             };
         }
         ChannelDensityNonUniformGHK {
@@ -1429,7 +1429,7 @@ impl XML for ChannelDensityNonUniformNernst {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNonUniformNernstBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelDensityNonUniformNernst.")
+                t => panic!("Unexpected tag {} in body of ChannelDensityNonUniformNernst.", t)
             };
         }
         ChannelDensityNonUniformNernst {
@@ -1479,7 +1479,7 @@ impl XML for ChannelDensityVShift {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityVShiftBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelDensityVShift.")
+                t => panic!("Unexpected tag {} in body of ChannelDensityVShift.", t)
             };
         }
         ChannelDensityVShift {
@@ -1532,7 +1532,7 @@ impl XML for ChannelPopulation {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelPopulationBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ChannelPopulation.")
+                t => panic!("Unexpected tag {} in body of ChannelPopulation.", t)
             };
         }
         ChannelPopulation {
@@ -1603,7 +1603,7 @@ impl XML for ComponentType {
                 "Requirement" => body.push(ComponentTypeBody::Requirement(Requirement::from_node(&child))),
                 "InstanceRequirement" => body.push(ComponentTypeBody::InstanceRequirement(InstanceRequirement::from_node(&child))),
                 "Dynamics" => body.push(ComponentTypeBody::Dynamics(Dynamics::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ComponentType.")
+                t => panic!("Unexpected tag {} in body of ComponentType.", t)
             };
         }
         ComponentType {
@@ -1650,7 +1650,7 @@ impl XML for CompoundInput {
                 "notes" => body.push(CompoundInputBody::notes(String::from_node(&child))),
                 "property" => body.push(CompoundInputBody::property(Property::from_node(&child))),
                 "annotation" => body.push(CompoundInputBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of CompoundInput.")
+                t => panic!("Unexpected tag {} in body of CompoundInput.", t)
             };
         }
         CompoundInput {
@@ -1697,7 +1697,7 @@ impl XML for CompoundInputDL {
                 "notes" => body.push(CompoundInputDLBody::notes(String::from_node(&child))),
                 "property" => body.push(CompoundInputDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(CompoundInputDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of CompoundInputDL.")
+                t => panic!("Unexpected tag {} in body of CompoundInputDL.", t)
             };
         }
         CompoundInputDL {
@@ -1736,7 +1736,7 @@ impl XML for ConditionalDerivedVariable {
             }
             match child.tag_name().name() {
                 "Case" => body.push(ConditionalDerivedVariableBody::Case(Case::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ConditionalDerivedVariable.")
+                t => panic!("Unexpected tag {} in body of ConditionalDerivedVariable.", t)
             };
         }
         ConditionalDerivedVariable {
@@ -2005,7 +2005,7 @@ impl XML for ContinuousProjection {
                 "continuousConnection" => body.push(ContinuousProjectionBody::continuousConnection(ContinuousConnection::from_node(&child))),
                 "continuousConnectionInstance" => body.push(ContinuousProjectionBody::continuousConnectionInstance(ContinuousConnectionInstance::from_node(&child))),
                 "continuousConnectionInstanceW" => body.push(ContinuousProjectionBody::continuousConnectionInstanceW(ContinuousConnectionInstanceW::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ContinuousProjection.")
+                t => panic!("Unexpected tag {} in body of ContinuousProjection.", t)
             };
         }
         ContinuousProjection {
@@ -2055,7 +2055,7 @@ impl XML for DecayingPoolConcentrationModel {
                 "notes" => body.push(DecayingPoolConcentrationModelBody::notes(String::from_node(&child))),
                 "property" => body.push(DecayingPoolConcentrationModelBody::property(Property::from_node(&child))),
                 "annotation" => body.push(DecayingPoolConcentrationModelBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of DecayingPoolConcentrationModel.")
+                t => panic!("Unexpected tag {} in body of DecayingPoolConcentrationModel.", t)
             };
         }
         DecayingPoolConcentrationModel {
@@ -2151,7 +2151,7 @@ impl XML for DoubleSynapse {
                 "notes" => body.push(DoubleSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(DoubleSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(DoubleSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of DoubleSynapse.")
+                t => panic!("Unexpected tag {} in body of DoubleSynapse.", t)
             };
         }
         DoubleSynapse {
@@ -2192,7 +2192,7 @@ impl XML for Dynamics {
                 "DerivedVariable" => body.push(DynamicsBody::DerivedVariable(DerivedVariable::from_node(&child))),
                 "ConditionalDerivedVariable" => body.push(DynamicsBody::ConditionalDerivedVariable(ConditionalDerivedVariable::from_node(&child))),
                 "TimeDerivative" => body.push(DynamicsBody::TimeDerivative(TimeDerivative::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Dynamics.")
+                t => panic!("Unexpected tag {} in body of Dynamics.", t)
             };
         }
         Dynamics {
@@ -2264,7 +2264,7 @@ impl XML for EIF_cond_alpha_isfa_ista {
                 "notes" => body.push(EIF_cond_alpha_isfa_istaBody::notes(String::from_node(&child))),
                 "property" => body.push(EIF_cond_alpha_isfa_istaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(EIF_cond_alpha_isfa_istaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of EIF_cond_alpha_isfa_ista.")
+                t => panic!("Unexpected tag {} in body of EIF_cond_alpha_isfa_ista.", t)
             };
         }
         EIF_cond_alpha_isfa_ista {
@@ -2356,7 +2356,7 @@ impl XML for EIF_cond_exp_isfa_ista {
                 "notes" => body.push(EIF_cond_exp_isfa_istaBody::notes(String::from_node(&child))),
                 "property" => body.push(EIF_cond_exp_isfa_istaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(EIF_cond_exp_isfa_istaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of EIF_cond_exp_isfa_ista.")
+                t => panic!("Unexpected tag {} in body of EIF_cond_exp_isfa_ista.", t)
             };
         }
         EIF_cond_exp_isfa_ista {
@@ -2533,7 +2533,7 @@ impl XML for ElectricalProjection {
                 "electricalConnection" => body.push(ElectricalProjectionBody::electricalConnection(ElectricalConnection::from_node(&child))),
                 "electricalConnectionInstance" => body.push(ElectricalProjectionBody::electricalConnectionInstance(ElectricalConnectionInstance::from_node(&child))),
                 "electricalConnectionInstanceW" => body.push(ElectricalProjectionBody::electricalConnectionInstanceW(ElectricalConnectionInstanceW::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ElectricalProjection.")
+                t => panic!("Unexpected tag {} in body of ElectricalProjection.", t)
             };
         }
         ElectricalProjection {
@@ -2579,7 +2579,7 @@ impl XML for ExpCondSynapse {
                 "notes" => body.push(ExpCondSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpCondSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpCondSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ExpCondSynapse.")
+                t => panic!("Unexpected tag {} in body of ExpCondSynapse.", t)
             };
         }
         ExpCondSynapse {
@@ -2624,7 +2624,7 @@ impl XML for ExpCurrSynapse {
                 "notes" => body.push(ExpCurrSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpCurrSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpCurrSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ExpCurrSynapse.")
+                t => panic!("Unexpected tag {} in body of ExpCurrSynapse.", t)
             };
         }
         ExpCurrSynapse {
@@ -2672,7 +2672,7 @@ impl XML for ExpOneSynapse {
                 "notes" => body.push(ExpOneSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpOneSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpOneSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ExpOneSynapse.")
+                t => panic!("Unexpected tag {} in body of ExpOneSynapse.", t)
             };
         }
         ExpOneSynapse {
@@ -2728,7 +2728,7 @@ impl XML for ExpThreeSynapse {
                 "notes" => body.push(ExpThreeSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpThreeSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpThreeSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ExpThreeSynapse.")
+                t => panic!("Unexpected tag {} in body of ExpThreeSynapse.", t)
             };
         }
         ExpThreeSynapse {
@@ -2783,7 +2783,7 @@ impl XML for ExpTwoSynapse {
                 "notes" => body.push(ExpTwoSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpTwoSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpTwoSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ExpTwoSynapse.")
+                t => panic!("Unexpected tag {} in body of ExpTwoSynapse.", t)
             };
         }
         ExpTwoSynapse {
@@ -2862,7 +2862,7 @@ impl XML for ExtracellularProperties {
             }
             match child.tag_name().name() {
                 "species" => body.push(ExtracellularPropertiesBody::species(Species::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ExtracellularProperties.")
+                t => panic!("Unexpected tag {} in body of ExtracellularProperties.", t)
             };
         }
         ExtracellularProperties {
@@ -2892,7 +2892,7 @@ impl XML for ExtracellularPropertiesLocal {
             }
             match child.tag_name().name() {
                 "species" => body.push(ExtracellularPropertiesLocalBody::species(Species::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ExtracellularPropertiesLocal.")
+                t => panic!("Unexpected tag {} in body of ExtracellularPropertiesLocal.", t)
             };
         }
         ExtracellularPropertiesLocal {
@@ -2942,7 +2942,7 @@ impl XML for FitzHughNagumo1969Cell {
                 "notes" => body.push(FitzHughNagumo1969CellBody::notes(String::from_node(&child))),
                 "property" => body.push(FitzHughNagumo1969CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(FitzHughNagumo1969CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of FitzHughNagumo1969Cell.")
+                t => panic!("Unexpected tag {} in body of FitzHughNagumo1969Cell.", t)
             };
         }
         FitzHughNagumo1969Cell {
@@ -2991,7 +2991,7 @@ impl XML for FitzHughNagumoCell {
                 "notes" => body.push(FitzHughNagumoCellBody::notes(String::from_node(&child))),
                 "property" => body.push(FitzHughNagumoCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(FitzHughNagumoCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of FitzHughNagumoCell.")
+                t => panic!("Unexpected tag {} in body of FitzHughNagumoCell.", t)
             };
         }
         FitzHughNagumoCell {
@@ -3041,7 +3041,7 @@ impl XML for FixedFactorConcentrationModel {
                 "notes" => body.push(FixedFactorConcentrationModelBody::notes(String::from_node(&child))),
                 "property" => body.push(FixedFactorConcentrationModelBody::property(Property::from_node(&child))),
                 "annotation" => body.push(FixedFactorConcentrationModelBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of FixedFactorConcentrationModel.")
+                t => panic!("Unexpected tag {} in body of FixedFactorConcentrationModel.", t)
             };
         }
         FixedFactorConcentrationModel {
@@ -3111,7 +3111,7 @@ impl XML for GapJunction {
                 "notes" => body.push(GapJunctionBody::notes(String::from_node(&child))),
                 "property" => body.push(GapJunctionBody::property(Property::from_node(&child))),
                 "annotation" => body.push(GapJunctionBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GapJunction.")
+                t => panic!("Unexpected tag {} in body of GapJunction.", t)
             };
         }
         GapJunction {
@@ -3153,7 +3153,7 @@ impl XML for GateFractional {
                 "notes" => body.push(GateFractionalBody::notes(String::from_node(&child))),
                 "q10Settings" => body.push(GateFractionalBody::q10Settings(Q10Settings::from_node(&child))),
                 "subGate" => body.push(GateFractionalBody::subGate(GateFractionalSubgate::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateFractional.")
+                t => panic!("Unexpected tag {} in body of GateFractional.", t)
             };
         }
         GateFractional {
@@ -3196,7 +3196,7 @@ impl XML for GateFractionalSubgate {
                 "q10Settings" => body.push(GateFractionalSubgateBody::q10Settings(Q10Settings::from_node(&child))),
                 "steadyState" => body.push(GateFractionalSubgateBody::steadyState(HHVariable::from_node(&child))),
                 "timeCourse" => body.push(GateFractionalSubgateBody::timeCourse(HHTime::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateFractionalSubgate.")
+                t => panic!("Unexpected tag {} in body of GateFractionalSubgate.", t)
             };
         }
         GateFractionalSubgate {
@@ -3235,7 +3235,7 @@ impl XML for GateHHInstantaneous {
             match child.tag_name().name() {
                 "notes" => body.push(GateHHInstantaneousBody::notes(String::from_node(&child))),
                 "steadyState" => body.push(GateHHInstantaneousBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateHHInstantaneous.")
+                t => panic!("Unexpected tag {} in body of GateHHInstantaneous.", t)
             };
         }
         GateHHInstantaneous {
@@ -3278,7 +3278,7 @@ impl XML for GateHHRates {
                 "q10Settings" => body.push(GateHHRatesBody::q10Settings(Q10Settings::from_node(&child))),
                 "forwardRate" => body.push(GateHHRatesBody::forwardRate(HHRate::from_node(&child))),
                 "reverseRate" => body.push(GateHHRatesBody::reverseRate(HHRate::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateHHRates.")
+                t => panic!("Unexpected tag {} in body of GateHHRates.", t)
             };
         }
         GateHHRates {
@@ -3323,7 +3323,7 @@ impl XML for GateHHRatesInf {
                 "forwardRate" => body.push(GateHHRatesInfBody::forwardRate(HHRate::from_node(&child))),
                 "reverseRate" => body.push(GateHHRatesInfBody::reverseRate(HHRate::from_node(&child))),
                 "steadyState" => body.push(GateHHRatesInfBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateHHRatesInf.")
+                t => panic!("Unexpected tag {} in body of GateHHRatesInf.", t)
             };
         }
         GateHHRatesInf {
@@ -3368,7 +3368,7 @@ impl XML for GateHHRatesTau {
                 "forwardRate" => body.push(GateHHRatesTauBody::forwardRate(HHRate::from_node(&child))),
                 "reverseRate" => body.push(GateHHRatesTauBody::reverseRate(HHRate::from_node(&child))),
                 "timeCourse" => body.push(GateHHRatesTauBody::timeCourse(HHTime::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateHHRatesTau.")
+                t => panic!("Unexpected tag {} in body of GateHHRatesTau.", t)
             };
         }
         GateHHRatesTau {
@@ -3415,7 +3415,7 @@ impl XML for GateHHRatesTauInf {
                 "reverseRate" => body.push(GateHHRatesTauInfBody::reverseRate(HHRate::from_node(&child))),
                 "timeCourse" => body.push(GateHHRatesTauInfBody::timeCourse(HHTime::from_node(&child))),
                 "steadyState" => body.push(GateHHRatesTauInfBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateHHRatesTauInf.")
+                t => panic!("Unexpected tag {} in body of GateHHRatesTauInf.", t)
             };
         }
         GateHHRatesTauInf {
@@ -3458,7 +3458,7 @@ impl XML for GateHHTauInf {
                 "q10Settings" => body.push(GateHHTauInfBody::q10Settings(Q10Settings::from_node(&child))),
                 "timeCourse" => body.push(GateHHTauInfBody::timeCourse(HHTime::from_node(&child))),
                 "steadyState" => body.push(GateHHTauInfBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateHHTauInf.")
+                t => panic!("Unexpected tag {} in body of GateHHTauInf.", t)
             };
         }
         GateHHTauInf {
@@ -3509,7 +3509,7 @@ impl XML for GateHHUndetermined {
                 "timeCourse" => body.push(GateHHUndeterminedBody::timeCourse(HHTime::from_node(&child))),
                 "steadyState" => body.push(GateHHUndeterminedBody::steadyState(HHVariable::from_node(&child))),
                 "subGate" => body.push(GateHHUndeterminedBody::subGate(GateFractionalSubgate::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateHHUndetermined.")
+                t => panic!("Unexpected tag {} in body of GateHHUndetermined.", t)
             };
         }
         GateHHUndetermined {
@@ -3559,7 +3559,7 @@ impl XML for GateKS {
                 "forwardTransition" => body.push(GateKSBody::forwardTransition(ForwardTransition::from_node(&child))),
                 "reverseTransition" => body.push(GateKSBody::reverseTransition(ReverseTransition::from_node(&child))),
                 "tauInfTransition" => body.push(GateKSBody::tauInfTransition(TauInfTransition::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GateKS.")
+                t => panic!("Unexpected tag {} in body of GateKS.", t)
             };
         }
         GateKS {
@@ -3610,7 +3610,7 @@ impl XML for GradedSynapse {
                 "notes" => body.push(GradedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(GradedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(GradedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of GradedSynapse.")
+                t => panic!("Unexpected tag {} in body of GradedSynapse.", t)
             };
         }
         GradedSynapse {
@@ -3776,7 +3776,7 @@ impl XML for HH_cond_exp {
                 "notes" => body.push(HH_cond_expBody::notes(String::from_node(&child))),
                 "property" => body.push(HH_cond_expBody::property(Property::from_node(&child))),
                 "annotation" => body.push(HH_cond_expBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of HH_cond_exp.")
+                t => panic!("Unexpected tag {} in body of HH_cond_exp.", t)
             };
         }
         HH_cond_exp {
@@ -3855,7 +3855,7 @@ impl XML for IF_cond_alpha {
                 "notes" => body.push(IF_cond_alphaBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_cond_alphaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_cond_alphaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IF_cond_alpha.")
+                t => panic!("Unexpected tag {} in body of IF_cond_alpha.", t)
             };
         }
         IF_cond_alpha {
@@ -3932,7 +3932,7 @@ impl XML for IF_cond_exp {
                 "notes" => body.push(IF_cond_expBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_cond_expBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_cond_expBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IF_cond_exp.")
+                t => panic!("Unexpected tag {} in body of IF_cond_exp.", t)
             };
         }
         IF_cond_exp {
@@ -4005,7 +4005,7 @@ impl XML for IF_curr_alpha {
                 "notes" => body.push(IF_curr_alphaBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_curr_alphaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_curr_alphaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IF_curr_alpha.")
+                t => panic!("Unexpected tag {} in body of IF_curr_alpha.", t)
             };
         }
         IF_curr_alpha {
@@ -4076,7 +4076,7 @@ impl XML for IF_curr_exp {
                 "notes" => body.push(IF_curr_expBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_curr_expBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_curr_expBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IF_curr_exp.")
+                t => panic!("Unexpected tag {} in body of IF_curr_exp.", t)
             };
         }
         IF_curr_exp {
@@ -4137,7 +4137,7 @@ impl XML for IafCell {
                 "notes" => body.push(IafCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IafCell.")
+                t => panic!("Unexpected tag {} in body of IafCell.", t)
             };
         }
         IafCell {
@@ -4195,7 +4195,7 @@ impl XML for IafRefCell {
                 "notes" => body.push(IafRefCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafRefCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafRefCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IafRefCell.")
+                t => panic!("Unexpected tag {} in body of IafRefCell.", t)
             };
         }
         IafRefCell {
@@ -4250,7 +4250,7 @@ impl XML for IafTauCell {
                 "notes" => body.push(IafTauCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafTauCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafTauCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IafTauCell.")
+                t => panic!("Unexpected tag {} in body of IafTauCell.", t)
             };
         }
         IafTauCell {
@@ -4305,7 +4305,7 @@ impl XML for IafTauRefCell {
                 "notes" => body.push(IafTauRefCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafTauRefCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafTauRefCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IafTauRefCell.")
+                t => panic!("Unexpected tag {} in body of IafTauRefCell.", t)
             };
         }
         IafTauRefCell {
@@ -4379,7 +4379,7 @@ impl XML for InhomogeneousParameter {
             match child.tag_name().name() {
                 "proximal" => body.push(InhomogeneousParameterBody::proximal(ProximalDetails::from_node(&child))),
                 "distal" => body.push(InhomogeneousParameterBody::distal(DistalDetails::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of InhomogeneousParameter.")
+                t => panic!("Unexpected tag {} in body of InhomogeneousParameter.", t)
             };
         }
         InhomogeneousParameter {
@@ -4481,7 +4481,7 @@ impl XML for InputList {
             match child.tag_name().name() {
                 "input" => body.push(InputListBody::input(Input::from_node(&child))),
                 "inputW" => body.push(InputListBody::inputW(InputW::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of InputList.")
+                t => panic!("Unexpected tag {} in body of InputList.", t)
             };
         }
         InputList {
@@ -4550,7 +4550,7 @@ impl XML for Instance {
             }
             match child.tag_name().name() {
                 "location" => body.push(InstanceBody::location(Location::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Instance.")
+                t => panic!("Unexpected tag {} in body of Instance.", t)
             };
         }
         Instance {
@@ -4601,7 +4601,7 @@ impl XML for IntracellularProperties {
             match child.tag_name().name() {
                 "species" => body.push(IntracellularPropertiesBody::species(Species::from_node(&child))),
                 "resistivity" => body.push(IntracellularPropertiesBody::resistivity(Resistivity::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IntracellularProperties.")
+                t => panic!("Unexpected tag {} in body of IntracellularProperties.", t)
             };
         }
         IntracellularProperties {
@@ -4631,7 +4631,7 @@ impl XML for IntracellularProperties2CaPools {
             match child.tag_name().name() {
                 "species" => body.push(IntracellularProperties2CaPoolsBody::species(Species::from_node(&child))),
                 "resistivity" => body.push(IntracellularProperties2CaPoolsBody::resistivity(Resistivity::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IntracellularProperties2CaPools.")
+                t => panic!("Unexpected tag {} in body of IntracellularProperties2CaPools.", t)
             };
         }
         IntracellularProperties2CaPools {
@@ -4693,7 +4693,7 @@ impl XML for IonChannel {
                 "notes" => body.push(IonChannelBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IonChannel.")
+                t => panic!("Unexpected tag {} in body of IonChannel.", t)
             };
         }
         IonChannel {
@@ -4761,7 +4761,7 @@ impl XML for IonChannelHH {
                 "notes" => body.push(IonChannelHHBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelHHBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelHHBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IonChannelHH.")
+                t => panic!("Unexpected tag {} in body of IonChannelHH.", t)
             };
         }
         IonChannelHH {
@@ -4811,7 +4811,7 @@ impl XML for IonChannelKS {
                 "notes" => body.push(IonChannelKSBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelKSBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelKSBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IonChannelKS.")
+                t => panic!("Unexpected tag {} in body of IonChannelKS.", t)
             };
         }
         IonChannelKS {
@@ -4856,7 +4856,7 @@ impl XML for IonChannelScalable {
                 "notes" => body.push(IonChannelScalableBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelScalableBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelScalableBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IonChannelScalable.")
+                t => panic!("Unexpected tag {} in body of IonChannelScalable.", t)
             };
         }
         IonChannelScalable {
@@ -4923,7 +4923,7 @@ impl XML for IonChannelVShift {
                 "notes" => body.push(IonChannelVShiftBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelVShiftBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelVShiftBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IonChannelVShift.")
+                t => panic!("Unexpected tag {} in body of IonChannelVShift.", t)
             };
         }
         IonChannelVShift {
@@ -4988,7 +4988,7 @@ impl XML for Izhikevich2007Cell {
                 "notes" => body.push(Izhikevich2007CellBody::notes(String::from_node(&child))),
                 "property" => body.push(Izhikevich2007CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(Izhikevich2007CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Izhikevich2007Cell.")
+                t => panic!("Unexpected tag {} in body of Izhikevich2007Cell.", t)
             };
         }
         Izhikevich2007Cell {
@@ -5051,7 +5051,7 @@ impl XML for IzhikevichCell {
                 "notes" => body.push(IzhikevichCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IzhikevichCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IzhikevichCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of IzhikevichCell.")
+                t => panic!("Unexpected tag {} in body of IzhikevichCell.", t)
             };
         }
         IzhikevichCell {
@@ -5117,7 +5117,7 @@ impl XML for Layout {
                 "random" => body.push(LayoutBody::random(RandomLayout::from_node(&child))),
                 "grid" => body.push(LayoutBody::grid(GridLayout::from_node(&child))),
                 "unstructured" => body.push(LayoutBody::unstructured(UnstructuredLayout::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Layout.")
+                t => panic!("Unexpected tag {} in body of Layout.", t)
             };
         }
         Layout {
@@ -5158,7 +5158,7 @@ impl XML for LinearGradedSynapse {
                 "notes" => body.push(LinearGradedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(LinearGradedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(LinearGradedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of LinearGradedSynapse.")
+                t => panic!("Unexpected tag {} in body of LinearGradedSynapse.", t)
             };
         }
         LinearGradedSynapse {
@@ -5246,7 +5246,7 @@ impl XML for MembraneProperties {
                 "spikeThresh" => body.push(MembranePropertiesBody::spikeThresh(SpikeThresh::from_node(&child))),
                 "specificCapacitance" => body.push(MembranePropertiesBody::specificCapacitance(SpecificCapacitance::from_node(&child))),
                 "initMembPotential" => body.push(MembranePropertiesBody::initMembPotential(InitMembPotential::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of MembraneProperties.")
+                t => panic!("Unexpected tag {} in body of MembraneProperties.", t)
             };
         }
         MembraneProperties {
@@ -5298,7 +5298,7 @@ impl XML for MembraneProperties2CaPools {
                 "spikeThresh" => body.push(MembraneProperties2CaPoolsBody::spikeThresh(SpikeThresh::from_node(&child))),
                 "specificCapacitance" => body.push(MembraneProperties2CaPoolsBody::specificCapacitance(SpecificCapacitance::from_node(&child))),
                 "initMembPotential" => body.push(MembraneProperties2CaPoolsBody::initMembPotential(InitMembPotential::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of MembraneProperties2CaPools.")
+                t => panic!("Unexpected tag {} in body of MembraneProperties2CaPools.", t)
             };
         }
         MembraneProperties2CaPools {
@@ -5340,7 +5340,7 @@ impl XML for Morphology {
                 "notes" => body.push(MorphologyBody::notes(String::from_node(&child))),
                 "property" => body.push(MorphologyBody::property(Property::from_node(&child))),
                 "annotation" => body.push(MorphologyBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Morphology.")
+                t => panic!("Unexpected tag {} in body of Morphology.", t)
             };
         }
         Morphology {
@@ -5450,7 +5450,7 @@ impl XML for Network {
                 "notes" => body.push(NetworkBody::notes(String::from_node(&child))),
                 "property" => body.push(NetworkBody::property(Property::from_node(&child))),
                 "annotation" => body.push(NetworkBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Network.")
+                t => panic!("Unexpected tag {} in body of Network.", t)
             };
         }
         Network {
@@ -5627,7 +5627,7 @@ impl XML for NeuroMLDocument {
                 "notes" => body.push(NeuroMLDocumentBody::notes(String::from_node(&child))),
                 "property" => body.push(NeuroMLDocumentBody::property(Property::from_node(&child))),
                 "annotation" => body.push(NeuroMLDocumentBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of NeuroMLDocument.")
+                t => panic!("Unexpected tag {} in body of NeuroMLDocument.", t)
             };
         }
         NeuroMLDocument {
@@ -5697,7 +5697,7 @@ impl XML for Path {
             match child.tag_name().name() {
                 "from" => body.push(PathBody::from(SegmentEndPoint::from_node(&child))),
                 "to" => body.push(PathBody::to(SegmentEndPoint::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Path.")
+                t => panic!("Unexpected tag {} in body of Path.", t)
             };
         }
         Path {
@@ -5777,7 +5777,7 @@ impl XML for PinskyRinzelCA3Cell {
                 "notes" => body.push(PinskyRinzelCA3CellBody::notes(String::from_node(&child))),
                 "property" => body.push(PinskyRinzelCA3CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PinskyRinzelCA3CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of PinskyRinzelCA3Cell.")
+                t => panic!("Unexpected tag {} in body of PinskyRinzelCA3Cell.", t)
             };
         }
         PinskyRinzelCA3Cell {
@@ -5891,7 +5891,7 @@ impl XML for PoissonFiringSynapse {
                 "notes" => body.push(PoissonFiringSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(PoissonFiringSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PoissonFiringSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of PoissonFiringSynapse.")
+                t => panic!("Unexpected tag {} in body of PoissonFiringSynapse.", t)
             };
         }
         PoissonFiringSynapse {
@@ -5947,7 +5947,7 @@ impl XML for Population {
                 "notes" => body.push(PopulationBody::notes(String::from_node(&child))),
                 "property" => body.push(PopulationBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PopulationBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Population.")
+                t => panic!("Unexpected tag {} in body of Population.", t)
             };
         }
         Population {
@@ -5994,7 +5994,7 @@ impl XML for Projection {
             match child.tag_name().name() {
                 "connection" => body.push(ProjectionBody::connection(Connection::from_node(&child))),
                 "connectionWD" => body.push(ProjectionBody::connectionWD(ConnectionWD::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Projection.")
+                t => panic!("Unexpected tag {} in body of Projection.", t)
             };
         }
         Projection {
@@ -6074,7 +6074,7 @@ impl XML for PulseGenerator {
                 "notes" => body.push(PulseGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(PulseGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PulseGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of PulseGenerator.")
+                t => panic!("Unexpected tag {} in body of PulseGenerator.", t)
             };
         }
         PulseGenerator {
@@ -6124,7 +6124,7 @@ impl XML for PulseGeneratorDL {
                 "notes" => body.push(PulseGeneratorDLBody::notes(String::from_node(&child))),
                 "property" => body.push(PulseGeneratorDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PulseGeneratorDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of PulseGeneratorDL.")
+                t => panic!("Unexpected tag {} in body of PulseGeneratorDL.", t)
             };
         }
         PulseGeneratorDL {
@@ -6218,7 +6218,7 @@ impl XML for RampGenerator {
                 "notes" => body.push(RampGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(RampGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(RampGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of RampGenerator.")
+                t => panic!("Unexpected tag {} in body of RampGenerator.", t)
             };
         }
         RampGenerator {
@@ -6274,7 +6274,7 @@ impl XML for RampGeneratorDL {
                 "notes" => body.push(RampGeneratorDLBody::notes(String::from_node(&child))),
                 "property" => body.push(RampGeneratorDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(RampGeneratorDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of RampGeneratorDL.")
+                t => panic!("Unexpected tag {} in body of RampGeneratorDL.", t)
             };
         }
         RampGeneratorDL {
@@ -6440,7 +6440,7 @@ impl XML for Segment {
                 "parent" => body.push(SegmentBody::parent(SegmentParent::from_node(&child))),
                 "proximal" => body.push(SegmentBody::proximal(Point3DWithDiam::from_node(&child))),
                 "distal" => body.push(SegmentBody::distal(Point3DWithDiam::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Segment.")
+                t => panic!("Unexpected tag {} in body of Segment.", t)
             };
         }
         Segment {
@@ -6503,7 +6503,7 @@ impl XML for SegmentGroup {
                 "path" => body.push(SegmentGroupBody::path(Path::from_node(&child))),
                 "subTree" => body.push(SegmentGroupBody::subTree(SubTree::from_node(&child))),
                 "inhomogeneousParameter" => body.push(SegmentGroupBody::inhomogeneousParameter(InhomogeneousParameter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SegmentGroup.")
+                t => panic!("Unexpected tag {} in body of SegmentGroup.", t)
             };
         }
         SegmentGroup {
@@ -6560,7 +6560,7 @@ impl XML for SilentSynapse {
                 "notes" => body.push(SilentSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(SilentSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SilentSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SilentSynapse.")
+                t => panic!("Unexpected tag {} in body of SilentSynapse.", t)
             };
         }
         SilentSynapse {
@@ -6611,7 +6611,7 @@ impl XML for SineGenerator {
                 "notes" => body.push(SineGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(SineGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SineGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SineGenerator.")
+                t => panic!("Unexpected tag {} in body of SineGenerator.", t)
             };
         }
         SineGenerator {
@@ -6667,7 +6667,7 @@ impl XML for SineGeneratorDL {
                 "notes" => body.push(SineGeneratorDLBody::notes(String::from_node(&child))),
                 "property" => body.push(SineGeneratorDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SineGeneratorDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SineGeneratorDL.")
+                t => panic!("Unexpected tag {} in body of SineGeneratorDL.", t)
             };
         }
         SineGeneratorDL {
@@ -6709,7 +6709,7 @@ impl XML for Space {
             }
             match child.tag_name().name() {
                 "structure" => body.push(SpaceBody::structure(SpaceStructure::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Space.")
+                t => panic!("Unexpected tag {} in body of Space.", t)
             };
         }
         Space {
@@ -6847,7 +6847,7 @@ impl XML for SpikeArray {
                 "notes" => body.push(SpikeArrayBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeArrayBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeArrayBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SpikeArray.")
+                t => panic!("Unexpected tag {} in body of SpikeArray.", t)
             };
         }
         SpikeArray {
@@ -6890,7 +6890,7 @@ impl XML for SpikeGenerator {
                 "notes" => body.push(SpikeGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SpikeGenerator.")
+                t => panic!("Unexpected tag {} in body of SpikeGenerator.", t)
             };
         }
         SpikeGenerator {
@@ -6934,7 +6934,7 @@ impl XML for SpikeGeneratorPoisson {
                 "notes" => body.push(SpikeGeneratorPoissonBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorPoissonBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorPoissonBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SpikeGeneratorPoisson.")
+                t => panic!("Unexpected tag {} in body of SpikeGeneratorPoisson.", t)
             };
         }
         SpikeGeneratorPoisson {
@@ -6980,7 +6980,7 @@ impl XML for SpikeGeneratorRandom {
                 "notes" => body.push(SpikeGeneratorRandomBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorRandomBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorRandomBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SpikeGeneratorRandom.")
+                t => panic!("Unexpected tag {} in body of SpikeGeneratorRandom.", t)
             };
         }
         SpikeGeneratorRandom {
@@ -7027,7 +7027,7 @@ impl XML for SpikeGeneratorRefPoisson {
                 "notes" => body.push(SpikeGeneratorRefPoissonBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorRefPoissonBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorRefPoissonBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SpikeGeneratorRefPoisson.")
+                t => panic!("Unexpected tag {} in body of SpikeGeneratorRefPoisson.", t)
             };
         }
         SpikeGeneratorRefPoisson {
@@ -7076,7 +7076,7 @@ impl XML for SpikeSourcePoisson {
                 "notes" => body.push(SpikeSourcePoissonBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeSourcePoissonBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeSourcePoissonBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SpikeSourcePoisson.")
+                t => panic!("Unexpected tag {} in body of SpikeSourcePoisson.", t)
             };
         }
         SpikeSourcePoisson {
@@ -7137,7 +7137,7 @@ impl XML for Standalone {
                 "notes" => body.push(StandaloneBody::notes(String::from_node(&child))),
                 "property" => body.push(StandaloneBody::property(Property::from_node(&child))),
                 "annotation" => body.push(StandaloneBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Standalone.")
+                t => panic!("Unexpected tag {} in body of Standalone.", t)
             };
         }
         Standalone {
@@ -7193,7 +7193,7 @@ impl XML for SubTree {
             match child.tag_name().name() {
                 "from" => body.push(SubTreeBody::from(SegmentEndPoint::from_node(&child))),
                 "to" => body.push(SubTreeBody::to(SegmentEndPoint::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of SubTree.")
+                t => panic!("Unexpected tag {} in body of SubTree.", t)
             };
         }
         SubTree {
@@ -7254,7 +7254,7 @@ impl XML for TauInfTransition {
             match child.tag_name().name() {
                 "steadyState" => body.push(TauInfTransitionBody::steadyState(HHVariable::from_node(&child))),
                 "timeCourse" => body.push(TauInfTransitionBody::timeCourse(HHTime::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of TauInfTransition.")
+                t => panic!("Unexpected tag {} in body of TauInfTransition.", t)
             };
         }
         TauInfTransition {
@@ -7319,7 +7319,7 @@ impl XML for TimedSynapticInput {
                 "notes" => body.push(TimedSynapticInputBody::notes(String::from_node(&child))),
                 "property" => body.push(TimedSynapticInputBody::property(Property::from_node(&child))),
                 "annotation" => body.push(TimedSynapticInputBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of TimedSynapticInput.")
+                t => panic!("Unexpected tag {} in body of TimedSynapticInput.", t)
             };
         }
         TimedSynapticInput {
@@ -7372,7 +7372,7 @@ impl XML for TransientPoissonFiringSynapse {
                 "notes" => body.push(TransientPoissonFiringSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(TransientPoissonFiringSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(TransientPoissonFiringSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of TransientPoissonFiringSynapse.")
+                t => panic!("Unexpected tag {} in body of TransientPoissonFiringSynapse.", t)
             };
         }
         TransientPoissonFiringSynapse {
@@ -7426,7 +7426,7 @@ impl XML for VariableParameter {
             }
             match child.tag_name().name() {
                 "inhomogeneousValue" => body.push(VariableParameterBody::inhomogeneousValue(InhomogeneousValue::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of VariableParameter.")
+                t => panic!("Unexpected tag {} in body of VariableParameter.", t)
             };
         }
         VariableParameter {
@@ -7474,7 +7474,7 @@ impl XML for VoltageClamp {
                 "notes" => body.push(VoltageClampBody::notes(String::from_node(&child))),
                 "property" => body.push(VoltageClampBody::property(Property::from_node(&child))),
                 "annotation" => body.push(VoltageClampBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of VoltageClamp.")
+                t => panic!("Unexpected tag {} in body of VoltageClamp.", t)
             };
         }
         VoltageClamp {
@@ -7533,7 +7533,7 @@ impl XML for VoltageClampTriple {
                 "notes" => body.push(VoltageClampTripleBody::notes(String::from_node(&child))),
                 "property" => body.push(VoltageClampTripleBody::property(Property::from_node(&child))),
                 "annotation" => body.push(VoltageClampTripleBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of VoltageClampTriple.")
+                t => panic!("Unexpected tag {} in body of VoltageClampTriple.", t)
             };
         }
         VoltageClampTriple {
@@ -7591,7 +7591,7 @@ impl XML for basePyNNCell {
                 "notes" => body.push(basePyNNCellBody::notes(String::from_node(&child))),
                 "property" => body.push(basePyNNCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(basePyNNCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of basePyNNCell.")
+                t => panic!("Unexpected tag {} in body of basePyNNCell.", t)
             };
         }
         basePyNNCell {
@@ -7657,7 +7657,7 @@ impl XML for basePyNNIaFCell {
                 "notes" => body.push(basePyNNIaFCellBody::notes(String::from_node(&child))),
                 "property" => body.push(basePyNNIaFCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(basePyNNIaFCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of basePyNNIaFCell.")
+                t => panic!("Unexpected tag {} in body of basePyNNIaFCell.", t)
             };
         }
         basePyNNIaFCell {
@@ -7732,7 +7732,7 @@ impl XML for basePyNNIaFCondCell {
                 "notes" => body.push(basePyNNIaFCondCellBody::notes(String::from_node(&child))),
                 "property" => body.push(basePyNNIaFCondCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(basePyNNIaFCondCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of basePyNNIaFCondCell.")
+                t => panic!("Unexpected tag {} in body of basePyNNIaFCondCell.", t)
             };
         }
         basePyNNIaFCondCell {

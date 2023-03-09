@@ -239,8 +239,6 @@ impl Nmodl {
             .into_iter(),
         );
 
-        parameters.insert(String::from("celsius"), None);
-
         let mut symbols: Set<_> = [
             String::from("v"),
             String::from("celsius"),
@@ -581,7 +579,7 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
 fn nmodl_param_block(n: &Nmodl) -> Result<String> {
     let mut ps = n.parameters.clone();
     let read = read_variable(n)?;
-    for p in ["diam"] {
+    for p in ["diam", "celsius"] {
         if read.contains(p) {
             ps.insert(p.to_string(), None);
         }
@@ -765,7 +763,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
         match ns.as_slice() {
             [] => {}
             [name] => {
-                result.push(format!("  NONSPECIFIC_CURRENT {}\n", name));
+                result.push(format!("  NONSPECIFIC_CURRENT {name}\n"));
             }
             _ => {
                 // collapse multiple NONSPECIFIC_CURRENTs into one
@@ -858,10 +856,7 @@ fn sorted_dependencies_of(
                 continue 'a;
             }
         }
-        return Err(nmodl_error(format!(
-            "Could not resolve variables {:?}",
-            todo
-        )));
+        return Err(nmodl_error(format!("Could not resolve variables {todo:?}")));
     }
     Ok(result)
 }
@@ -940,7 +935,15 @@ pub fn to_nmodl(
                 let mut n = Nmodl::from(&coll, known_ions, &filter)?;
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
-                    n.outputs.insert(k, v);
+                    let Stmnt::Ass(lhs, rhs) = v
+                    else {
+                        return Err(nmodl_error("Current 'i' is not defined via assignment."));
+                    };
+                    // NOTE: NeuroML defines synaptic currents _opposite_ to ARB/NRN. Bah.o
+                    n.outputs.insert(
+                        k,
+                        Stmnt::Ass(lhs, Expr::Mul(vec![Expr::F64(-1.0), rhs]).simplify()),
+                    );
                 } else {
                     return Err(nmodl_error("Synapse without defined current 'i'"));
                 }
@@ -1084,8 +1087,7 @@ pub fn to_nmodl(
             mk_nmodl(n)
         }
         _ => Err(nmodl_error(format!(
-            "Type {} deriving an expected base {}",
-            ty, base
+            "Type {ty} deriving an expected base {base}"
         ))),
     }
 }
@@ -1093,6 +1095,7 @@ pub fn to_nmodl(
 fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, keep: &Set<String>) {
     loop {
         let mut new = Map::new();
+        // Update constants and a=b assignments
         for (k, v) in variables.iter() {
             match v {
                 Stmnt::Ass(k, x @ Expr::F64(_)) if !keep.contains(k) => {
@@ -1107,6 +1110,7 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
             }
         }
 
+        // Substitute in from simple assignments
         for v in new.values_mut() {
             let y = v
                 .map(&|e| {
@@ -1122,6 +1126,21 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
                 })
                 .simplify();
             *v = y;
+        }
+
+        // Now try to de-duplicate RHS as a precursor to CSE
+        // This is slightly awkward as Expr (and thus Stmnt) cannot be Eq
+        // nor Ord (just Partial) due to the f64 contained.
+        let mut unique_assignments: Vec<(String, Expr)> = Vec::new();
+        for (k, v) in new.iter_mut() {
+            if let Stmnt::Ass(_, val) = v {
+                if let Some(it) = unique_assignments.iter().find(|it| it.1 == *val) {
+                    let res = Stmnt::Ass(k.clone(), Expr::Var(it.0.clone()));
+                    *v = res;
+                } else {
+                    unique_assignments.push((k.clone(), val.clone()));
+                }
+            }
         }
 
         if new == *variables {

@@ -231,7 +231,7 @@ impl XML for ComponentType {
                 "Dynamics" => body.push(ComponentTypeBody::Dynamics(Dynamics::from_node(&child))),
                 "Structure" => body.push(ComponentTypeBody::Structure(Structure::from_node(&child))),
                 "Simulation" => body.push(ComponentTypeBody::Simulation(Simulation::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ComponentType.")
+                t => panic!("Unexpected tag {} in body of ComponentType.", t)
             };
         }
         ComponentType {
@@ -268,7 +268,7 @@ impl XML for ConditionalDerivedVariable {
             }
             match child.tag_name().name() {
                 "Case" => body.push(ConditionalDerivedVariableBody::Case(Case::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ConditionalDerivedVariable.")
+                t => panic!("Unexpected tag {} in body of ConditionalDerivedVariable.", t)
             };
         }
         ConditionalDerivedVariable {
@@ -462,7 +462,7 @@ impl XML for Dynamics {
                 "OnCondition" => body.push(DynamicsBody::OnCondition(OnCondition::from_node(&child))),
                 "Regime" => body.push(DynamicsBody::Regime(Regime::from_node(&child))),
                 "KineticScheme" => body.push(DynamicsBody::KineticScheme(KineticScheme::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Dynamics.")
+                t => panic!("Unexpected tag {} in body of Dynamics.", t)
             };
         }
         Dynamics {
@@ -504,7 +504,7 @@ impl XML for EventConnection {
             }
             match child.tag_name().name() {
                 "Assign" => body.push(EventConnectionBody::Assign(Assign::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of EventConnection.")
+                t => panic!("Unexpected tag {} in body of EventConnection.", t)
             };
         }
         EventConnection {
@@ -654,7 +654,7 @@ impl XML for ForEach {
             }
             match child.tag_name().name() {
                 "MultiInstantiate" => body.push(ForEachBody::MultiInstantiate(MultiInstantiate::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of ForEach.")
+                t => panic!("Unexpected tag {} in body of ForEach.", t)
             };
         }
         ForEach {
@@ -778,7 +778,7 @@ impl XML for Lems {
                 "Constant" => body.push(LemsBody::Constant(Constant::from_node(&child))),
                 "ComponentType" => body.push(LemsBody::ComponentType(ComponentType::from_node(&child))),
                 "Component" => body.push(LemsBody::Component(Component::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Lems.")
+                t => panic!("Unexpected tag {} in body of Lems.", t)
             };
         }
         Lems {
@@ -870,7 +870,7 @@ impl XML for OnCondition {
                 "StateAssignment" => body.push(OnConditionBody::StateAssignment(StateAssignment::from_node(&child))),
                 "EventOut" => body.push(OnConditionBody::EventOut(EventOut::from_node(&child))),
                 "Transition" => body.push(OnConditionBody::Transition(Transition::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of OnCondition.")
+                t => panic!("Unexpected tag {} in body of OnCondition.", t)
             };
         }
         OnCondition {
@@ -899,7 +899,7 @@ impl XML for OnEntry {
             }
             match child.tag_name().name() {
                 "StateAssignment" => body.push(OnEntryBody::StateAssignment(StateAssignment::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of OnEntry.")
+                t => panic!("Unexpected tag {} in body of OnEntry.", t)
             };
         }
         OnEntry {
@@ -931,7 +931,7 @@ impl XML for OnEvent {
             match child.tag_name().name() {
                 "StateAssignment" => body.push(OnEventBody::StateAssignment(StateAssignment::from_node(&child))),
                 "EventOut" => body.push(OnEventBody::EventOut(EventOut::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of OnEvent.")
+                t => panic!("Unexpected tag {} in body of OnEvent.", t)
             };
         }
         OnEvent {
@@ -960,7 +960,7 @@ impl XML for OnStart {
             }
             match child.tag_name().name() {
                 "StateAssignment" => body.push(OnStartBody::StateAssignment(StateAssignment::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of OnStart.")
+                t => panic!("Unexpected tag {} in body of OnStart.", t)
             };
         }
         OnStart {
@@ -1079,7 +1079,7 @@ impl XML for Regime {
                 "TimeDerivative" => body.push(RegimeBody::TimeDerivative(TimeDerivative::from_node(&child))),
                 "OnEntry" => body.push(RegimeBody::OnEntry(OnEntry::from_node(&child))),
                 "OnCondition" => body.push(RegimeBody::OnCondition(OnCondition::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Regime.")
+                t => panic!("Unexpected tag {} in body of Regime.", t)
             };
         }
         Regime {
@@ -1162,7 +1162,7 @@ impl XML for Simulation {
                 "Run" => body.push(SimulationBody::Run(Run::from_node(&child))),
                 "DataWriter" => body.push(SimulationBody::DataWriter(DataWriter::from_node(&child))),
                 "EventWriter" => body.push(SimulationBody::EventWriter(EventWriter::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Simulation.")
+                t => panic!("Unexpected tag {} in body of Simulation.", t)
             };
         }
         Simulation {
@@ -1240,7 +1240,7 @@ impl XML for Structure {
                 "With" => body.push(StructureBody::With(With::from_node(&child))),
                 "Tunnel" => body.push(StructureBody::Tunnel(Tunnel::from_node(&child))),
                 "EventConnection" => body.push(StructureBody::EventConnection(EventConnection::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Structure.")
+                t => panic!("Unexpected tag {} in body of Structure.", t)
             };
         }
         Structure {
@@ -1346,7 +1346,7 @@ impl XML for Tunnel {
             }
             match child.tag_name().name() {
                 "Assign" => body.push(TunnelBody::Assign(Assign::from_node(&child))),
-                t => panic!("Unexpected tag {t} in body of Tunnel.")
+                t => panic!("Unexpected tag {} in body of Tunnel.", t)
             };
         }
         Tunnel {
