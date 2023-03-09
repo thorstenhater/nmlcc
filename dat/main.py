@@ -59,7 +59,7 @@ class recipe(A.recipe):
     def cell_description(self, gid):
         cid = self.gid_to_cell[gid]
         mrf = self.cell_to_morph[cid]
-        nml = A.neuroml(f'{here}/mrf/{mrf}.nml').morphology(mrf, allow_spherical_root=True)
+        nml = A.neuroml(f'{here}/mrf/{cid}_{mrf}.nml').morphology(mrf, allow_spherical_root=True)
         lbl = A.label_dict()
         lbl.append(nml.segments())
         lbl.append(nml.named_segments())
