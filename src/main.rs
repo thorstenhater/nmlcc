@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand};
 use nml2::{
     acc, bundle,
     error::Result,
+    filter::Filter,
     lems::{self, file::LemsFile},
     neuroml, nmodl,
     xml::XML,
@@ -23,6 +24,9 @@ struct Cli {
     /// allow for adding new species.
     #[clap(short, long, default_value = "ca, na, k")]
     ions: String,
+    /// Unknown mechanism names are assumed to be part of Arbor
+    #[clap(long, default_value = "false")]
+    defer_unknown_mechanisms: bool,
     #[clap(subcommand)]
     cmd: Cmd,
 }
@@ -117,7 +121,7 @@ fn main() -> Result<()> {
             dir,
         } => {
             get_runtime_types(&mut lems, &nml)?;
-            nmodl::export(&lems, &nml, &parameter, &dir, &ions[..])?;
+            nmodl::export(&lems, &nml, &Filter::new(&parameter)?, &dir, &ions[..])?;
         }
         Cmd::Acc { nml, dir } => {
             get_runtime_types(&mut lems, &nml)?;

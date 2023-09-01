@@ -15,7 +15,7 @@ use crate::{
     },
     nml2_error,
     xml::XML,
-    Map,
+    Map, Set,
 };
 
 use std::fmt::Write as _;
@@ -26,7 +26,9 @@ use tracing::{info, trace, warn};
 #[derive(Debug, Default, PartialEq, PartialOrd)]
 pub struct Cell {
     pub decor: Vec<Decor>,
+    pub segments_groups: Map<String, Set<u64>>,
     pub spike_threshold: Option<f64>,
+    pub morph_id: String,
 }
 
 impl Cell {
@@ -39,17 +41,29 @@ impl Cell {
             self.spike_threshold = rhs.spike_threshold;
         }
         self.decor.extend_from_slice(&rhs.decor[..]);
+        self.segments_groups.extend(rhs.segments_groups.clone());
         Ok(())
     }
 }
 
 pub fn to_cell_list(lems: &LemsFile, nml: &[String], ions: &[String]) -> Result<Map<String, Cell>> {
     let mut cells = Map::new();
+    let mut segment_groups: Map<String, Map<String, Set<u64>>> = Map::new();
     process_files(nml, |_, node| {
+        // Fetch cell information
+        // - bio-physical properties
+        // - cell -> morphology mapping
+        // NOTE we do _not_ collect inline segment group info as we might
+        // encounter standalone morphologies + references
         if node.tag_name().name() == "cell" {
-            if let Some(id) = node.attribute("id") {
+            if let Some(cid) = node.attribute("id") {
                 let mut cell: Cell = Default::default();
-                let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
+                let inhomogeneous_parameters = if let Ok(ihp) = parse_inhomogeneous_parameters(node)
+                {
+                    ihp
+                } else {
+                    Map::new()
+                };
                 for bpp in node.children() {
                     if bpp.tag_name().name() == "biophysicalProperties" {
                         let tmp = &mut biophys(
@@ -60,12 +74,54 @@ pub fn to_cell_list(lems: &LemsFile, nml: &[String], ions: &[String]) -> Result<
                         )?;
                         cell.append(tmp)?;
                     }
+                    if bpp.tag_name().name() == "morphology" {
+                        if let Some(mid) = bpp.attribute("id") {
+                            cell.morph_id = mid.to_string();
+                        } else {
+                            return Err(nml2_error!("Cell {cid} contains morphology w/o id"));
+                        }
+                    }
                 }
-                *cells.entry(id.to_string()).or_default() = cell;
+                *cells.entry(cid.to_string()).or_default() = cell;
+            }
+        }
+        // if we are in a morphology, either standalone or inline, collect
+        // segment group info
+        if node.tag_name().name() == "morphology" {
+            if let Some(mid) = node.attribute("id") {
+                for sg in node.children() {
+                    if sg.tag_name().name() == "segmentGroup" {
+                        if let Some(gid) = sg.attribute("id") {
+                            for s in sg.children() {
+                                if s.tag_name().name() == "member" {
+                                    let sid =
+                                        s.attribute("segment").unwrap().parse::<u64>().unwrap();
+                                    segment_groups
+                                        .entry(mid.to_string())
+                                        .or_default()
+                                        .entry(gid.to_string())
+                                        .or_default()
+                                        .insert(sid);
+                                }
+                            }
+                        } else {
+                            return Err(nml2_error!(
+                                "Morphology {mid} contains segment group w/o id"
+                            ));
+                        }
+                    }
+                }
             }
         }
         Ok(())
     })?;
+    // Now we have all info, and can resolve cell segment groups.
+    for cell in cells.values_mut() {
+        let mid = &cell.morph_id;
+        if let Some(sgroups) = segment_groups.get(mid) {
+            cell.segments_groups = sgroups.clone();
+        }
+    }
     Ok(cells)
 }
 

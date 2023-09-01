@@ -6,17 +6,14 @@ use crate::expr::{self, Boolean};
 use crate::{
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
+    filter::Filter,
     instance::{Collapsed, Instance},
     lems::file::LemsFile,
     neuroml::process_files,
-    nml2_error,
+    nml2_error, nmodl_error,
     variable::VarKind,
     Map, Set,
 };
-
-fn nmodl_error<T: Into<String>>(what: T) -> Error {
-    Error::Nmodl { what: what.into() }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -28,7 +25,7 @@ pub enum Kind {
 #[derive(Debug, Clone)]
 pub struct Nmodl {
     /// List of known ions, defaults to Na, K, Ca
-    pub known_ions: Vec<String>,
+    pub known_ions: Set<String>,
     /// Kind
     pub kind: Kind,
     /// Suffix
@@ -50,7 +47,7 @@ pub struct Nmodl {
     /// Variables
     pub variables: Map<String, Stmnt>,
     /// Ionic species
-    species: Vec<String>,
+    species: Set<String>,
     /// Transition matrix
     transitions: Vec<(String, String, String, String)>,
     /// Event processing
@@ -63,40 +60,8 @@ pub struct Nmodl {
     conditions: Map<String, Vec<Stmnt>>,
 }
 
-fn apply_filter(filter: &str, keys: &Set<String>) -> Set<String> {
-    let mut retain = Set::new();
-    for f in filter.split(',') {
-        if let Some(f) = f.strip_prefix('+') {
-            if f.ends_with('*') {
-                let keep = keys
-                    .iter()
-                    .filter(|p| p.starts_with(&f[..f.len() - 1]))
-                    .map(|p| p.to_string())
-                    .collect::<Set<_>>();
-                retain = retain.union(&keep).cloned().collect();
-            } else {
-                retain.insert(f.to_string());
-            }
-        } else if let Some(f) = f.strip_prefix('-') {
-            if f.ends_with('*') {
-                let keep = keys
-                    .iter()
-                    .filter(|p| p.starts_with(&f[..f.len() - 1]))
-                    .map(|p| p.to_string())
-                    .collect::<Set<_>>();
-                retain = retain.difference(&keep).cloned().collect();
-            } else {
-                retain.remove(&f.to_string());
-            }
-        } else {
-            panic!("Unknown filter kind: {f}");
-        }
-    }
-    retain
-}
-
 impl Nmodl {
-    pub fn from(coll: &Collapsed, known_ions: &[String], filter: &str) -> Result<Self> {
+    pub fn from(coll: &Collapsed, known_ions: &[String], filter: &Filter) -> Result<Self> {
         let known_ions = known_ions.to_vec();
         let kind = Kind::Density;
         let suffix = coll
@@ -170,7 +135,12 @@ impl Nmodl {
         let mut fixed = Map::new();
         let mut constants = Map::new();
         let mut parameters = Map::new();
-        let keep = apply_filter(filter, &coll.constants.keys().cloned().collect::<Set<_>>());
+        let keep = coll
+            .constants
+            .keys()
+            .cloned()
+            .filter(|s| filter.apply(s))
+            .collect::<Set<_>>();
         for (k, v) in &coll.constants {
             if keep.contains(k) {
                 constants.insert(k.to_string(), v.clone());
@@ -178,7 +148,12 @@ impl Nmodl {
                 fixed.insert(k.to_string(), Expr::F64(v.value));
             }
         }
-        let keep = apply_filter(filter, &coll.parameters.keys().cloned().collect::<Set<_>>());
+        let keep = coll
+            .parameters
+            .keys()
+            .cloned()
+            .filter(|s| filter.apply(s))
+            .collect::<Set<_>>();
         for (k, v) in &coll.parameters {
             if keep.contains(k) || v.is_none() {
                 parameters.insert(k.to_string(), v.clone());
@@ -230,14 +205,11 @@ impl Nmodl {
             ));
         }
 
-        variables.extend(
-            [
-                assign("caConc", "cai")?,
-                assign("temperature", "celsius + 273.15")?,
-                assign("vpeer", "v_peer")?,
-            ]
-            .into_iter(),
-        );
+        variables.extend([
+            assign("caConc", "cai")?,
+            assign("temperature", "celsius + 273.15")?,
+            assign("vpeer", "v_peer")?,
+        ]);
 
         let mut symbols: Set<_> = [
             String::from("v"),
@@ -344,7 +316,7 @@ impl Nmodl {
             .collect();
 
         Ok(Nmodl {
-            known_ions,
+            known_ions: known_ions.iter().cloned().collect(),
             kind,
             suffix,
             symbols,
@@ -539,7 +511,7 @@ fn nmodl_deriv_block(n: &Nmodl) -> Result<String> {
 
 fn nmodl_break_block(n: &Nmodl) -> Result<String> {
     if !n.deriv.is_empty() && !n.transitions.is_empty() {
-        return Err(nmodl_error("Both KINETIC and ODEs given"));
+        return Err(nmodl_error!("Both KINETIC and ODEs given"));
     }
     let mut result = vec![String::from("BREAKPOINT {")];
     if !n.deriv.is_empty() {
@@ -692,7 +664,7 @@ fn read_variable(n: &Nmodl) -> Result<Set<String>> {
 fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
     let read = read_variable(n)?;
     if read.contains("area") {
-        return Err(nmodl_error(
+        return Err(nmodl_error!(
             "'Area' is not supported in Arbor; check if the model can use 'diam' instead.",
         ));
     }
@@ -856,7 +828,7 @@ fn sorted_dependencies_of(
                 continue 'a;
             }
         }
-        return Err(nmodl_error(format!("Could not resolve variables {todo:?}")));
+        return Err(nmodl_error!("Could not resolve variables {todo:?}"));
     }
     Ok(result)
 }
@@ -897,69 +869,83 @@ fn print_dependency_chains(
 
 pub fn to_nmodl(
     instance: &Instance,
-    filter: &str,
+    filter: &Filter,
     base: &str,
     known_ions: &[String],
 ) -> Result<String> {
     let ty: &str = instance.component_type.name.as_ref();
+
+    let mut filter = filter.clone();
+
     match base {
-        "baseSynapse" => {
-            if ty == "gapJunction" {
-                let mut filter = filter.to_string();
-                let mut instance = instance.clone();
-                if !filter.is_empty() {
-                    filter.push(',');
-                }
-                filter.push_str("+weight,+conductance");
-                // Gap Junctions need peer voltage, which is provided by Arbor
-                instance
-                    .component_type
-                    .variables
-                    .retain(|v| v.name != "vpeer");
-                let mut coll = Collapsed::from_instance(&instance)?;
-                coll.parameters
-                    .insert(String::from("weight"), Some(Quantity::parse("1")?));
-                let mut n = Nmodl::from(&coll, known_ions, &filter)?;
-                // We know that we must write `i` and that it is in the variables
-                if let Some((k, v)) = n.variables.remove_entry("i") {
-                    n.outputs.insert(k, v);
-                } else {
-                    return Err(nmodl_error("Gap Junction without defined current 'i'"));
-                }
-                n.kind = Kind::Junction;
-                mk_nmodl(n)
+        "baseSynapse" if ty == "gapJunction" => {
+            filter.retain("weight");
+            filter.retain("conductance");
+        }
+        "baseSynapse" => {}
+        "baseIonChannel" => {
+            filter.retain("conductance");
+        }
+        "concentrationModel" => {
+            filter.retain("initialConcentration");
+        }
+        _ => return Err(nmodl_error!("Type {ty} deriving an expected base {base}")),
+    }
+
+    let mut instance = instance.clone();
+    // Gap Junctions need peer voltage, which is provided by Arbor, so we remove
+    // this preemptively
+    instance
+        .component_type
+        .variables
+        .retain(|v| v.name != "vpeer");
+    let mut coll = Collapsed::from_instance(&instance)?;
+
+    match base {
+        "baseSynapse" if ty == "gapJunction" => {
+            coll.parameters
+                .insert(String::from("weight"), Some(Quantity::parse("1")?));
+        }
+        "baseSynapse" => {}
+        "baseIonChannel" => {}
+        "concentrationModel" => {
+            coll.parameters.insert(
+                String::from("initialConcentration"),
+                Some(Quantity::parse("0 mM")?),
+            );
+        }
+        _ => unreachable!(),
+    }
+
+    let mut n = Nmodl::from(&coll, known_ions, &filter)?;
+
+    match base {
+        "baseSynapse" if ty == "gapJunction" => {
+            // We know that we must write `i` and that it is in the variables
+            if let Some((k, v)) = n.variables.remove_entry("i") {
+                n.outputs.insert(k, v);
             } else {
-                let filter = filter.to_string();
-                let instance = instance.clone();
-                let coll = Collapsed::from_instance(&instance)?;
-                let mut n = Nmodl::from(&coll, known_ions, &filter)?;
-                // We know that we must write `i` and that it is in the variables
-                if let Some((k, v)) = n.variables.remove_entry("i") {
-                    let Stmnt::Ass(lhs, rhs) = v
-                    else {
-                        return Err(nmodl_error("Current 'i' is not defined via assignment."));
-                    };
-                    // NOTE: NeuroML defines synaptic currents _opposite_ to ARB/NRN. Bah.o
-                    n.outputs.insert(
-                        k,
-                        Stmnt::Ass(lhs, Expr::Mul(vec![Expr::F64(-1.0), rhs]).simplify()),
-                    );
-                } else {
-                    return Err(nmodl_error("Synapse without defined current 'i'"));
-                }
-                n.kind = Kind::Point;
-                mk_nmodl(n)
+                return Err(nmodl_error!("Gap Junction without defined current 'i'"));
             }
+            n.kind = Kind::Junction;
+        }
+        "baseSynapse" => {
+            // We know that we must write `i` and that it is in the variables
+            if let Some((k, v)) = n.variables.remove_entry("i") {
+                let Stmnt::Ass(lhs, rhs) = v else {
+                    return Err(nmodl_error!("Current 'i' is not defined via assignment."));
+                };
+                // NOTE: NeuroML defines synaptic currents _opposite_ to ARB/NRN. Bah.o
+                n.outputs.insert(
+                    k,
+                    Stmnt::Ass(lhs, Expr::Mul(vec![Expr::F64(-1.0), rhs]).simplify()),
+                );
+            } else {
+                return Err(nmodl_error!("Synapse without defined current 'i'"));
+            }
+            n.kind = Kind::Point;
         }
         "baseIonChannel" => {
-            let mut filter = filter.to_string();
-            let instance = instance.clone();
-            if !filter.is_empty() {
-                filter.push(',');
-            }
-            filter.push_str("+conductance");
-            let coll = Collapsed::from_instance(&instance)?;
-            let mut n = Nmodl::from(&coll, known_ions, &filter)?;
             for ion in &n.species {
                 let ex = format!("e{ion}");
                 let gx = String::from("g");
@@ -969,7 +955,7 @@ pub fn to_nmodl(
                     let (ki, xi) = assign(&format!("{ion}conc"), &xi)?;
                     n.variables.insert(ki, xi);
                 } else {
-                    filter.push_str(format!("+e{ion}").as_str());
+                    filter.retain(&ex);
                     n.parameters
                         .insert(ex.clone(), Some(Quantity::parse("0 mV")?));
                     n.symbols.insert(ex.clone());
@@ -986,110 +972,86 @@ pub fn to_nmodl(
                 n.variables.insert(ki, xi);
             }
             n.kind = Kind::Density;
-            mk_nmodl(n)
         }
         "concentrationModel" => {
-            let mut filter = filter.to_string();
-            let instance = instance.clone();
-            let mut coll = Collapsed::from_instance(&instance)?;
             let ion = coll.attributes.get("ion").unwrap().as_deref().unwrap();
-            if !filter.is_empty() {
-                filter.push(',');
-            }
-            filter.push_str("+initialConcentration");
-            coll.parameters.insert(
-                String::from("initialConcentration"),
-                Some(Quantity::parse("0 mM")?),
-            );
-            let mut n = Nmodl::from(&coll, known_ions, &filter)?;
-            let xi = format!("{ion}i");
-            let xo = format!("{ion}o");
-            let dxi = format!("{ion}i'");
-            let dxo = format!("{ion}o'");
 
-            let ic = "concentration";
-            let ec = "extConcentration";
-            let dic = "concentration'";
-            let dec = "extConcentration'";
+            // Remove potential yet unneeded outputs
+            for cn in ["concentration", "extConcentration"] {
+                let dcn = format!("{cn}'");
+                if !n.outputs.contains_key(cn) && !n.deriv.contains_key(&dcn) {
+                    n.init.remove(cn);
+                    n.state.remove(cn);
+                }
+            }
 
             // TODO(TH) this is a rough approximation, might be broken.
             info!("Using synthetic area variable A = pi diam^2! Assumes CV of width=height.");
             let (a, area) = assign("surfaceArea", "3.14159265359 * diam * diam")?;
             n.variables.insert(a, area);
 
-            if !n.outputs.contains_key(ec) && !n.deriv.contains_key(dec) {
-                n.init.remove(ec);
-                n.state.remove(ec);
-            }
-            if !n.outputs.contains_key(ic) && !n.deriv.contains_key(dic) {
-                n.init.remove(ic);
-                n.state.remove(ic);
-            }
+            let replacements: Map<String, String> = [
+                ("concentration".to_string(), format!("{ion}i")),
+                ("concentration'".to_string(), format!("{ion}i'")),
+                ("extConcentration".to_string(), format!("{ion}o")),
+                ("extConcentration'".to_string(), format!("{ion}o'")),
+                ("extConcentration'".to_string(), format!("{ion}o'")),
+                ("iCa".to_string(), format!("-0.01*i{ion}*surfaceArea")), // This is dubious. Also: Faraday?
+            ]
+            .into_iter()
+            .collect();
 
-            let ica = Expr::parse("-0.01*ica*surfaceArea")?;
-            let fix = |ex: &Expr| -> Expr {
-                match ex {
-                    Expr::Var(x) if x == "iCa" => ica.clone(),
-                    Expr::Var(x) if x == ic => Expr::Var(xi.clone()),
-                    Expr::Var(x) if x == ec => Expr::Var(xo.clone()),
-                    _ => ex.clone(),
+            let fix_expr = |ex: &Expr| -> Expr {
+                if let Expr::Var(x) = ex {
+                    if let Some(e) = replacements.get(x) {
+                        Expr::parse(e).unwrap()
+                    } else {
+                        ex.clone()
+                    }
+                } else {
+                    ex.clone()
                 }
             };
 
-            for stm in n.variables.values_mut() {
-                *stm = stm.map(&fix);
-            }
-            for stm in n.deriv.values_mut() {
-                *stm = stm.map(&fix);
-            }
-            for stm in n.init.values_mut() {
-                *stm = stm.map(&fix);
-            }
-            for stm in n.outputs.values_mut() {
-                *stm = stm.map(&fix);
-            }
+            let fix_map = |stmts: &mut Map<String, Stmnt>| {
+                stmts.values_mut().for_each(|stm| *stm = stm.map(&fix_expr));
+                for (k, v) in &replacements {
+                    if let Some(stm) = stmts.remove(k) {
+                        stmts.insert(v.to_string(), stm.set_name(k, v));
+                    }
+                }
+            };
+
+            n.state = n
+                .state
+                .iter()
+                .map(|s| replacements.get(s).unwrap_or(s).to_string())
+                .collect();
+
+            fix_map(&mut n.init);
+            fix_map(&mut n.deriv);
+            fix_map(&mut n.variables);
+            fix_map(&mut n.events);
+            fix_map(&mut n.rates);
+            fix_map(&mut n.outputs);
+
             for stms in n.conditions.values_mut() {
-                for stm in stms {
-                    *stm = stm.map(&fix);
-                    *stm = stm.set_name(ic, &xi);
+                stms.iter_mut().for_each(|stm| *stm = stm.map(&fix_expr));
+            }
+
+            for (k, v) in &replacements {
+                if let Some(stms) = n.conditions.remove(k) {
+                    n.conditions.insert(
+                        v.to_string(),
+                        stms.iter().map(|s| s.set_name(k, v)).collect(),
+                    );
                 }
             }
-            if let Some(v) = n.outputs.remove(ic) {
-                n.outputs.insert(xi.clone(), v.set_name(ic, &xi));
-            }
-            if let Some(v) = n.init.remove(ic) {
-                n.init.insert(xi.clone(), v.set_name(ic, &xi));
-            }
-            if let Some(v) = n.deriv.remove(dic) {
-                n.deriv.insert(dxi.clone(), v.set_name(dic, &dxi));
-            }
-            if let Some(vs) = n.conditions.remove(ic) {
-                n.conditions.insert(xi.clone(), vs);
-            }
-            if let Some(v) = n.outputs.remove(ec) {
-                n.outputs.insert(xo.clone(), v.set_name(ec, &xo));
-            }
-            if let Some(v) = n.init.remove(ec) {
-                n.init.insert(xo.clone(), v.set_name(ec, &xo));
-            }
-            if let Some(v) = n.deriv.remove(dec) {
-                n.deriv.insert(dxo.clone(), v.set_name(dec, &dxo));
-            }
-            if let Some(vs) = n.conditions.remove(ec) {
-                n.conditions.insert(xo.clone(), vs);
-            }
-            if n.state.remove(ic) {
-                n.state.insert(xi.clone());
-            }
-            if n.state.remove(ec) {
-                n.state.insert(xo.clone());
-            }
-            mk_nmodl(n)
         }
-        _ => Err(nmodl_error(format!(
-            "Type {ty} deriving an expected base {base}"
-        ))),
+        _ => unreachable!(),
     }
+
+    mk_nmodl(n)
 }
 
 fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, keep: &Set<String>) {
@@ -1153,7 +1115,7 @@ fn simplify(variables: &mut Map<String, Stmnt>, fixed: &mut Map<String, Expr>, k
 pub fn export(
     lems: &LemsFile,
     nml: &[String],
-    filter: &str,
+    filter: &Filter,
     cat: &str,
     known_ions: &[String],
 ) -> Result<()> {

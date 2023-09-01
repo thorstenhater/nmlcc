@@ -2,6 +2,7 @@ use crate::{
     acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
+    filter::Filter,
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
     network::{self, get_cell_id, Connection, Network, Projection},
@@ -40,7 +41,13 @@ pub fn export(lems: &LemsFile, nml: &[String], ions: &[String], cfg: Bundle) -> 
     export_template(lems, nml, &cfg.dir)?;
 
     // We always export these to keep synapse etc alive
-    nmodl::export(lems, nml, "-*", &format!("{}/cat", &cfg.dir), ions)?;
+    nmodl::export(
+        lems,
+        nml,
+        &Filter::discard_all(),
+        &format!("{}/cat", &cfg.dir),
+        ions,
+    )?;
 
     if cfg.super_mechanisms {
         export_with_super_mechanisms(lems, nml, &cfg.dir, ions, &cfg.cat_prefix)?;
@@ -62,6 +69,51 @@ pub fn export(lems: &LemsFile, nml: &[String], ions: &[String], cfg: Bundle) -> 
         write(format!("{}/main.cxx", &cfg.dir), MAIN_CXX)?;
     }
     Ok(())
+}
+
+// Remap segment groups
+// Given a series of named segment groups, we create a new series such that
+// there exactly one group covering each segment.
+struct UniqueSegmentGroups {
+    // segment id to their unique covering group
+    segments: Map<u64, String>,
+    // segment groups
+    groups: Map<String, Set<u64>>,
+    // given a group, which new groups do we need to cover
+    // the old one
+    decomposition: Map<String, Set<String>>,
+}
+
+
+fn uniquify_segment_groups<K: ToString>(groups: &[(K, Set<u64>)]) -> UniqueSegmentGroups {
+    // Find all covering groups for each segment.
+    let mut covered_by: Map<u64, Set<String>> = Map::new();
+    for (name, segs) in groups.iter() {
+        for seg in segs {
+            covered_by.entry(*seg).or_default().insert(name.to_string());
+        }
+    }
+    // Invert the mapping. Now we have a map from unique combinations of segment
+    // group names to their shared segment and each segment is guaranteed to
+    // occur only once.
+    let mut segments: Map<u64, String> = Map::new();
+    let mut groups: Map<String, Set<u64>> = Map::new();
+    let mut rename = Map::new();
+    let mut decomposition: Map<String, Set<String>> = Map::new();
+    let mut group = 0;
+    for (seg, names) in covered_by.into_iter() {
+        let name = rename.entry(names.clone()).or_insert_with(|| {
+            group += 1;
+            format!("group-{group}")
+        });
+        segments.insert(seg, name.clone());
+        groups.entry(name.clone()).or_insert_with(Set::new).insert(seg);
+        for old in names {
+            decomposition.entry(old.to_string()).or_default().insert(name.to_string());
+        }
+
+    }
+    UniqueSegmentGroups { segments, groups, decomposition }
 }
 
 type ConnectionData = (i64, String, String, String, f64, f64);
@@ -421,10 +473,12 @@ pub fn build_super_mechanisms(
 
 #[derive(Default)]
 pub struct CellData {
+    /// cell_id -> bio-physical properties
     pub bio_phys: Map<String, BiophysicalProperties>,
     pub density: Vec<Instance>,
     pub synapse: Vec<Instance>,
     pub c_model: Vec<Instance>,
+    /// cell_id -> paramter_name -> IExpr
     pub i_param: Map<String, Map<String, ParsedInhomogeneousParameter>>,
 }
 
@@ -569,6 +623,7 @@ pub fn ion_channel_assignments(
     Ok(result)
 }
 
+///
 fn split_decor(
     cells: &CellData,
     lems: &LemsFile,
@@ -650,13 +705,18 @@ fn split_decor(
     Ok(result)
 }
 
+/// Take
+/// - assignments of the form cell x region -> [channel]
+/// - a cell data object
+/// - a list of known ion names
 fn merge_ion_channels(
     channel_mappings: &Map<(String, String), Vec<IonChannel>>, // cell x region -> [channel]
     cell: &CellData,
     known_ions: &[String],
 ) -> Result<Map<String, Vec<(String, Nmodl)>>> {
+    //
     let mut result: Map<String, Vec<_>> = Map::new();
-    let mut filter = String::from("-*");
+    let mut filter = Filter::discard_all();
     for ((id, reg), channels) in channel_mappings {
         let mut collapsed = Collapsed::new(&Some(format!("{id}_{reg}")));
         let mut ions: Map<_, Vec<_>> = Map::new();
@@ -677,7 +737,7 @@ fn merge_ion_channels(
                             .parameters
                             .insert(String::from("conductance"), g.clone());
                     } else {
-                        filter.push_str(&format!(",+{}/conductance", channel.name));
+                        filter.retain(&format!("{}/conductance", channel.name));
                     }
                     if let RevPot::Const(q) = &channel.reversal_potential {
                         instance.parameters.insert(format!("e{ion}"), q.clone());
@@ -756,4 +816,101 @@ fn merge_ion_channels(
         result.entry(id.clone()).or_default().push((reg.clone(), n));
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn unique_regions() {
+        // Case 1: one group inside another
+        let a = ("a", [1, 2, 3].into());
+        let b = ("b", [0, 1, 2, 3, 4].into());
+        let res = uniquify_segment_groups(&[a.clone(), b.clone()]);
+        // We have 5 segments
+        assert_eq!(res.segments.len(), 5);
+        // We have two total groups
+        assert_eq!(res.groups.len(), 2);
+        // We had two groups before
+        assert_eq!(res.decomposition.len(), 2);
+        // 0 and 4 share a group separate from 1, 2, 3
+        assert_eq!(res.segments[&0], res.segments[&4]);
+        assert_ne!(res.segments[&0], res.segments[&1]);
+        assert_ne!(res.segments[&0], res.segments[&2]);
+        assert_ne!(res.segments[&0], res.segments[&3]);
+        // 1, 2, 3 are in one group
+        assert_eq!(res.segments[&1], res.segments[&2]);
+        assert_eq!(res.segments[&1], res.segments[&3]);
+        // "a" stays as is
+        let dec = &res.decomposition[a.0];
+        assert_eq!(dec.len(), 1);
+        let new = dec.iter().flat_map(|g| res.groups[g].clone()).collect::<Set<u64>>();
+        assert_eq!(&new, &a.1);
+        // "b" is splintered into two groups
+        let dec = &res.decomposition[b.0];
+        assert_eq!(dec.len(), 2);
+        let new = dec.iter().flat_map(|g| res.groups[g].clone()).collect::<Set<u64>>();
+        assert_eq!(new, b.1);
+
+        // Case 2: one group overlapping another
+        let a = ("a", [0, 1, 2, 3].into());
+        let b = ("b", [1, 2, 3, 4].into());
+        let res = uniquify_segment_groups(&[a.clone(), b.clone()]);
+        // We have 5 segments
+        assert_eq!(res.segments.len(), 5);
+        // We have three total groups: [0] [1, 2, 3] [4]
+        assert_eq!(res.groups.len(), 3);
+        // We had two groups before
+        assert_eq!(res.decomposition.len(), 2);
+        // 0 and 4 are disparate groups
+        assert_ne!(res.segments[&0], res.segments[&1]);
+        assert_ne!(res.segments[&0], res.segments[&2]);
+        assert_ne!(res.segments[&0], res.segments[&3]);
+        assert_ne!(res.segments[&0], res.segments[&4]);
+        assert_ne!(res.segments[&4], res.segments[&0]);
+        assert_ne!(res.segments[&4], res.segments[&1]);
+        assert_ne!(res.segments[&4], res.segments[&2]);
+        assert_ne!(res.segments[&4], res.segments[&3]);
+        // 1, 2, 3 are in one group
+        assert_eq!(res.segments[&1], res.segments[&2]);
+        assert_eq!(res.segments[&1], res.segments[&3]);
+        // "a" is split into [0] and [1,2,3]
+        let dec = &res.decomposition[a.0];
+        assert_eq!(dec.len(), 2);
+        let new = dec.iter().flat_map(|g| res.groups[g].clone()).collect::<Set<u64>>();
+        assert_eq!(new, a.1);
+        // "b" is splintered into two groups
+        let dec = &res.decomposition[b.0];
+        assert_eq!(dec.len(), 2);
+        let new = dec.iter().flat_map(|g| res.groups[g].clone()).collect::<Set<u64>>();
+        assert_eq!(new, b.1);
+
+
+        // Case 3: unrelated groups
+        let a = ("a", [0, 1,       ].into());
+        let b = ("b", [        3, 4].into());
+        let res = uniquify_segment_groups(&[a.clone(), b.clone()]);
+        // We have 4 segments
+        assert_eq!(res.segments.len(), 4);
+        // We have two total groups: [0, 1] [3, 4]
+        assert_eq!(res.groups.len(), 2);
+        // We had two groups before
+        assert_eq!(res.decomposition.len(), 2);
+
+        assert_eq!(res.segments[&0], res.segments[&1]);
+        assert_eq!(res.segments[&3], res.segments[&4]);
+        assert_ne!(res.segments[&1], res.segments[&3]);
+        // "a" stays
+        let dec = &res.decomposition[a.0];
+        assert_eq!(dec.len(), 1);
+        let new = dec.iter().flat_map(|g| res.groups[g].clone()).collect::<Set<u64>>();
+        assert_eq!(new, a.1);
+        // "b" stays
+        let dec = &res.decomposition[b.0];
+        assert_eq!(dec.len(), 1);
+        let new = dec.iter().flat_map(|g| res.groups[g].clone()).collect::<Set<u64>>();
+        assert_eq!(new, b.1);
+    }
 }

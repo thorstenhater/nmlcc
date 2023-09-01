@@ -1,4 +1,4 @@
-use nml2::{instance::Instance, lems::file::LemsFile, nmodl::to_nmodl};
+use nml2::{filter::Filter, instance::Instance, lems::file::LemsFile, nmodl::to_nmodl};
 
 use roxmltree::Document;
 
@@ -24,7 +24,7 @@ fn simple_synapse() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseSynapse", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::discard_all(), "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   POINT_PROCESS sy1
   NONSPECIFIC_CURRENT i
@@ -57,7 +57,7 @@ NET_RECEIVE(weight) {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseSynapse", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::retain_all(), "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   POINT_PROCESS sy1
   NONSPECIFIC_CURRENT i
@@ -108,7 +108,7 @@ fn simple_gap_junction() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseSynapse", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::discard_all(), "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   JUNCTION gj1
   NONSPECIFIC_CURRENT i
@@ -127,7 +127,7 @@ BREAKPOINT {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseSynapse", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::retain_all(), "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
   JUNCTION gj1
   NONSPECIFIC_CURRENT i
@@ -178,7 +178,7 @@ fn simple_ion_channel() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseIonChannel", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::retain_all(), "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX NaConductance
   USEION na WRITE ina READ ena
@@ -257,7 +257,7 @@ BREAKPOINT {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseIonChannel", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::discard_all(), "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX NaConductance
   USEION na WRITE ina READ ena
@@ -339,7 +339,7 @@ fn simple_passive_channel() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseIonChannel", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::retain_all(), "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX passiveChan
   NONSPECIFIC_CURRENT ileak
@@ -361,7 +361,7 @@ BREAKPOINT {
 "#
     );
     assert_eq!(
-        to_nmodl(&inst, "-*", "baseIonChannel", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::discard_all(), "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX passiveChan
   NONSPECIFIC_CURRENT ileak
@@ -415,7 +415,7 @@ fn simple_ion_channel_unknown_ion() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseIonChannel", &[]).unwrap(),
+        to_nmodl(&inst, &Filter::retain_all(), "baseIonChannel", &[]).unwrap(),
         r#"NEURON {
   SUFFIX NaConductance
   NONSPECIFIC_CURRENT ina
@@ -513,7 +513,7 @@ fn exp_two_syn() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseSynapse", &[]).unwrap(),
+        to_nmodl(&inst, &Filter::retain_all(), "baseSynapse", &[]).unwrap(),
         r"NEURON {
   POINT_PROCESS GABAA
   NONSPECIFIC_CURRENT i
@@ -579,7 +579,7 @@ fn q_10_settings() {
         .unwrap();
     let inst = Instance::new(&lems, &node).unwrap();
     assert_eq!(
-        to_nmodl(&inst, "+*", "baseIonChannel", &ions()).unwrap(),
+        to_nmodl(&inst, &Filter::retain_all(), "baseIonChannel", &ions()).unwrap(),
         r#"NEURON {
   SUFFIX Golgi_H_CML
   NONSPECIFIC_CURRENT ih
@@ -641,6 +641,62 @@ BREAKPOINT {
     );
 }
 
+#[test]
+fn simple_conc_model() {
+    let lems = LemsFile::core();
+    let tree = Document::parse(r#"<?xml version="1.0" encoding="UTF-8"?>
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  ../Schemas/NeuroML2/NeuroML_v2beta4.xsd"
+         id="simple_conc_model">
+      <concentrationModel id="simple_decay" type="fixedFactorConcentrationModel"
+                      ion="ca"
+                      restingConc="3e-6 mM"
+                      decayConstant="1.0 ms"
+                      rho="3e-1 mol_per_m_per_A_per_s"/>
+</neuroml>"#).unwrap();
+    let node = tree
+        .descendants()
+        .find(|n| n.has_tag_name("concentrationModel"))
+        .unwrap();
+    let inst = Instance::new(&lems, &node).unwrap();
+    assert_eq!(
+        to_nmodl(&inst, &Filter::retain_all(), "concentrationModel", &ions()).unwrap(),
+        r#"NEURON {
+  SUFFIX simple_decay
+  USEION ca WRITE cai READ ica
+  RANGE decayConstant, initialConcentration, restingConc, rho
+}
+
+PARAMETER {
+  decayConstant = 1 (ms)
+  initialConcentration = 0 (mM)
+  restingConc = 0.000003000000106112566 (mol_per_m3)
+  rho = 0.0000000000030000001192092896 (mol_per_cm_per_uA_per_ms)
+}
+
+STATE { cai }
+
+INITIAL {
+  cai = initialConcentration
+}
+
+DERIVATIVE dstate {
+  cai' = -1 * (cai + -1 * restingConc) * decayConstant^-1 + -0.009999999776482582 * ica * rho
+}
+
+BREAKPOINT {
+  SOLVE dstate METHOD cnexp
+  if (cai < 0) {
+    cai = 0
+  }
+
+}
+
+"#
+    );
+}
+
 // #[test]
 // fn non_specific_ion_channel() {
 // let lems = LemsFile::core();
@@ -668,5 +724,5 @@ BREAKPOINT {
 // .find(|n| n.has_tag_name("ionChannelHH"))
 // .unwrap();
 // let inst = Instance::new(&lems, &node).unwrap();
-// assert_eq!(to_nmodl(&inst, "-*", "baseIonChannel", &[]).unwrap(), r#""#);
+// assert_eq!(to_nmodl(&inst, &Filter::discard_all(), "baseIonChannel", &[]).unwrap(), r#""#);
 // }
