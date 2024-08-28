@@ -75,16 +75,6 @@ enum Cmd {
     },
 }
 
-fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
-    neuroml::process_files(nml, |_, node| {
-        if node.tag_name().name() == "ComponentType" {
-            let ct: lems::raw::ComponentType = XML::from_node(node);
-            lems.add_component_type(&ct)?;
-        }
-        Ok(())
-    })
-}
-
 fn set_collector(v: usize) -> std::result::Result<(), tracing::dispatcher::SetGlobalDefaultError> {
     let lvl = match v {
         0 => tracing::Level::WARN,

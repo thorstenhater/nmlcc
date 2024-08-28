@@ -73,10 +73,10 @@ pub fn parse_inhomogeneous_parameters(
     cell: &roxmltree::Node<'_, '_>,
 ) -> Result<Map<String, ParsedInhomogeneousParameter>> {
     let mut inhomogeneous_parameters = Map::new();
-    let m = cell
-        .children()
-        .find(|n| n.has_tag_name("morphology"))
-        .ok_or(nml2_error!("no morphology tag"))?;
+    let Some(m) = cell.children().find(|n| n.has_tag_name("morphology")) else {
+        return Ok(inhomogeneous_parameters);
+    };
+
     for ihp in m
         .children()
         .filter(|n| n.has_tag_name("segmentGroup"))
