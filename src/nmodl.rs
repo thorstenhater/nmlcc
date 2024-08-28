@@ -86,7 +86,7 @@ fn apply_filter(filter: &str, keys: &Set<String>) -> Set<String> {
                     .collect::<Set<_>>();
                 retain = retain.difference(&keep).cloned().collect();
             } else {
-                retain.remove(&f.to_string());
+                retain.remove(f);
             }
         } else {
             panic!("Unknown filter kind: {f}");
@@ -236,7 +236,6 @@ impl Nmodl {
                 assign("temperature", "celsius + 273.15")?,
                 assign("vpeer", "v_peer")?,
             ]
-            .into_iter(),
         );
 
         let mut symbols: Set<_> = [
@@ -935,8 +934,7 @@ pub fn to_nmodl(
                 let mut n = Nmodl::from(&coll, known_ions, &filter)?;
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
-                    let Stmnt::Ass(lhs, rhs) = v
-                    else {
+                    let Stmnt::Ass(lhs, rhs) = v else {
                         return Err(nmodl_error("Current 'i' is not defined via assignment."));
                     };
                     // NOTE: NeuroML defines synaptic currents _opposite_ to ARB/NRN. Bah.o
