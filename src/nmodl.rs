@@ -230,13 +230,11 @@ impl Nmodl {
             ));
         }
 
-        variables.extend(
-            [
-                assign("caConc", "cai")?,
-                assign("temperature", "celsius + 273.15")?,
-                assign("vpeer", "v_peer")?,
-            ]
-        );
+        variables.extend([
+            assign("caConc", "cai")?,
+            assign("temperature", "celsius + 273.15")?,
+            assign("vpeer", "v_peer")?,
+        ]);
 
         let mut symbols: Set<_> = [
             String::from("v"),
