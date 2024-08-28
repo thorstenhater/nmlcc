@@ -55,7 +55,7 @@ Casual benchmarking on a 2018 i5 MacBook Pro gives these results
 | `ARB_VECTORIZE`              | **OFF** t<sub>wall</sub>/s | Speed-up | **ON** t<sub>wall</sub>/s | Speed-up |
 |------------------------------|----------------------------|----------|---------------------------|----------|
 | jnml                         | 13.266                     | 1.0      | 7.988                     | 1.0      |
-| nmlcc 0.2                    | 5.934                      | 2.2      | 2.827                     | 2.8      |
+| nmlcc 0.3                    | 5.934                      | 2.2      | 2.827                     | 2.8      |
 | \+ CF + SM †                 | 6.210                      | 2.1      | 2.727                     | 2.9      |
 | Arbor HH                     | 6.376                      | 2.1      | 2.960                     | 2.7      |
 | hand-optimised               | 5.829                      | 2.3      | 2.911                     | 2.7      |

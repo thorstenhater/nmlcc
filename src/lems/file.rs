@@ -132,7 +132,7 @@ impl LemsFile {
                 (
                     d.to_string(),
                     units
-                        .get(&s.to_string())
+                        .get(*s)
                         .unwrap_or_else(|| panic!("No blessed unit '{s}'"))
                         .clone(),
                 )

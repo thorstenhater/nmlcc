@@ -601,7 +601,7 @@ fn split_decor(
                     for (k, v) in ns.iter() {
                         non_uniform_args
                             .entry(r.to_owned())
-                            .or_insert_with(Map::new)
+                            .or_default()
                             .insert(format!("{name}_{k}"), v.to_owned());
                     }
                 }
