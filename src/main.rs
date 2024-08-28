@@ -1,12 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use nml2::{
-    acc, bundle,
-    error::Result,
-    lems::{self, file::LemsFile},
-    neuroml, nmodl,
-    xml::XML,
-};
+use nml2::{acc, bundle, error::Result, get_runtime_types, lems, nmodl};
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
