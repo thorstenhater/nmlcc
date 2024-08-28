@@ -1,14 +1,28 @@
 #!/usr/bin/env python3
 
 import arbor as A
+from arbor import units as U
 
 import subprocess as sp
 from pathlib import Path
 from time import perf_counter as pc
 import sys
 import json
+import re
 
 here = Path(__file__).parent
+
+# check arbor version
+ver = re.match(r"(\d+)\.(\d+)\.(\d+)(-\w+)?", A.__version__)
+if ver:
+    mj, mn, pt, sf = ver.groups()
+    assert (
+        10000 <= (int(mj) * 1000 + int(mn)) * 1000 + int(pt) <= 11000
+    ), f"Arbor version 0.10.x is required, got {A.__version__}."
+else:
+    print(f"Couldn't parse version {A.__version__}")
+    exit(-42)
+
 
 def compile(here):
     here = here.resolve()
@@ -60,10 +74,7 @@ class recipe(A.recipe):
         cid = self.gid_to_cell[gid]
         mrf = self.cell_to_morph[cid]
         nml = A.neuroml(f'{here}/mrf/{mrf}.nml').morphology(mrf, allow_spherical_root=True)
-        lbl = A.label_dict()
-        lbl.append(nml.segments())
-        lbl.append(nml.named_segments())
-        lbl.append(nml.groups())
+        lbl = nml.labels
         lbl['all'] = '(all)'
         dec = A.load_component(f'{here}/acc/{cid}.acc').component
         dec.discretization(A.cv_policy_every_segment())
@@ -72,7 +83,7 @@ class recipe(A.recipe):
                 tag = f'(on-components {frac} (region \"{seg}\"))'
                 if inp in self.i_clamps:
                     lag, dur, amp = self.i_clamps[inp]
-                    dec.place(tag, A.iclamp(lag, dur, amp), f'ic_{inp}@seg_{seg}_frac_{frac}')
+                    dec.place(tag, A.iclamp(lag * U.ms, dur * U.ms, amp * U.nA), f'ic_{inp}@seg_{seg}_frac_{frac}')
         if gid in self.gid_to_synapses:
             for seg, frac, syn in self.gid_to_synapses[gid]:
                 tag = f'(on-components {frac} (region \"{seg}\"))'
@@ -80,14 +91,14 @@ class recipe(A.recipe):
         if gid in self.gid_to_detectors:
             for seg, frac, thr in self.gid_to_detectors[gid]:
                 tag = f'(on-components {frac} (region \"{seg}\"))'
-                dec.place(tag, A.threshold_detector(thr), f'sd@seg_{seg}_frac_{frac}')
+                dec.place(tag, A.threshold_detector(thr * U.mV), f'sd@seg_{seg}_frac_{frac}')
         return A.cable_cell(nml.morphology, dec, lbl)
 
     def probes(self, _):
         # Example: probe center of the root (likely the soma)
-        return [A.cable_probe_membrane_voltage('(location 0 0.5)')]
+        return [A.cable_probe_membrane_voltage('(location 0 0.5)', 'Um')]
 
-    def global_properties(self, kind):
+    def global_properties(self, _):
         return self.props
 
     def connections_on(self, gid):
@@ -119,11 +130,11 @@ ctx = A.context()
 mdl = recipe(sys.argv[1])
 ddc = A.partition_load_balance(mdl, ctx)
 sim = A.simulation(mdl, ctx, ddc)
-hdl = sim.sample((0, 0), A.regular_schedule(0.1))
+hdl = sim.sample((0, 'Um'), A.regular_schedule(0.1 * U.ms))
 
 print('Running simulation for 1s...')
 t0 = pc()
-sim.run(1000, 0.025)
+sim.run(1000 * U.ms, 0.025 * U.ms)
 t1 = pc()
 print(f'Simulation done, took: {t1-t0:.3f}s')
 

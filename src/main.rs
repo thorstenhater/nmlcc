@@ -13,8 +13,8 @@ use nml2::{
 #[clap(version = "0.4.1-dev", author = "t.hater@fz-juelich.de")]
 struct Cli {
     /// Verbosity level, defaults to 'WARN'.
-    #[clap(short, long, parse(from_occurrences))]
-    verbose: usize,
+    #[clap(short, long, default_value="0", action = clap::ArgAction::Count)]
+    verbose: u8,
     /// Comma separated list of ion species to consider as given. The default is
     /// _Arbor's_ list of ions Calcium Ca 2+, Sodium Na 1+, and Potassium K 1+.
     /// NeuroML2 defaults to just Ca and Na, so if you are trying to port an
@@ -101,7 +101,7 @@ fn set_collector(v: usize) -> std::result::Result<(), tracing::dispatcher::SetGl
 
 fn main() -> Result<()> {
     let opts = Cli::parse();
-    let _g = set_collector(opts.verbose);
+    let _g = set_collector(opts.verbose as usize);
 
     let mut lems = lems::file::LemsFile::core();
 

@@ -281,15 +281,15 @@ where
 impl Sexp for Paintable {
     fn to_sexp(&self) -> String {
         match self {
-            Paintable::Xi(i, v) => format!("(ion-internal-concentration \"{i}\" {v})"),
-            Paintable::Xo(i, v) => format!("(ion-external-concentration \"{i}\" {v})"),
-            Paintable::Er(i, v) => format!("(ion-reversal-potential \"{i}\" {v})"),
+            Paintable::Xi(i, v) => format!("(ion-internal-concentration \"{i}\" {v} (scalar 1))"),
+            Paintable::Xo(i, v) => format!("(ion-external-concentration \"{i}\" {v} (scalar 1))"),
+            Paintable::Er(i, v) => format!("(ion-reversal-potential \"{i}\" {v} (scalar 1))"),
             Paintable::Em(i, v) => {
                 format!("(ion-reversal-potential-method \"{i}\" (mechanism \"{v}/{i}\"))")
             }
-            Paintable::Ra(v) => format!("(axial-resistivity {v})"),
-            Paintable::Vm(v) => format!("(membrane-potential {v})"),
-            Paintable::Cm(v) => format!("(membrane-capacitance {v})"),
+            Paintable::Ra(v) => format!("(axial-resistivity {v} (scalar 1))"),
+            Paintable::Vm(v) => format!("(membrane-potential {v} (scalar 1))"),
+            Paintable::Cm(v) => format!("(membrane-capacitance {v} (scalar 1))"),
             Paintable::Mech(m, gs) => format!("(density (mechanism \"{m}\" {}))", gs.to_sexp()),
             Paintable::NonUniformMech { name: m, ps, ns } => {
                 let ns = ns
@@ -431,7 +431,7 @@ impl Sexp for Vec<Decor> {
     fn to_sexp(&self) -> String {
         let mut result = String::from(
             "(arbor-component
-  (meta-data (version \"0.1-dev\"))
+  (meta-data (version \"0.9-dev\"))
   (decor
 ",
         );

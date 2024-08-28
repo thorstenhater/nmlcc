@@ -163,14 +163,14 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.1-dev\"))
+  (meta-data (version \"0.9-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
-    (default (ion-reversal-potential \"na\" 50))
-    (default (ion-reversal-potential \"k\" -77))
-    (default (membrane-capacitance 0.01))
-    (default (membrane-potential -65))
-    (default (axial-resistivity 29.999999329447746))))
+    (default (ion-reversal-potential \"na\" 50 (scalar 1)))
+    (default (ion-reversal-potential \"k\" -77 (scalar 1)))
+    (default (membrane-capacitance 0.01 (scalar 1)))
+    (default (membrane-potential -65 (scalar 1)))
+    (default (axial-resistivity 29.999999329447746 (scalar 1)))))
 "
     );
     assert_eq!(channels.len(), 1);
@@ -352,14 +352,14 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.1-dev\"))
+  (meta-data (version \"0.9-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
-    (default (ion-reversal-potential \"na\" 50))
-    (default (ion-reversal-potential \"k\" -77))
-    (default (membrane-capacitance 0.01))
-    (default (membrane-potential -65))
-    (default (axial-resistivity 29.999999329447746))))
+    (default (ion-reversal-potential \"na\" 50 (scalar 1)))
+    (default (ion-reversal-potential \"k\" -77 (scalar 1)))
+    (default (membrane-capacitance 0.01 (scalar 1)))
+    (default (membrane-potential -65 (scalar 1)))
+    (default (axial-resistivity 29.999999329447746 (scalar 1)))))
 "
     );
     assert_eq!(channels.len(), 1);
@@ -552,16 +552,16 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.1-dev\"))
+  (meta-data (version \"0.9-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
-    (default (ion-reversal-potential \"na\" 50))
-    (default (ion-reversal-potential \"k\" -77))
-    (default (membrane-capacitance 0.01))
-    (default (membrane-potential -65))
-    (default (axial-resistivity 29.999999329447746))
-    (default (ion-internal-concentration \"ca\" 0.0000500000006675716))
-    (default (ion-external-concentration \"ca\" 1.9999999949504854))
+    (default (ion-reversal-potential \"na\" 50 (scalar 1)))
+    (default (ion-reversal-potential \"k\" -77 (scalar 1)))
+    (default (membrane-capacitance 0.01 (scalar 1)))
+    (default (membrane-potential -65 (scalar 1)))
+    (default (axial-resistivity 29.999999329447746 (scalar 1)))
+    (default (ion-internal-concentration \"ca\" 0.0000500000006675716 (scalar 1)))
+    (default (ion-external-concentration \"ca\" 1.9999999949504854 (scalar 1)))
     (paint (region \"all\") (density (mechanism \"CaDynamics_E2_NML2\" (\"initialConcentration\" 0.0000500000006675716))))))
 "
     );
@@ -740,14 +740,14 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.1-dev\"))
+  (meta-data (version \"0.9-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
-    (default (ion-reversal-potential \"na\" 50))
+    (default (ion-reversal-potential \"na\" 50 (scalar 1)))
     (default (ion-reversal-potential-method \"k\" (mechanism \"nernst/k\")))
-    (default (membrane-capacitance 0.01))
-    (default (membrane-potential -65))
-    (default (axial-resistivity 29.999999329447746))))
+    (default (membrane-capacitance 0.01 (scalar 1)))
+    (default (membrane-potential -65 (scalar 1)))
+    (default (axial-resistivity 29.999999329447746 (scalar 1)))))
 "
     );
     assert_eq!(channels.len(), 1);
