@@ -79,7 +79,6 @@ impl Instance {
             .attribute("type")
             .unwrap_or_else(|| xml.tag_name().name());
         let component_type = lems.compose_component_type(node)?;
-
         let mut attributes = Map::new();
         let mut parameters = Map::new();
 
@@ -602,6 +601,9 @@ impl ComponentType {
                     children.insert(c.name.to_string(), c.r#type.as_ref().unwrap().to_string());
                 }
                 Parameter(p) => {
+                    parameters.push(p.name.to_string());
+                }
+                IndexParameter(p) => {
                     parameters.push(p.name.to_string());
                 }
                 DerivedParameter(p) => {
