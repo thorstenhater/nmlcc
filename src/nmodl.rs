@@ -899,15 +899,16 @@ pub fn to_nmodl(
     known_ions: &[String],
 ) -> Result<String> {
     let ty: &str = instance.component_type.name.as_ref();
+    let gj_types = ["silentSynapse", "gapJunction", "gradedSynapse", "linearGradedSynapse"];
     match base {
         "baseSynapse" => {
-            if ty == "gapJunction" {
+            if gj_types.contains(&ty) {
                 let mut filter = filter.to_string();
                 let mut instance = instance.clone();
                 if !filter.is_empty() {
                     filter.push(',');
                 }
-                filter.push_str("+weight,+conductance");
+                filter.push_str("+weight,+conductance,+i");
                 // Gap Junctions need peer voltage, which is provided by Arbor
                 instance
                     .component_type
@@ -920,7 +921,11 @@ pub fn to_nmodl(
                 // We know that we must write `i` and that it is in the variables
                 if let Some((k, v)) = n.variables.remove_entry("i") {
                     n.outputs.insert(k, v);
-                } else {
+                }
+                else if let Some((k, v)) = n.fixed.remove_entry("i") {
+                    n.outputs.insert(k, Stmnt::Ass(String::from("i"), v));
+                }
+                else {
                     return Err(nmodl_error("Gap Junction without defined current 'i'"));
                 }
                 n.kind = Kind::Junction;
