@@ -530,7 +530,7 @@ fn main() -> Result<()> {
     let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
 
     let nm = format!(
-        "{}/ext/NeuroML2/Schemas/NeuroML2/NeuroML_v2.2.xsd",
+        "{}/ext/NeuroML2/Schemas/NeuroML2/NeuroML_v2.3.1.xsd",
         cwd.to_string_lossy()
     );
     let xml = std::fs::read_to_string(nm).map_err(|e| e.to_string())?;
