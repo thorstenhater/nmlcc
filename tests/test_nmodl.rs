@@ -110,7 +110,7 @@ fn simple_gap_junction() {
     assert_eq!(
         to_nmodl(&inst, "-*", "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
-  JUNCTION gj1
+  JUNCTION_PROCESS gj1
   NONSPECIFIC_CURRENT i
   RANGE conductance, weight
 }
@@ -129,7 +129,7 @@ BREAKPOINT {
     assert_eq!(
         to_nmodl(&inst, "+*", "baseSynapse", &ions()).unwrap(),
         r#"NEURON {
-  JUNCTION gj1
+  JUNCTION_PROCESS gj1
   NONSPECIFIC_CURRENT i
   RANGE conductance, weight
 }

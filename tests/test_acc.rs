@@ -163,7 +163,7 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.9-dev\"))
+  (meta-data (version \"0.10-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
     (default (ion-reversal-potential \"na\" 50 (scalar 1)))
@@ -352,7 +352,7 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.9-dev\"))
+  (meta-data (version \"0.10-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
     (default (ion-reversal-potential \"na\" 50 (scalar 1)))
@@ -552,7 +552,7 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.9-dev\"))
+  (meta-data (version \"0.10-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
     (default (ion-reversal-potential \"na\" 50 (scalar 1)))
@@ -740,7 +740,7 @@ r#"<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
     assert_eq!(
         decor.to_sexp(),
         "(arbor-component
-  (meta-data (version \"0.9-dev\"))
+  (meta-data (version \"0.10-dev\"))
   (decor
     (paint (region \"all\") (density (mechanism \"cell_all\" )))
     (default (ion-reversal-potential \"na\" 50 (scalar 1)))

@@ -234,6 +234,13 @@ impl LemsFile {
                     result.variables.push(p.clone());
                 }
             }
+
+            for (k, v) in &ty.references {
+                if !result.references.contains_key(k) {
+                    result.references.insert(k.clone(), v.clone());
+                }
+            }
+            
             base = ty.base.as_ref();
         }
         Ok(result)

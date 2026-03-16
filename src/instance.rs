@@ -4,7 +4,7 @@ use tracing::{info, trace, warn};
 use crate::{
     error::{Error, Result},
     expr::{Boolean, Expr, Match, Quantity, Select},
-    lems, nml2_error,
+    lems::{self, raw::{EventConnection, StructureBody}}, nml2_error,
     variable::{SelectBy, VarKind, Variable},
     Map, Set,
 };
@@ -71,6 +71,7 @@ pub struct Instance {
     pub id: Option<String>,
     pub parameters: Map<String, Quantity>,
     pub attributes: Map<String, String>,
+    pub references: Map<String, String>,
 }
 
 impl Instance {
@@ -81,18 +82,22 @@ impl Instance {
         let component_type = lems.compose_component_type(node)?;
         let mut attributes = Map::new();
         let mut parameters = Map::new();
+        let mut references = Map::new();
 
         for attr in xml.attributes() {
             let key = attr.name().to_string();
             let val = attr.value();
             if component_type.parameters.contains(&key) {
-                parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
+                parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?); 
+            } else if component_type.references.contains_key(&key) {
+                references.insert(key, val.to_string());
             } else if component_type.attributes.contains(&key)
-                || component_type.links.contains_key(&key)
+                   || component_type.links.contains_key(&key)
             {
                 attributes.insert(key, val.to_string());
             } else if "id" == key || "type" == key {
             } else {
+                eprintln!("{component_type:?}");
                 return Err(nml2_error!(
                     "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
                     key,
@@ -101,6 +106,7 @@ impl Instance {
                 ));
             }
         }
+        
         let id = xml.attribute("id").map(|s| s.to_string());
         let mut children = Map::new();
         let mut child = Map::new();
@@ -135,6 +141,7 @@ impl Instance {
             id,
             parameters,
             attributes,
+            references
         })
     }
 }
@@ -326,7 +333,7 @@ impl Collapsed {
         result.events = ct
             .events
             .iter()
-            .map(|(k, v)| (ctx.add_prefix(k), v.clone()))
+            .map(|(k, v)| (ctx.add_prefix(k), ctx.rename_expr(v)))
             .collect();
         result.constants = ct
             .constants
@@ -566,6 +573,8 @@ pub struct ComponentType {
     /// Linked components
     pub links: Map<String, String>,
     /// Linked components
+    pub references: Map<String, String>,    
+    /// Kinetic scheme dynamics
     pub kinetic: Vec<Kinetic>,
 }
 
@@ -584,12 +593,40 @@ impl ComponentType {
         let mut events = Vec::new();
         let mut kinetic = Vec::new();
         let mut links = Map::new();
+        let mut references = Map::new();
 
         for ix in &ct.body {
             use lems::raw::ComponentTypeBody::*;
             match ix {
                 ComponentReference(c) => {
-                    attributes.push(c.name.to_string());
+                    references.insert(c.name.to_string(), c.r#type.to_string());
+                }
+                Structure(lems::raw::Structure{ body }) => {
+                    for item in body {
+                        match item {
+                            StructureBody::MultiInstantiate(lems::raw::MultiInstantiate{ number, component }) => {
+                                attributes.push(component.to_string());
+                                attributes.push(number.to_string());
+                            }
+                            StructureBody::ChildInstance(lems::raw::ChildInstance { component }) => {
+                                attributes.push(component.to_string());
+                                eprintln!("ChildInstance {component:?} in {name}");
+                            }
+                            StructureBody::With(_) => {
+                                info!("Ignoring With in component type {name} (we are usually handling this explicitly elsewhere.)");
+                            }
+                            StructureBody::EventConnection(_) => {
+                                info!("Ignoring EventConnection in component type {name} (we are usually handling this explicitly elsewhere.)");
+                            }
+                            StructureBody::Tunnel(_) => {
+                                info!("Ignoring Tunnel in component type {name} (we are usually handling this explicitly elsewhere.)");
+                            }
+                            StructureBody::ForEach(_) => {
+                                info!("Ignoring ForEach in component type {name} (we are usually handling this explicitly elsewhere.)");
+                                todo!()
+                            }
+                        }
+                    }
                 }
                 Path(c) => {
                     attributes.push(c.name.to_string());
@@ -647,7 +684,7 @@ impl ComponentType {
         }
 
         trace!("Type {} children={:?} child={:?}", name, children, child);
-
+        
         Ok(Self {
             name,
             base,
@@ -661,6 +698,7 @@ impl ComponentType {
             attributes,
             events,
             links,
+            references,
             kinetic,
         })
     }

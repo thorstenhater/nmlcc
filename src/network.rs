@@ -117,7 +117,7 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
         let ty = inp.component_type.name.as_str();
         match ty {
             "inputList" => {
-                let source = inp.attributes.get("component").unwrap().to_string();
+                let source = inp.references.get("component").unwrap().to_string();
                 if let Some(xs) = inp.children.get("inputs") {
                     for x in xs {
                         let attr = &x.attributes;
@@ -152,7 +152,7 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
                     .ok_or_else(|| nml2_error!("No target in explicitInput."))?
                     .to_string();
                 let source = inp
-                    .attributes
+                    .references
                     .get("input")
                     .ok_or_else(|| nml2_error!("No input in explicitInput."))?
                     .to_string();
@@ -208,7 +208,7 @@ fn get_populations(pops: &[Instance]) -> Result<Map<String, Population>> {
             }
         };
         let component = pop
-            .attributes
+            .references
             .get("component")
             .ok_or_else(|| nml2_error!("Population {} without component", id))?
             .to_string();
