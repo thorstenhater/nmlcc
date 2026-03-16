@@ -97,7 +97,6 @@ impl Instance {
                 attributes.insert(key, val.to_string());
             } else if "id" == key || "type" == key {
             } else {
-                eprintln!("{component_type:?}");
                 return Err(nml2_error!(
                     "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
                     key,
@@ -610,7 +609,6 @@ impl ComponentType {
                             }
                             StructureBody::ChildInstance(lems::raw::ChildInstance { component }) => {
                                 attributes.push(component.to_string());
-                                eprintln!("ChildInstance {component:?} in {name}");
                             }
                             StructureBody::With(_) => {
                                 info!("Ignoring With in component type {name} (we are usually handling this explicitly elsewhere.)");

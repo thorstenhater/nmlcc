@@ -554,12 +554,10 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
         vars.insert(var.clone(), vec![stmnt.clone()]);
     }
     for (k, vs) in &n.conditions {
-        eprintln!("{k} {vs:?}");
         for v in vs {
             vars.entry(k.to_string()).or_default().push(v.clone());
         }
     }
-    // eprintln!("{vars:?}");
     let roots = n.outputs.keys()
         .chain(n.state.iter()) // technically, we can tweak state here ...
         .cloned()
@@ -570,7 +568,6 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
         .map(|s| s.print_to_string(2))
         .collect::<Vec<String>>()
         .join("\n");
-    eprint!("BREAK");
     let deps = print_dependency_chains(&roots, &vars, &n.symbols)?;
     if !deps.is_empty() {
         result.push(deps);
@@ -884,7 +881,6 @@ fn print_dependency_chains(
         result.push(format!("  LOCAL {}\n", deps.join(", ")));
     }
     
-    eprintln!("DEPS {deps:?}");
     for d in deps {
         if let Some(ss) = vars.get(&d) {
             for s in ss {
@@ -925,13 +921,12 @@ pub fn to_nmodl(
             if !filter.is_empty() {
                 filter.push(',');
             }
-            filter.push_str("+conductance,+i");
+            filter.push_str("+weight,+conductance,+i");
             // Gap Junctions need peer voltage, which is provided by Arbor
             instance
                 .component_type
                 .variables
                 .retain(|v| v.name != "vpeer");
-            eprintln!("{instance:?}");
             let mut coll = Collapsed::from_instance(&instance)?;
             coll.parameters
                 .insert(String::from("weight"), Some(Quantity::parse("1")?));
