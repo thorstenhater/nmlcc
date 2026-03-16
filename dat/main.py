@@ -77,7 +77,7 @@ class recipe(A.recipe):
         lbl = nml.labels
         lbl['all'] = '(all)'
         dec = A.load_component(f'{here}/acc/{cid}.acc').component
-        dec.discretization(A.cv_policy_every_segment())
+        
         if gid in self.gid_to_inputs:
             for seg, frac, inp in self.gid_to_inputs[gid]:
                 tag = f'(on-components {frac} (region \"{seg}\"))'
@@ -92,7 +92,7 @@ class recipe(A.recipe):
             for seg, frac, thr in self.gid_to_detectors[gid]:
                 tag = f'(on-components {frac} (region \"{seg}\"))'
                 dec.place(tag, A.threshold_detector(thr * U.mV), f'sd@seg_{seg}_frac_{frac}')
-        return A.cable_cell(nml.morphology, dec, lbl)
+        return A.cable_cell(nml.morphology, dec, lbl, A.cv_policy_every_segment())
 
     def probes(self, _):
         # Example: probe center of the root (likely the soma)

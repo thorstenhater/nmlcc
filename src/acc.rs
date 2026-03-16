@@ -431,7 +431,7 @@ impl Sexp for Vec<Decor> {
     fn to_sexp(&self) -> String {
         let mut result = String::from(
             "(arbor-component
-  (meta-data (version \"0.9-dev\"))
+  (meta-data (version \"0.10-dev\"))
   (decor
 ",
         );
