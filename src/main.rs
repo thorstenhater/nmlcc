@@ -116,9 +116,9 @@ fn main() -> Result<()> {
             py,
         } => {
             get_runtime_types(&mut lems, &[nml.to_string()])?;
-            bundle::export(
+            if let Err(err) = bundle::export(
                 &lems,
-                &[nml],
+                &[nml.clone()],
                 &ions[..],
                 bundle::Bundle {
                     dir,
@@ -127,7 +127,19 @@ fn main() -> Result<()> {
                     super_mechanisms,
                     cat_prefix,
                 },
-            )?;
+            ) {
+                println!("Error while generating bundle for nml-file: '{nml}':");
+                match err {
+                    nml2::error::Error::Io { source } => println!(" * I/O error: {source}"),
+                    nml2::error::Error::Xml { source } => println!(" * XML internal error: {source}"),
+                    nml2::error::Error::Nmodl { what } => println!(" * Error generating NMODL: {what}"),
+                    nml2::error::Error::Acc { what } => println!(" * Error generating ACC: {what}"),
+                    nml2::error::Error::Unit { what } => println!(" * Mismatched unit: {what}"),
+                    nml2::error::Error::Nml { what } => println!(" * Mishapen NML2 file: {what}"),
+                    nml2::error::Error::Lems { what } => println!(" * Mishapen LEMS file: {what}"),
+                    nml2::error::Error::Parse { what } => println!(" * Could not parse expression: {what}"),
+                }
+            }
         }
     }
     Ok(())

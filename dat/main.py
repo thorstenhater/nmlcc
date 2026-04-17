@@ -16,8 +16,8 @@ here = Path(__file__).parent
 ver = re.match(r"(\d+)\.(\d+)\.(\d+)(-\w+)?", A.__version__)
 if ver:
     mj, mn, pt, sf = ver.groups()
-    assert 10000 <= (int(mj) * 1000 + int(mn)) * 1000 + int(pt) <= 11000, (
-        f"Arbor version 0.10.x is required, got {A.__version__}."
+    assert 12000 <= (int(mj) * 1000 + int(mn)) * 1000 + int(pt) <= 13000, (
+        f"Arbor version 0.12.x is required, got {A.__version__}."
     )
 else:
     print(f"Couldn't parse version {A.__version__}")
@@ -90,8 +90,7 @@ class recipe(A.recipe):
                     lag, dur, amp = self.i_clamps[inp]
                     dec.place(
                         tag,
-                        A.iclamp(lag * U.ms, dur * U.ms, amp * U.nA),
-                        f"ic_{inp}@seg_{seg}_frac_{frac}",
+                        A.i_clamp(lag * U.ms, dur * U.ms, amp * U.nA),
                     )
         if gid in self.gid_to_synapses:
             for seg, frac, syn in self.gid_to_synapses[gid]:

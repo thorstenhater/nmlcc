@@ -198,6 +198,7 @@ impl LemsFile {
     /// while later (='more derived') items take precedence.
     pub fn compose_component_type(&self, id: &str) -> Result<ComponentType> {
         let mut result = self.types.get(id).ok_or_else(|| type_error(id))?.clone();
+        eprintln!("ty: {result:?}");
         let mut base = result.base.as_ref();
         while let Some(id) = base {
             let ty = self.types.get(id).ok_or_else(|| type_error(id))?;
@@ -240,7 +241,7 @@ impl LemsFile {
                     result.references.insert(k.clone(), v.clone());
                 }
             }
-            
+
             base = ty.base.as_ref();
         }
         Ok(result)

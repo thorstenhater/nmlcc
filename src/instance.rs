@@ -4,7 +4,8 @@ use tracing::{info, trace, warn};
 use crate::{
     error::{Error, Result},
     expr::{Boolean, Expr, Match, Quantity, Select},
-    lems::{self, raw::{EventConnection, StructureBody}}, nml2_error,
+    lems::{self, raw::StructureBody},
+    nml2_error,
     variable::{SelectBy, VarKind, Variable},
     Map, Set,
 };
@@ -80,6 +81,7 @@ impl Instance {
             .attribute("type")
             .unwrap_or_else(|| xml.tag_name().name());
         let component_type = lems.compose_component_type(node)?;
+        eprintln!("ct: {component_type:?}");
         let mut attributes = Map::new();
         let mut parameters = Map::new();
         let mut references = Map::new();
@@ -88,24 +90,30 @@ impl Instance {
             let key = attr.name().to_string();
             let val = attr.value();
             if component_type.parameters.contains(&key) {
-                parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?); 
+                parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
             } else if component_type.references.contains_key(&key) {
                 references.insert(key, val.to_string());
             } else if component_type.attributes.contains(&key)
-                   || component_type.links.contains_key(&key)
+                || component_type.links.contains_key(&key)
             {
                 attributes.insert(key, val.to_string());
             } else if "id" == key || "type" == key {
             } else {
                 return Err(nml2_error!(
-                    "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
+                    "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}; allowed are:
+ * parameters {:?}
+ * references {:?}
+ * attributes {:?}",
                     key,
                     val,
-                    node
+                    node,
+                    component_type.parameters,
+                    component_type.references,
+                    component_type.attributes
                 ));
             }
         }
-        
+
         let id = xml.attribute("id").map(|s| s.to_string());
         let mut children = Map::new();
         let mut child = Map::new();
@@ -140,7 +148,7 @@ impl Instance {
             id,
             parameters,
             attributes,
-            references
+            references,
         })
     }
 }
@@ -572,7 +580,7 @@ pub struct ComponentType {
     /// Linked components
     pub links: Map<String, String>,
     /// Linked components
-    pub references: Map<String, String>,    
+    pub references: Map<String, String>,
     /// Kinetic scheme dynamics
     pub kinetic: Vec<Kinetic>,
 }
@@ -600,14 +608,19 @@ impl ComponentType {
                 ComponentReference(c) => {
                     references.insert(c.name.to_string(), c.r#type.to_string());
                 }
-                Structure(lems::raw::Structure{ body }) => {
+                Structure(lems::raw::Structure { body }) => {
                     for item in body {
                         match item {
-                            StructureBody::MultiInstantiate(lems::raw::MultiInstantiate{ number, component }) => {
+                            StructureBody::MultiInstantiate(lems::raw::MultiInstantiate {
+                                number,
+                                component,
+                            }) => {
                                 attributes.push(component.to_string());
                                 attributes.push(number.to_string());
                             }
-                            StructureBody::ChildInstance(lems::raw::ChildInstance { component }) => {
+                            StructureBody::ChildInstance(lems::raw::ChildInstance {
+                                component,
+                            }) => {
                                 attributes.push(component.to_string());
                             }
                             StructureBody::With(_) => {
@@ -615,6 +628,7 @@ impl ComponentType {
                             }
                             StructureBody::EventConnection(_) => {
                                 info!("Ignoring EventConnection in component type {name} (we are usually handling this explicitly elsewhere.)");
+                                
                             }
                             StructureBody::Tunnel(_) => {
                                 info!("Ignoring Tunnel in component type {name} (we are usually handling this explicitly elsewhere.)");
@@ -677,12 +691,12 @@ impl ComponentType {
                 Fixed(t) => {
                     constants.insert(t.parameter.to_string(), Quantity::parse(&t.value)?);
                 }
-                b => trace!("Ignoring {:?}", b),
+                b => warn!("In {name}: ignoring {:?}", b),
             }
         }
 
         trace!("Type {} children={:?} child={:?}", name, children, child);
-        
+
         Ok(Self {
             name,
             base,

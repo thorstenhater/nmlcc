@@ -547,7 +547,7 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
     }
 
     let mut vars: Map<String, Vec<Stmnt>> = Map::new();
-    for (var, stmnt)  in &n.variables {
+    for (var, stmnt) in &n.variables {
         vars.insert(var.clone(), vec![stmnt.clone()]);
     }
     for (var, stmnt) in &n.outputs {
@@ -558,7 +558,9 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
             vars.entry(k.to_string()).or_default().push(v.clone());
         }
     }
-    let roots = n.outputs.keys()
+    let roots = n
+        .outputs
+        .keys()
         .chain(n.state.iter()) // technically, we can tweak state here ...
         .cloned()
         .collect::<Vec<String>>();
@@ -880,7 +882,7 @@ fn print_dependency_chains(
     if !deps.is_empty() {
         result.push(format!("  LOCAL {}\n", deps.join(", ")));
     }
-    
+
     for d in deps {
         if let Some(ss) = vars.get(&d) {
             for s in ss {
@@ -913,7 +915,12 @@ pub fn to_nmodl(
     known_ions: &[String],
 ) -> Result<String> {
     let ty: &str = instance.component_type.name.as_ref();
-    let gj_types = ["silentSynapse", "gapJunction", "gradedSynapse", "linearGradedSynapse"];
+    let gj_types = [
+        "silentSynapse",
+        "gapJunction",
+        "gradedSynapse",
+        "linearGradedSynapse",
+    ];
     match base {
         "baseSynapse" if gj_types.contains(&ty) => {
             let mut filter = filter.to_string();
@@ -1172,7 +1179,7 @@ pub fn export(
     let tys = vec!["baseIonChannel", "baseSynapse", "concentrationModel"];
 
     let mut instances = Map::new();
-    
+
     process_files(nml, |_, node| {
         let tag = node.tag_name().name();
         for ty in &tys {
@@ -1183,8 +1190,11 @@ pub fn export(
                 }
                 for (k, v) in &instance.references {
                     // find already defined instances
-                    let mut child = instances.get(v)
-                        .ok_or_else(|| nml2_error!("Unable to find referenced item {k} in {:?}", instance.id))?
+                    let mut child = instances
+                        .get(v)
+                        .ok_or_else(|| {
+                            nml2_error!("Unable to find referenced item {k} in {:?}", instance.id)
+                        })?
                         .clone();
                     // rename to maintain child relation
                     child.id = Some(k.to_string());
@@ -1230,13 +1240,16 @@ mod test {
     fn if_then_else(v: &str, i: &str, t: &str) -> Result<(String, Vec<Stmnt>)> {
         let i = Boolean::parse(i)?;
         let t = Expr::parse(t)?;
-        Ok((v.to_string(),
-            vec![Stmnt::Ift(i,
-                            Box::new(Stmnt::Ass(v.to_string(), t)),
-                            Box::new(None))]))
+        Ok((
+            v.to_string(),
+            vec![Stmnt::Ift(
+                i,
+                Box::new(Stmnt::Ass(v.to_string(), t)),
+                Box::new(None),
+            )],
+        ))
     }
 
-    
     #[test]
     fn test_dependencies() {
         assert!(find_dependencies(&Map::new()).is_empty());
@@ -1264,5 +1277,5 @@ mod test {
             .into_iter()
             .collect::<Set<_>>();
         assert_eq!(find_dependencies(&ds).get("x"), Some(&vs));
-    }    
+    }
 }

@@ -253,7 +253,7 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
             .ok_or_else(|| nml2_error!("No presynaptic in projection '{}'.", id))?
             .to_string();
         let synapse = prj
-            .attributes
+            .references
             .get("synapse")
             .ok_or_else(|| nml2_error!("No synapse in projection '{}'.", id))?
             .to_string();
