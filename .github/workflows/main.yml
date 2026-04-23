@@ -50,7 +50,7 @@ jobs:
           submodules: recursive
       - uses: actions-rs/toolchain@v1
         with:
-          profile: stable
+          profile: minimal
           toolchain: stable
           override: true
       - run: rustup component add rustfmt
