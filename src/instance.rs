@@ -81,7 +81,6 @@ impl Instance {
             .attribute("type")
             .unwrap_or_else(|| xml.tag_name().name());
         let component_type = lems.compose_component_type(node)?;
-        eprintln!("ct: {component_type:?}");
         let mut attributes = Map::new();
         let mut parameters = Map::new();
         let mut references = Map::new();
