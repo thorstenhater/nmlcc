@@ -1,14 +1,14 @@
 use tracing::trace;
 
 use super::{
-    raw::{Dimension, Unit},
     Lems,
+    raw::{Dimension, Unit},
 };
 use crate::{
+    Map,
     error::{Error, Result},
     expr::Quantity,
     instance::ComponentType,
-    Map,
 };
 use std::convert::TryInto;
 
@@ -198,6 +198,7 @@ impl LemsFile {
     /// while later (='more derived') items take precedence.
     pub fn compose_component_type(&self, id: &str) -> Result<ComponentType> {
         let mut result = self.types.get(id).ok_or_else(|| type_error(id))?.clone();
+        eprintln!("ty: {result:?}");
         let mut base = result.base.as_ref();
         while let Some(id) = base {
             let ty = self.types.get(id).ok_or_else(|| type_error(id))?;
@@ -234,6 +235,13 @@ impl LemsFile {
                     result.variables.push(p.clone());
                 }
             }
+
+            for (k, v) in &ty.references {
+                if !result.references.contains_key(k) {
+                    result.references.insert(k.clone(), v.clone());
+                }
+            }
+
             base = ty.base.as_ref();
         }
         Ok(result)

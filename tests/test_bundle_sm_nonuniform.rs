@@ -1,4 +1,4 @@
-use nml2::{bundle::ion_channel_assignments, lems::file::LemsFile, xml::XML, Map};
+use nml2::{Map, bundle::ion_channel_assignments, lems::file::LemsFile, xml::XML};
 use roxmltree::Document;
 
 #[test]

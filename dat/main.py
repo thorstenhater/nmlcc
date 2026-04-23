@@ -16,9 +16,9 @@ here = Path(__file__).parent
 ver = re.match(r"(\d+)\.(\d+)\.(\d+)(-\w+)?", A.__version__)
 if ver:
     mj, mn, pt, sf = ver.groups()
-    assert (
-        10000 <= (int(mj) * 1000 + int(mn)) * 1000 + int(pt) <= 11000
-    ), f"Arbor version 0.10.x is required, got {A.__version__}."
+    assert 12000 <= (int(mj) * 1000 + int(mn)) * 1000 + int(pt) <= 13000, (
+        f"Arbor version 0.12.x is required, got {A.__version__}."
+    )
 else:
     print(f"Couldn't parse version {A.__version__}")
     exit(-42)
@@ -26,11 +26,11 @@ else:
 
 def compile(here):
     here = here.resolve()
-    fn   = here / 'local-catalogue.so'
-    cat  = here / 'cat'
+    fn = here / "local-catalogue.so"
+    cat = here / "cat"
     recompile = False
     if fn.exists():
-        for src in cat.glob('*.mod'):
+        for src in cat.glob("*.mod"):
             src = Path(src).resolve()
             if src.stat().st_mtime > fn.stat().st_mtime:
                 recompile = True
@@ -38,31 +38,34 @@ def compile(here):
     else:
         recompile = True
     if recompile:
-        sp.run(f'arbor-build-catalogue local {cat}', shell=True, check=True)
+        sp.run(f"arbor-build-catalogue local {cat}", shell=True, check=True)
     return A.load_catalogue(fn)
+
 
 class recipe(A.recipe):
     def __init__(self, network):
         A.recipe.__init__(self)
         self.seed = 42
-        self.prefix = 'local_'
+        self.prefix = "local_"
         self.props = A.neuron_cable_properties()
         cat = compile(here)
         self.props.catalogue.extend(cat, self.prefix)
 
-        with open((here / network).with_suffix('.json')) as fd:
+        with open((here / network).with_suffix(".json")) as fd:
             data = json.load(fd)
 
-        self.gid_to_cell = data['gid_to_cell']
-        self.gid_to_inputs = { int(k): v for k, v in data['gid_to_inputs'].items() }
-        self.gid_to_synapses = { int(k): v for k, v in data['gid_to_synapses'].items() }
-        self.gid_to_detectors = { int(k): v for k, v in data['gid_to_detectors'].items() }
-        self.gid_to_connections = { int(k): v for k, v in data['gid_to_connections'].items() }
-        self.cell_to_morph = data['cell_to_morph']
-        self.i_clamps = data['i_clamps']
-        self.poisson_generators = data['poisson_generators']
-        self.regular_generators = data['regular_generators']
-        self.count = data['count']
+        self.gid_to_cell = data["gid_to_cell"]
+        self.gid_to_inputs = {int(k): v for k, v in data["gid_to_inputs"].items()}
+        self.gid_to_synapses = {int(k): v for k, v in data["gid_to_synapses"].items()}
+        self.gid_to_detectors = {int(k): v for k, v in data["gid_to_detectors"].items()}
+        self.gid_to_connections = {
+            int(k): v for k, v in data["gid_to_connections"].items()
+        }
+        self.cell_to_morph = data["cell_to_morph"]
+        self.i_clamps = data["i_clamps"]
+        self.poisson_generators = data["poisson_generators"]
+        self.regular_generators = data["regular_generators"]
+        self.count = data["count"]
 
     def num_cells(self):
         return self.count
@@ -73,30 +76,41 @@ class recipe(A.recipe):
     def cell_description(self, gid):
         cid = self.gid_to_cell[gid]
         mrf = self.cell_to_morph[cid]
-        nml = A.neuroml(f'{here}/mrf/{mrf}.nml').morphology(mrf, allow_spherical_root=True)
+        nml = A.neuroml(f"{here}/mrf/{mrf}.nml").morphology(
+            mrf, allow_spherical_root=True
+        )
         lbl = nml.labels
-        lbl['all'] = '(all)'
-        dec = A.load_component(f'{here}/acc/{cid}.acc').component
-        dec.discretization(A.cv_policy_every_segment())
+        lbl["all"] = "(all)"
+        dec = A.load_component(f"{here}/acc/{cid}.acc").component
+
         if gid in self.gid_to_inputs:
             for seg, frac, inp in self.gid_to_inputs[gid]:
-                tag = f'(on-components {frac} (region \"{seg}\"))'
+                tag = f'(on-components {frac} (region "{seg}"))'
                 if inp in self.i_clamps:
                     lag, dur, amp = self.i_clamps[inp]
-                    dec.place(tag, A.iclamp(lag * U.ms, dur * U.ms, amp * U.nA), f'ic_{inp}@seg_{seg}_frac_{frac}')
+                    dec.place(
+                        tag,
+                        A.i_clamp(lag * U.ms, dur * U.ms, amp * U.nA),
+                    )
         if gid in self.gid_to_synapses:
             for seg, frac, syn in self.gid_to_synapses[gid]:
-                tag = f'(on-components {frac} (region \"{seg}\"))'
-                dec.place(tag, A.synapse(self.prefix + syn), f'syn_{syn}@seg_{seg}_frac_{frac}')
+                tag = f'(on-components {frac} (region "{seg}"))'
+                dec.place(
+                    tag,
+                    A.synapse(self.prefix + syn),
+                    f"syn_{syn}@seg_{seg}_frac_{frac}",
+                )
         if gid in self.gid_to_detectors:
             for seg, frac, thr in self.gid_to_detectors[gid]:
-                tag = f'(on-components {frac} (region \"{seg}\"))'
-                dec.place(tag, A.threshold_detector(thr * U.mV), f'sd@seg_{seg}_frac_{frac}')
-        return A.cable_cell(nml.morphology, dec, lbl)
+                tag = f'(on-components {frac} (region "{seg}"))'
+                dec.place(
+                    tag, A.threshold_detector(thr * U.mV), f"sd@seg_{seg}_frac_{frac}"
+                )
+        return A.cable_cell(nml.morphology, dec, lbl, A.cv_policy_every_segment())
 
     def probes(self, _):
         # Example: probe center of the root (likely the soma)
-        return [A.cable_probe_membrane_voltage('(location 0 0.5)', 'Um')]
+        return [A.cable_probe_membrane_voltage("(location 0 0.5)", "Um")]
 
     def global_properties(self, _):
         return self.props
@@ -105,7 +119,17 @@ class recipe(A.recipe):
         res = []
         if gid in self.gid_to_connections:
             for src, dec, syn, loc, w, d in self.gid_to_connections[gid]:
-                conn = A.connection((src, A.cell_local_label(f'sd@{dec}', A.selection_policy.round_robin)), A.cell_local_label(f'syn_{syn}@{loc}', A.selection_policy.round_robin), w, d)
+                conn = A.connection(
+                    (
+                        src,
+                        A.cell_local_label(f"sd@{dec}", A.selection_policy.round_robin),
+                    ),
+                    A.cell_local_label(
+                        f"syn_{syn}@{loc}", A.selection_policy.round_robin
+                    ),
+                    w,
+                    d,
+                )
                 res.append(conn)
         return res
 
@@ -115,37 +139,46 @@ class recipe(A.recipe):
             for seg, frac, inp in self.gid_to_inputs[gid]:
                 if inp in self.poisson_generators:
                     syn, avg, wgt = self.poisson_generators[inp]
-                    res.append(A.event_generator(f'syn_{syn}@seg_{seg}_frac_{frac}', wgt, A.poisson_schedule(0, avg, gid)))
+                    res.append(
+                        A.event_generator(
+                            f"syn_{syn}@seg_{seg}_frac_{frac}",
+                            wgt,
+                            A.poisson_schedule(0, avg, gid),
+                        )
+                    )
                 elif inp in self.regular_generators:
                     raise NotImplementedError()
                 else:
                     pass
         return res
 
+
 if len(sys.argv) != 2:
-    print('Usage: main.py <network-name>')
+    print("Usage: main.py <network-name>")
     exit(-42)
 
 ctx = A.context()
 mdl = recipe(sys.argv[1])
 ddc = A.partition_load_balance(mdl, ctx)
 sim = A.simulation(mdl, ctx, ddc)
-hdl = sim.sample((0, 'Um'), A.regular_schedule(0.1 * U.ms))
+hdl = sim.sample((0, "Um"), A.regular_schedule(0.1 * U.ms))
 
-print('Running simulation for 1s...')
+print("Running simulation for 1s...")
 t0 = pc()
 sim.run(1000 * U.ms, 0.025 * U.ms)
 t1 = pc()
-print(f'Simulation done, took: {t1-t0:.3f}s')
+print(f"Simulation done, took: {t1 - t0:.3f}s")
 
-print('Trying to plot...')
+print("Trying to plot...")
 try:
-  import pandas as pd
-  import seaborn as sns
+    import pandas as pd
+    import seaborn as sns
 
-  for data, meta in sim.samples(hdl):
-    df = pd.DataFrame({'t/ms': data[:, 0], 'U/mV': data[:, 1]})
-    sns.relplot(data=df, kind='line', x='t/ms', y='U/mV', ci=None).savefig('result.pdf')
-  print('Ok')
+    for data, meta in sim.samples(hdl):
+        df = pd.DataFrame({"t/ms": data[:, 0], "U/mV": data[:, 1]})
+        sns.relplot(data=df, kind="line", x="t/ms", y="U/mV", ci=None).savefig(
+            "result.pdf"
+        )
+    print("Ok")
 except:
-  print('Failure, are seaborn and matplotlib installed?')
+    print("Failure, are seaborn and matplotlib installed?")

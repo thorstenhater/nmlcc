@@ -4,6 +4,7 @@ use tracing::{info, trace, warn};
 
 use crate::expr::{self, Boolean};
 use crate::{
+    Map, Set,
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Instance},
@@ -11,7 +12,6 @@ use crate::{
     neuroml::process_files,
     nml2_error,
     variable::VarKind,
-    Map, Set,
 };
 
 fn nmodl_error<T: Into<String>>(what: T) -> Error {
@@ -419,7 +419,7 @@ impl Nmodl {
 
 pub fn mk_nmodl(n: Nmodl) -> Result<String> {
     let n = &n.simplify();
-    Ok(vec![
+    Ok([
         nmodl_neuron_block(n)?,
         nmodl_const_block(n)?,
         nmodl_param_block(n)?,
@@ -452,7 +452,7 @@ fn nmodl_init_block(n: &Nmodl) -> Result<String> {
         .variables
         .iter()
         .chain(n.init.iter())
-        .map(|(a, b)| (a.clone(), b.clone()))
+        .map(|(a, b)| (a.clone(), vec![b.clone()]))
         .collect();
     let roots = n.init.keys().cloned().collect::<Vec<String>>();
     let init = n
@@ -490,7 +490,7 @@ fn nmodl_recv_block(n: &Nmodl) -> Result<String> {
         .variables
         .iter()
         .chain(n.events.iter())
-        .map(|(a, b)| (a.clone(), b.clone()))
+        .map(|(a, b)| (a.clone(), vec![b.clone()]))
         .collect();
     let roots = n.events.keys().cloned().collect::<Vec<_>>();
     let syms = n
@@ -518,8 +518,8 @@ fn nmodl_deriv_block(n: &Nmodl) -> Result<String> {
         .variables
         .iter()
         .chain(n.deriv.iter())
-        .map(|(a, b)| (a.clone(), b.clone()))
-        .collect::<Map<String, Stmnt>>();
+        .map(|(a, b)| (a.clone(), vec![b.clone()]))
+        .collect::<Map<String, Vec<Stmnt>>>();
     let mut result = String::from("DERIVATIVE dstate {\n");
     let ls = print_dependency_chains(&roots, &vars, &n.symbols)?;
     if !ls.is_empty() {
@@ -546,13 +546,24 @@ fn nmodl_break_block(n: &Nmodl) -> Result<String> {
         result.push(String::from("  SOLVE scheme METHOD sparse"));
     }
 
-    let vars = n
-        .variables
-        .iter()
-        .chain(n.outputs.iter())
-        .map(|(a, b)| (a.clone(), b.clone()))
-        .collect::<Map<String, Stmnt>>();
-    let roots = n.outputs.keys().cloned().collect::<Vec<String>>();
+    let mut vars: Map<String, Vec<Stmnt>> = Map::new();
+    for (var, stmnt) in &n.variables {
+        vars.insert(var.clone(), vec![stmnt.clone()]);
+    }
+    for (var, stmnt) in &n.outputs {
+        vars.insert(var.clone(), vec![stmnt.clone()]);
+    }
+    for (k, vs) in &n.conditions {
+        for v in vs {
+            vars.entry(k.to_string()).or_default().push(v.clone());
+        }
+    }
+    let roots = n
+        .outputs
+        .keys()
+        .chain(n.state.iter()) // technically, we can tweak state here ...
+        .cloned()
+        .collect::<Vec<String>>();
     let currents = n
         .outputs
         .values()
@@ -624,8 +635,8 @@ fn nmodl_kinetic_block(n: &Nmodl) -> Result<String> {
         .variables
         .iter()
         .chain(n.rates.iter())
-        .map(|(a, b)| (a.clone(), b.clone()))
-        .collect::<Map<String, Stmnt>>();
+        .map(|(a, b)| (a.clone(), vec![b.clone()]))
+        .collect::<Map<String, Vec<Stmnt>>>();
 
     let locals = n.rates.keys().cloned().collect::<Vec<_>>();
     let mut result = String::from("KINETIC scheme {\n");
@@ -660,7 +671,7 @@ fn read_variable(n: &Nmodl) -> Result<Set<String>> {
         .chain(n.rates.iter())
         .chain(n.deriv.iter())
         .chain(n.outputs.iter())
-        .map(|(k, v)| (k.clone(), v.clone()))
+        .map(|(k, v)| (k.clone(), vec![v.clone()]))
         .collect::<Map<_, _>>();
     let deps = find_dependencies(&variables);
     let mut todo = n
@@ -699,7 +710,7 @@ fn nmodl_neuron_block(n: &Nmodl) -> Result<String> {
     let kind = match &n.kind {
         Kind::Density => "SUFFIX",
         Kind::Point => "POINT_PROCESS",
-        Kind::Junction => "JUNCTION",
+        Kind::Junction => "JUNCTION_PROCESS",
     };
     let mut result = vec![
         String::from("NEURON {\n"),
@@ -795,7 +806,7 @@ fn ion_species(coll: &Collapsed) -> Vec<String> {
 }
 
 /// Map variables to dependencies
-fn find_dependencies(variables: &Map<String, Stmnt>) -> Map<String, Set<String>> {
+fn find_dependencies(variables: &Map<String, Vec<Stmnt>>) -> Map<String, Set<String>> {
     let mut deps = Map::new();
     let add_var = |e: &Expr, acc: &mut Set<String>| {
         if let Expr::Var(v) = e {
@@ -803,9 +814,11 @@ fn find_dependencies(variables: &Map<String, Stmnt>) -> Map<String, Set<String>>
         }
     };
 
-    for (k, v) in variables {
-        let u = deps.entry(k.to_string()).or_insert_with(Set::new);
-        v.fold(u, &add_var);
+    for (k, vs) in variables {
+        for v in vs {
+            let u = deps.entry(k.to_string()).or_insert_with(Set::new);
+            v.fold(u, &add_var);
+        }
     }
     deps
 }
@@ -860,7 +873,7 @@ fn sorted_dependencies_of(
 
 fn print_dependency_chains(
     roots: &[String],
-    vars: &Map<String, Stmnt>,
+    vars: &Map<String, Vec<Stmnt>>,
     known: &Set<String>,
 ) -> Result<String> {
     let mut result = Vec::new();
@@ -869,19 +882,22 @@ fn print_dependency_chains(
     if !deps.is_empty() {
         result.push(format!("  LOCAL {}\n", deps.join(", ")));
     }
+
     for d in deps {
-        if let Some(s) = vars.get(&d) {
-            result.push(s.print_to_string(2));
+        if let Some(ss) = vars.get(&d) {
+            for s in ss {
+                result.push(s.print_to_string(2));
+            }
         } else {
-            let exprs = roots
-                .iter()
-                .map(|r| {
-                    vars.get(r)
-                        .map(|s| s.print_to_string(2))
-                        .unwrap_or_default()
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
+            let mut exprs = Vec::new();
+            for root in roots {
+                if let Some(stmnts) = vars.get(root) {
+                    for stmnt in stmnts {
+                        exprs.push(stmnt.print_to_string(2));
+                    }
+                }
+            }
+            let exprs = exprs.join("\n");
             warn!(
                 "Unresolved variable {} resulting from {:?} which are\n{}",
                 d, roots, exprs
@@ -899,53 +915,60 @@ pub fn to_nmodl(
     known_ions: &[String],
 ) -> Result<String> {
     let ty: &str = instance.component_type.name.as_ref();
+    let gj_types = [
+        "silentSynapse",
+        "gapJunction",
+        "gradedSynapse",
+        "linearGradedSynapse",
+    ];
     match base {
-        "baseSynapse" => {
-            if ty == "gapJunction" {
-                let mut filter = filter.to_string();
-                let mut instance = instance.clone();
-                if !filter.is_empty() {
-                    filter.push(',');
-                }
-                filter.push_str("+weight,+conductance");
-                // Gap Junctions need peer voltage, which is provided by Arbor
-                instance
-                    .component_type
-                    .variables
-                    .retain(|v| v.name != "vpeer");
-                let mut coll = Collapsed::from_instance(&instance)?;
-                coll.parameters
-                    .insert(String::from("weight"), Some(Quantity::parse("1")?));
-                let mut n = Nmodl::from(&coll, known_ions, &filter)?;
-                // We know that we must write `i` and that it is in the variables
-                if let Some((k, v)) = n.variables.remove_entry("i") {
-                    n.outputs.insert(k, v);
-                } else {
-                    return Err(nmodl_error("Gap Junction without defined current 'i'"));
-                }
-                n.kind = Kind::Junction;
-                mk_nmodl(n)
-            } else {
-                let filter = filter.to_string();
-                let instance = instance.clone();
-                let coll = Collapsed::from_instance(&instance)?;
-                let mut n = Nmodl::from(&coll, known_ions, &filter)?;
-                // We know that we must write `i` and that it is in the variables
-                if let Some((k, v)) = n.variables.remove_entry("i") {
-                    let Stmnt::Ass(lhs, rhs) = v else {
-                        return Err(nmodl_error("Current 'i' is not defined via assignment."));
-                    };
-                    // NOTE: NeuroML defines synaptic currents _opposite_ to ARB/NRN. Bah.o
-                    n.outputs.insert(
-                        k,
-                        Stmnt::Ass(lhs, Expr::Mul(vec![Expr::F64(-1.0), rhs]).simplify()),
-                    );
-                } else {
-                    return Err(nmodl_error("Synapse without defined current 'i'"));
-                }
-                n.kind = Kind::Point;
-                mk_nmodl(n)
+        "baseSynapse" if gj_types.contains(&ty) => {
+            let mut filter = filter.to_string();
+            let mut instance = instance.clone();
+            if !filter.is_empty() {
+                filter.push(',');
             }
+            filter.push_str("+weight,+conductance,+i");
+            // Gap Junctions need peer voltage, which is provided by Arbor
+            instance
+                .component_type
+                .variables
+                .retain(|v| v.name != "vpeer");
+            let mut coll = Collapsed::from_instance(&instance)?;
+            coll.parameters
+                .insert(String::from("weight"), Some(Quantity::parse("1")?));
+            let mut n = Nmodl::from(&coll, known_ions, &filter)?;
+            // We know that we must write `i` and that it is in the variables
+            if let Some((k, v)) = n.variables.remove_entry("i") {
+                n.outputs.insert(k, v);
+            } else if let Some((k, v)) = n.fixed.remove_entry("i") {
+                n.outputs.insert(k, Stmnt::Ass(String::from("i"), v));
+            } else {
+                return Err(nmodl_error("Gap Junction without defined current 'i'"));
+            }
+            n.kind = Kind::Junction;
+            mk_nmodl(n)
+        }
+        "baseSynapse" => {
+            let filter = filter.to_string();
+            let instance = instance.clone();
+            let coll = Collapsed::from_instance(&instance)?;
+            let mut n = Nmodl::from(&coll, known_ions, &filter)?;
+            // We know that we must write `i` and that it is in the variables
+            if let Some((k, v)) = n.variables.remove_entry("i") {
+                let Stmnt::Ass(lhs, rhs) = v else {
+                    return Err(nmodl_error("Current 'i' is not defined via assignment."));
+                };
+                // NOTE: NeuroML defines synaptic currents _opposite_ to ARB/NRN. Bah.o
+                n.outputs.insert(
+                    k,
+                    Stmnt::Ass(lhs, Expr::Mul(vec![Expr::F64(-1.0), rhs]).simplify()),
+                );
+            } else {
+                return Err(nmodl_error("Synapse without defined current 'i'"));
+            }
+            n.kind = Kind::Point;
+            mk_nmodl(n)
         }
         "baseIonChannel" => {
             let mut filter = filter.to_string();
@@ -1155,11 +1178,28 @@ pub fn export(
 ) -> Result<()> {
     let tys = vec!["baseIonChannel", "baseSynapse", "concentrationModel"];
 
+    let mut instances = Map::new();
+
     process_files(nml, |_, node| {
         let tag = node.tag_name().name();
         for ty in &tys {
             if lems.derived_from(tag, ty) {
-                let instance = Instance::new(lems, node)?;
+                let mut instance = Instance::new(lems, node)?;
+                if let Some(name) = instance.id.as_ref() {
+                    instances.insert(name.to_string(), instance.clone());
+                }
+                for (k, v) in &instance.references {
+                    // find already defined instances
+                    let mut child = instances
+                        .get(v)
+                        .ok_or_else(|| {
+                            nml2_error!("Unable to find referenced item {k} in {:?}", instance.id)
+                        })?
+                        .clone();
+                    // rename to maintain child relation
+                    child.id = Some(k.to_string());
+                    instance.child.insert(k.to_string(), child);
+                }
                 let mut path = PathBuf::from(&cat);
                 if !path.exists() {
                     trace!("Creating path to {:?}", &path);
@@ -1192,6 +1232,24 @@ fn assign(v: &str, e: &str) -> Result<(String, Stmnt)> {
 mod test {
     use super::*;
 
+    fn assign(v: &str, e: &str) -> Result<(String, Vec<Stmnt>)> {
+        let e = Expr::parse(e)?;
+        Ok((v.to_string(), vec![Stmnt::Ass(v.to_string(), e)]))
+    }
+
+    fn if_then_else(v: &str, i: &str, t: &str) -> Result<(String, Vec<Stmnt>)> {
+        let i = Boolean::parse(i)?;
+        let t = Expr::parse(t)?;
+        Ok((
+            v.to_string(),
+            vec![Stmnt::Ift(
+                i,
+                Box::new(Stmnt::Ass(v.to_string(), t)),
+                Box::new(None),
+            )],
+        ))
+    }
+
     #[test]
     fn test_dependencies() {
         assert!(find_dependencies(&Map::new()).is_empty());
@@ -1206,6 +1264,18 @@ mod test {
             .into_iter()
             .collect::<Map<_, _>>();
         let vs = ["y".to_string()].into_iter().collect::<Set<_>>();
+        assert_eq!(find_dependencies(&ds).get("x"), Some(&vs));
+    }
+
+    #[test]
+    fn test_dependencies_conditional() {
+        assert!(find_dependencies(&Map::new()).is_empty());
+        let ds = [if_then_else("x", "5 .lt. 7", "y * z").unwrap()]
+            .into_iter()
+            .collect::<Map<_, _>>();
+        let vs = ["y".to_string(), "z".to_string()]
+            .into_iter()
+            .collect::<Set<_>>();
         assert_eq!(find_dependencies(&ds).get("x"), Some(&vs));
     }
 }

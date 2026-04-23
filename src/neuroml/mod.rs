@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use tracing::trace;
 
 use crate::{
+    Set,
     error::{Error, Result},
-    nml2_error, Set,
+    nml2_error,
 };
 
 pub mod raw;
@@ -34,19 +35,19 @@ where
         }
         for node in tree.descendants() {
             f(nml.to_str().unwrap(), &node)?;
-            if node.tag_name().name() == "include" {
-                if let Some(fd) = node.attribute("href") {
-                    let mut nxt = nml.parent().unwrap().to_path_buf();
-                    nxt.push(fd);
-                    nxt = nxt.canonicalize().map_err(|_| {
-                        nml2_error!(
-                            "Unknown file '{}', included by '{}'.",
-                            nxt.display(),
-                            nml.display()
-                        )
-                    })?;
-                    todo.push(nxt);
-                }
+            if node.tag_name().name() == "include"
+                && let Some(fd) = node.attribute("href")
+            {
+                let mut nxt = nml.parent().unwrap().to_path_buf();
+                nxt.push(fd);
+                nxt = nxt.canonicalize().map_err(|_| {
+                    nml2_error!(
+                        "Unknown file '{}', included by '{}'.",
+                        nxt.display(),
+                        nml.display()
+                    )
+                })?;
+                todo.push(nxt);
             }
         }
     }

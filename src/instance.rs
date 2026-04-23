@@ -2,11 +2,12 @@ use roxmltree::Node;
 use tracing::{info, trace, warn};
 
 use crate::{
+    Map, Set,
     error::{Error, Result},
     expr::{Boolean, Expr, Match, Quantity, Select},
-    lems, nml2_error,
+    lems::{self, raw::StructureBody},
+    nml2_error,
     variable::{SelectBy, VarKind, Variable},
-    Map, Set,
 };
 
 /// Kinetic scheme from components
@@ -71,6 +72,7 @@ pub struct Instance {
     pub id: Option<String>,
     pub parameters: Map<String, Quantity>,
     pub attributes: Map<String, String>,
+    pub references: Map<String, String>,
 }
 
 impl Instance {
@@ -79,15 +81,17 @@ impl Instance {
             .attribute("type")
             .unwrap_or_else(|| xml.tag_name().name());
         let component_type = lems.compose_component_type(node)?;
-
         let mut attributes = Map::new();
         let mut parameters = Map::new();
+        let mut references = Map::new();
 
         for attr in xml.attributes() {
             let key = attr.name().to_string();
             let val = attr.value();
             if component_type.parameters.contains(&key) {
                 parameters.insert(key, lems.normalise_quantity(&Quantity::parse(val)?)?);
+            } else if component_type.references.contains_key(&key) {
+                references.insert(key, val.to_string());
             } else if component_type.attributes.contains(&key)
                 || component_type.links.contains_key(&key)
             {
@@ -95,13 +99,20 @@ impl Instance {
             } else if "id" == key || "type" == key {
             } else {
                 return Err(nml2_error!(
-                    "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}",
+                    "Unknown key/value pair in Instance: {:?} => {:?} in node: {:?}; allowed are:
+ * parameters {:?}
+ * references {:?}
+ * attributes {:?}",
                     key,
                     val,
-                    node
+                    node,
+                    component_type.parameters,
+                    component_type.references,
+                    component_type.attributes
                 ));
             }
         }
+
         let id = xml.attribute("id").map(|s| s.to_string());
         let mut children = Map::new();
         let mut child = Map::new();
@@ -136,6 +147,7 @@ impl Instance {
             id,
             parameters,
             attributes,
+            references,
         })
     }
 }
@@ -200,25 +212,25 @@ impl Collapsed {
                                 continue 'a;
                             }
                         }
-                        if ix < ps.len() {
-                            if let Path::Fixed(q) = &ps[ix] {
-                                ix += 1;
-                                for (pfx, node) in &nodes {
-                                    if let Some(xs) = node.children.get(s) {
-                                        let mut pfx = pfx.clone();
-                                        pfx.push(s.clone());
-                                        nodes = xs
-                                            .iter()
-                                            .filter(|x| x.id == Some(q.to_string()))
-                                            .cloned()
-                                            .map(|x| {
-                                                let mut pfx = pfx.clone();
-                                                pfx.push(x.id.as_deref().unwrap().to_string());
-                                                (pfx, x)
-                                            })
-                                            .collect();
-                                        continue 'a;
-                                    }
+                        if ix < ps.len()
+                            && let Path::Fixed(q) = &ps[ix]
+                        {
+                            ix += 1;
+                            for (pfx, node) in &nodes {
+                                if let Some(xs) = node.children.get(s) {
+                                    let mut pfx = pfx.clone();
+                                    pfx.push(s.clone());
+                                    nodes = xs
+                                        .iter()
+                                        .filter(|x| x.id == Some(q.to_string()))
+                                        .cloned()
+                                        .map(|x| {
+                                            let mut pfx = pfx.clone();
+                                            pfx.push(x.id.as_deref().unwrap().to_string());
+                                            (pfx, x)
+                                        })
+                                        .collect();
+                                    continue 'a;
                                 }
                             }
                         }
@@ -247,7 +259,7 @@ impl Collapsed {
             for (pfx, node) in &nodes {
                 // TODO This is a horrible hack and must be replaced by proper lookup
                 let mut qfx = Vec::new();
-                let Match(ref qs) = &ks.node;
+                let Match(qs) = &ks.node;
                 for q in qs {
                     match q {
                         Path::Up => {
@@ -327,7 +339,7 @@ impl Collapsed {
         result.events = ct
             .events
             .iter()
-            .map(|(k, v)| (ctx.add_prefix(k), v.clone()))
+            .map(|(k, v)| (ctx.add_prefix(k), ctx.rename_expr(v)))
             .collect();
         result.constants = ct
             .constants
@@ -404,10 +416,7 @@ impl Collapsed {
                         if ms.is_empty() {
                             trace!(
                                 "No instances found for name={} select={:?} via {:?} among {:?}",
-                                v.name,
-                                ps,
-                                by,
-                                ks
+                                v.name, ps, by, ks
                             );
                             Expr::F64(1.0)
                         } else {
@@ -567,6 +576,8 @@ pub struct ComponentType {
     /// Linked components
     pub links: Map<String, String>,
     /// Linked components
+    pub references: Map<String, String>,
+    /// Kinetic scheme dynamics
     pub kinetic: Vec<Kinetic>,
 }
 
@@ -585,12 +596,52 @@ impl ComponentType {
         let mut events = Vec::new();
         let mut kinetic = Vec::new();
         let mut links = Map::new();
+        let mut references = Map::new();
 
         for ix in &ct.body {
             use lems::raw::ComponentTypeBody::*;
             match ix {
                 ComponentReference(c) => {
-                    attributes.push(c.name.to_string());
+                    references.insert(c.name.to_string(), c.r#type.to_string());
+                }
+                Structure(lems::raw::Structure { body }) => {
+                    for item in body {
+                        match item {
+                            StructureBody::MultiInstantiate(lems::raw::MultiInstantiate {
+                                number,
+                                component,
+                            }) => {
+                                attributes.push(component.to_string());
+                                attributes.push(number.to_string());
+                            }
+                            StructureBody::ChildInstance(lems::raw::ChildInstance {
+                                component,
+                            }) => {
+                                attributes.push(component.to_string());
+                            }
+                            StructureBody::With(_) => {
+                                info!(
+                                    "Ignoring With in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
+                            }
+                            StructureBody::EventConnection(_) => {
+                                info!(
+                                    "Ignoring EventConnection in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
+                            }
+                            StructureBody::Tunnel(_) => {
+                                info!(
+                                    "Ignoring Tunnel in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
+                            }
+                            StructureBody::ForEach(_) => {
+                                info!(
+                                    "Ignoring ForEach in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
+                                todo!()
+                            }
+                        }
+                    }
                 }
                 Path(c) => {
                     attributes.push(c.name.to_string());
@@ -602,6 +653,9 @@ impl ComponentType {
                     children.insert(c.name.to_string(), c.r#type.as_ref().unwrap().to_string());
                 }
                 Parameter(p) => {
+                    parameters.push(p.name.to_string());
+                }
+                IndexParameter(p) => {
                     parameters.push(p.name.to_string());
                 }
                 DerivedParameter(p) => {
@@ -640,7 +694,7 @@ impl ComponentType {
                 Fixed(t) => {
                     constants.insert(t.parameter.to_string(), Quantity::parse(&t.value)?);
                 }
-                b => trace!("Ignoring {:?}", b),
+                b => warn!("In {name}: ignoring {:?}", b),
             }
         }
 
@@ -659,6 +713,7 @@ impl ComponentType {
             attributes,
             events,
             links,
+            references,
             kinetic,
         })
     }
@@ -721,7 +776,7 @@ fn lems_dynamics(
                 for StateAssignment(a) in &v.body {
                     let it = variables.iter_mut().find(|x| x.name == a.variable);
                     if let Some(Variable {
-                        kind: VarKind::State(ref mut i, _),
+                        kind: VarKind::State(i, _),
                         ..
                     }) = it
                     {
@@ -778,7 +833,7 @@ fn lems_dynamics(
             TimeDerivative(v) => {
                 let it = variables.iter_mut().find(|x| x.name == v.variable);
                 if let Some(Variable {
-                    kind: VarKind::State(_, ref mut d),
+                    kind: VarKind::State(_, d),
                     ..
                 }) = it
                 {

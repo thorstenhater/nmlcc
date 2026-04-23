@@ -376,7 +376,7 @@ impl Boolean {
                         (Boolean::Lit(true), r) => return r.clone(),
                         (l, Boolean::Lit(true)) => return l.clone(),
                         (Boolean::Lit(false), _) | (_, Boolean::Lit(false)) => {
-                            return Boolean::Lit(false)
+                            return Boolean::Lit(false);
                         }
                         // peek one level into comparisons
                         (Boolean::Cmp(el, xl, yl), Boolean::Cmp(er, xr, yr))
@@ -458,7 +458,7 @@ impl Boolean {
                         (Boolean::Lit(false), r) => return r.clone(),
                         (l, Boolean::Lit(false)) => return l.clone(),
                         (Boolean::Lit(true), _) | (_, Boolean::Lit(true)) => {
-                            return Boolean::Lit(true)
+                            return Boolean::Lit(true);
                         }
                         // peek one level into comparisons
                         (Boolean::Cmp(el, xl, yl), Boolean::Cmp(er, xr, yr))
@@ -472,11 +472,11 @@ impl Boolean {
                                 | (Cmp::Lt, Cmp::Lt)
                                 | (Cmp::Ge, Cmp::Ge)
                                 | (Cmp::Le, Cmp::Le) => {
-                                    return Boolean::Cmp(*el, xl.clone(), yl.clone())
+                                    return Boolean::Cmp(*el, xl.clone(), yl.clone());
                                 }
                                 // x > y || x < y => x /= y
                                 (Cmp::Lt, Cmp::Gt) | (Cmp::Gt, Cmp::Lt) => {
-                                    return Boolean::Cmp(Cmp::Ne, xl.clone(), yl.clone())
+                                    return Boolean::Cmp(Cmp::Ne, xl.clone(), yl.clone());
                                 }
                                 // tautology
                                 (Cmp::Ne, Cmp::Eq)
@@ -498,7 +498,7 @@ impl Boolean {
                                 | (Cmp::Gt, Cmp::Ge)
                                 | (Cmp::Eq, Cmp::Gt)
                                 | (Cmp::Gt, Cmp::Eq) => {
-                                    return Boolean::Cmp(Cmp::Ge, xl.clone(), yl.clone())
+                                    return Boolean::Cmp(Cmp::Ge, xl.clone(), yl.clone());
                                 }
                                 (Cmp::Le, Cmp::Eq)
                                 | (Cmp::Eq, Cmp::Le)
@@ -506,14 +506,14 @@ impl Boolean {
                                 | (Cmp::Lt, Cmp::Le)
                                 | (Cmp::Eq, Cmp::Lt)
                                 | (Cmp::Lt, Cmp::Eq) => {
-                                    return Boolean::Cmp(Cmp::Le, xl.clone(), yl.clone())
+                                    return Boolean::Cmp(Cmp::Le, xl.clone(), yl.clone());
                                 }
                                 // x /= y || x {<, >} y => x /= y
                                 (Cmp::Gt, Cmp::Ne)
                                 | (Cmp::Ne, Cmp::Gt)
                                 | (Cmp::Lt, Cmp::Ne)
                                 | (Cmp::Ne, Cmp::Lt) => {
-                                    return Boolean::Cmp(Cmp::Ne, xl.clone(), yl.clone())
+                                    return Boolean::Cmp(Cmp::Ne, xl.clone(), yl.clone());
                                 }
                             }
                         }
@@ -650,6 +650,7 @@ impl Match {
 
 mod parse {
     use nom::{
+        IResult,
         branch::alt,
         bytes::complete::{tag, take_while, take_while1},
         character::complete::{alpha1, one_of, space0},
@@ -658,7 +659,6 @@ mod parse {
         multi::{fold_many0, separated_list1},
         number::complete::float,
         sequence::{delimited, pair, preceded, tuple},
-        IResult,
     };
 
     use super::{Boolean, Cmp, Expr, Op, Path, Quantity, Select};
@@ -968,10 +968,11 @@ fn simplify_mul(es: &[Expr]) -> Expr {
         }
     }
     for ex in result.iter_mut() {
-        if let Expr::Pow(es) = ex {
-            if es.len() == 2 && es[1] == Expr::F64(1.0) {
-                *ex = es[0].clone();
-            }
+        if let Expr::Pow(es) = ex
+            && es.len() == 2
+            && es[1] == Expr::F64(1.0)
+        {
+            *ex = es[0].clone();
         }
     }
     result.sort_by(|a, b| a.partial_cmp(b).unwrap());

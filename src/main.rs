@@ -1,12 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use nml2::{
-    acc, bundle,
-    error::Result,
-    lems::{self, file::LemsFile},
-    neuroml, nmodl,
-    xml::XML,
-};
+use nml2::{acc, bundle, error::Result, get_runtime_types, lems, nmodl};
 
 #[derive(Parser)]
 #[clap(name = "nmlcc")]
@@ -75,16 +69,6 @@ enum Cmd {
     },
 }
 
-fn get_runtime_types(lems: &mut LemsFile, nml: &[String]) -> Result<()> {
-    neuroml::process_files(nml, |_, node| {
-        if node.tag_name().name() == "ComponentType" {
-            let ct: lems::raw::ComponentType = XML::from_node(node);
-            lems.add_component_type(&ct)?;
-        }
-        Ok(())
-    })
-}
-
 fn set_collector(v: usize) -> std::result::Result<(), tracing::dispatcher::SetGlobalDefaultError> {
     let lvl = match v {
         0 => tracing::Level::WARN,
@@ -132,9 +116,9 @@ fn main() -> Result<()> {
             py,
         } => {
             get_runtime_types(&mut lems, &[nml.to_string()])?;
-            bundle::export(
+            if let Err(err) = bundle::export(
                 &lems,
-                &[nml],
+                std::slice::from_ref(&nml),
                 &ions[..],
                 bundle::Bundle {
                     dir,
@@ -143,7 +127,25 @@ fn main() -> Result<()> {
                     super_mechanisms,
                     cat_prefix,
                 },
-            )?;
+            ) {
+                println!("Error while generating bundle for nml-file: '{nml}':");
+                match err {
+                    nml2::error::Error::Io { source } => println!(" * I/O error: {source}"),
+                    nml2::error::Error::Xml { source } => {
+                        println!(" * XML internal error: {source}")
+                    }
+                    nml2::error::Error::Nmodl { what } => {
+                        println!(" * Error generating NMODL: {what}")
+                    }
+                    nml2::error::Error::Acc { what } => println!(" * Error generating ACC: {what}"),
+                    nml2::error::Error::Unit { what } => println!(" * Mismatched unit: {what}"),
+                    nml2::error::Error::Nml { what } => println!(" * Mishapen NML2 file: {what}"),
+                    nml2::error::Error::Lems { what } => println!(" * Mishapen LEMS file: {what}"),
+                    nml2::error::Error::Parse { what } => {
+                        println!(" * Could not parse expression: {what}")
+                    }
+                }
+            }
         }
     }
     Ok(())

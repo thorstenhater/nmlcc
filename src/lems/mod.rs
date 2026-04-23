@@ -80,7 +80,7 @@ impl Lems {
             dimensions: Vec::new(),
         };
         // Skipped on purpose: Simulation.xml PyNN.xml
-        for (name, xml) in vec![
+        for (name, xml) in [
             (
                 "NeuroML2CoreTypes.xml",
                 include_str!("../../ext/NeuroML2/NeuroML2CoreTypes/NeuroML2CoreTypes.xml"),

@@ -27,9 +27,9 @@ pub struct AdExIaFCell {
     pub a: String,
     pub b: String,
     pub C: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<AdExIaFCellBody>
 }
 
@@ -46,9 +46,9 @@ impl XML for AdExIaFCell {
         let a = node.attribute("a").map(|s| s.to_string()).unwrap();
         let b = node.attribute("b").map(|s| s.to_string()).unwrap();
         let C = node.attribute("C").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -58,7 +58,7 @@ impl XML for AdExIaFCell {
                 "notes" => body.push(AdExIaFCellBody::notes(String::from_node(&child))),
                 "property" => body.push(AdExIaFCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AdExIaFCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of AdExIaFCell.", t)
+                t => panic!("Unexpected tag {t} in body of AdExIaFCell.")
             };
         }
         AdExIaFCell {
@@ -73,9 +73,9 @@ impl XML for AdExIaFCell {
             a,
             b,
             C,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -92,9 +92,9 @@ pub enum AlphaCondSynapseBody {
 pub struct AlphaCondSynapse {
     pub e_rev: f64,
     pub tau_syn: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<AlphaCondSynapseBody>
 }
 
@@ -102,9 +102,9 @@ impl XML for AlphaCondSynapse {
     fn from_node(node: &Node) -> Self {
         let e_rev = node.attribute("e_rev").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn = node.attribute("tau_syn").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -114,15 +114,15 @@ impl XML for AlphaCondSynapse {
                 "notes" => body.push(AlphaCondSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaCondSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaCondSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of AlphaCondSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of AlphaCondSynapse.")
             };
         }
         AlphaCondSynapse {
             e_rev,
             tau_syn,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -138,18 +138,18 @@ pub enum AlphaCurrSynapseBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AlphaCurrSynapse {
     pub tau_syn: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<AlphaCurrSynapseBody>
 }
 
 impl XML for AlphaCurrSynapse {
     fn from_node(node: &Node) -> Self {
         let tau_syn = node.attribute("tau_syn").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -159,14 +159,14 @@ impl XML for AlphaCurrSynapse {
                 "notes" => body.push(AlphaCurrSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaCurrSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaCurrSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of AlphaCurrSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of AlphaCurrSynapse.")
             };
         }
         AlphaCurrSynapse {
             tau_syn,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -183,9 +183,9 @@ pub enum AlphaCurrentSynapseBody {
 pub struct AlphaCurrentSynapse {
     pub tau: String,
     pub ibase: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<AlphaCurrentSynapseBody>
 }
 
@@ -193,9 +193,9 @@ impl XML for AlphaCurrentSynapse {
     fn from_node(node: &Node) -> Self {
         let tau = node.attribute("tau").map(|s| s.to_string()).unwrap();
         let ibase = node.attribute("ibase").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -205,15 +205,15 @@ impl XML for AlphaCurrentSynapse {
                 "notes" => body.push(AlphaCurrentSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaCurrentSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaCurrentSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of AlphaCurrentSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of AlphaCurrentSynapse.")
             };
         }
         AlphaCurrentSynapse {
             tau,
             ibase,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -231,9 +231,9 @@ pub struct AlphaSynapse {
     pub tau: String,
     pub gbase: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<AlphaSynapseBody>
 }
 
@@ -242,9 +242,9 @@ impl XML for AlphaSynapse {
         let tau = node.attribute("tau").map(|s| s.to_string()).unwrap();
         let gbase = node.attribute("gbase").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -254,16 +254,16 @@ impl XML for AlphaSynapse {
                 "notes" => body.push(AlphaSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(AlphaSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(AlphaSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of AlphaSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of AlphaSynapse.")
             };
         }
         AlphaSynapse {
             tau,
             gbase,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -283,16 +283,13 @@ impl XML for Annotation {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Base {
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for Base {
     fn from_node(node: &Node) -> Self {
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         Base {
             id,
-            neuroLexId,
         }
     }
 }
@@ -306,17 +303,17 @@ pub enum BaseCellBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseCell {
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BaseCellBody>
 }
 
 impl XML for BaseCell {
     fn from_node(node: &Node) -> Self {
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -326,13 +323,13 @@ impl XML for BaseCell {
                 "notes" => body.push(BaseCellBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BaseCell.", t)
+                t => panic!("Unexpected tag {t} in body of BaseCell.")
             };
         }
         BaseCell {
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -348,18 +345,18 @@ pub enum BaseCellMembPotCapBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseCellMembPotCap {
     pub C: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BaseCellMembPotCapBody>
 }
 
 impl XML for BaseCellMembPotCap {
     fn from_node(node: &Node) -> Self {
         let C = node.attribute("C").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -369,14 +366,14 @@ impl XML for BaseCellMembPotCap {
                 "notes" => body.push(BaseCellMembPotCapBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseCellMembPotCapBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseCellMembPotCapBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BaseCellMembPotCap.", t)
+                t => panic!("Unexpected tag {t} in body of BaseCellMembPotCap.")
             };
         }
         BaseCellMembPotCap {
             C,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -393,9 +390,9 @@ pub enum BaseConductanceBasedSynapseBody {
 pub struct BaseConductanceBasedSynapse {
     pub gbase: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BaseConductanceBasedSynapseBody>
 }
 
@@ -403,9 +400,9 @@ impl XML for BaseConductanceBasedSynapse {
     fn from_node(node: &Node) -> Self {
         let gbase = node.attribute("gbase").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -415,15 +412,15 @@ impl XML for BaseConductanceBasedSynapse {
                 "notes" => body.push(BaseConductanceBasedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseConductanceBasedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseConductanceBasedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BaseConductanceBasedSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of BaseConductanceBasedSynapse.")
             };
         }
         BaseConductanceBasedSynapse {
             gbase,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -441,9 +438,9 @@ pub struct BaseConductanceBasedSynapseTwo {
     pub gbase1: String,
     pub gbase2: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BaseConductanceBasedSynapseTwoBody>
 }
 
@@ -452,9 +449,9 @@ impl XML for BaseConductanceBasedSynapseTwo {
         let gbase1 = node.attribute("gbase1").map(|s| s.to_string()).unwrap();
         let gbase2 = node.attribute("gbase2").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -464,16 +461,16 @@ impl XML for BaseConductanceBasedSynapseTwo {
                 "notes" => body.push(BaseConductanceBasedSynapseTwoBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseConductanceBasedSynapseTwoBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseConductanceBasedSynapseTwoBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BaseConductanceBasedSynapseTwo.", t)
+                t => panic!("Unexpected tag {t} in body of BaseConductanceBasedSynapseTwo.")
             };
         }
         BaseConductanceBasedSynapseTwo {
             gbase1,
             gbase2,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -481,17 +478,17 @@ impl XML for BaseConductanceBasedSynapseTwo {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseConnection {
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for BaseConnection {
     fn from_node(node: &Node) -> Self {
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         BaseConnection {
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -504,8 +501,8 @@ pub struct BaseConnectionNewFormat {
     pub postCell: String,
     pub postSegment: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for BaseConnectionNewFormat {
@@ -516,8 +513,8 @@ impl XML for BaseConnectionNewFormat {
         let postCell = node.attribute("postCell").map(|s| s.to_string()).unwrap();
         let postSegment = node.attribute("postSegment").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         BaseConnectionNewFormat {
             preCell,
             preSegment,
@@ -525,8 +522,8 @@ impl XML for BaseConnectionNewFormat {
             postCell,
             postSegment,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -539,8 +536,8 @@ pub struct BaseConnectionOldFormat {
     pub postCellId: String,
     pub postSegmentId: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for BaseConnectionOldFormat {
@@ -551,8 +548,8 @@ impl XML for BaseConnectionOldFormat {
         let postCellId = node.attribute("postCellId").map(|s| s.to_string()).unwrap();
         let postSegmentId = node.attribute("postSegmentId").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         BaseConnectionOldFormat {
             preCellId,
             preSegmentId,
@@ -560,8 +557,8 @@ impl XML for BaseConnectionOldFormat {
             postCellId,
             postSegmentId,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -575,17 +572,17 @@ pub enum BaseCurrentBasedSynapseBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseCurrentBasedSynapse {
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BaseCurrentBasedSynapseBody>
 }
 
 impl XML for BaseCurrentBasedSynapse {
     fn from_node(node: &Node) -> Self {
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -595,13 +592,13 @@ impl XML for BaseCurrentBasedSynapse {
                 "notes" => body.push(BaseCurrentBasedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseCurrentBasedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseCurrentBasedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BaseCurrentBasedSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of BaseCurrentBasedSynapse.")
             };
         }
         BaseCurrentBasedSynapse {
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -610,16 +607,13 @@ impl XML for BaseCurrentBasedSynapse {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseNonNegativeIntegerId {
     pub id: i64,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for BaseNonNegativeIntegerId {
     fn from_node(node: &Node) -> Self {
         let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         BaseNonNegativeIntegerId {
             id,
-            neuroLexId,
         }
     }
 }
@@ -629,7 +623,6 @@ pub struct BaseProjection {
     pub presynapticPopulation: String,
     pub postsynapticPopulation: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for BaseProjection {
@@ -637,12 +630,10 @@ impl XML for BaseProjection {
         let presynapticPopulation = node.attribute("presynapticPopulation").map(|s| s.to_string()).unwrap();
         let postsynapticPopulation = node.attribute("postsynapticPopulation").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         BaseProjection {
             presynapticPopulation,
             postsynapticPopulation,
             id,
-            neuroLexId,
         }
     }
 }
@@ -657,18 +648,18 @@ pub enum BasePynnSynapseBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BasePynnSynapse {
     pub tau_syn: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BasePynnSynapseBody>
 }
 
 impl XML for BasePynnSynapse {
     fn from_node(node: &Node) -> Self {
         let tau_syn = node.attribute("tau_syn").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -678,14 +669,14 @@ impl XML for BasePynnSynapse {
                 "notes" => body.push(BasePynnSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BasePynnSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BasePynnSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BasePynnSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of BasePynnSynapse.")
             };
         }
         BasePynnSynapse {
             tau_syn,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -700,17 +691,17 @@ pub enum BaseSynapseBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseSynapse {
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BaseSynapseBody>
 }
 
 impl XML for BaseSynapse {
     fn from_node(node: &Node) -> Self {
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -720,13 +711,13 @@ impl XML for BaseSynapse {
                 "notes" => body.push(BaseSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BaseSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of BaseSynapse.")
             };
         }
         BaseSynapse {
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -741,17 +732,17 @@ pub enum BaseVoltageDepSynapseBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseVoltageDepSynapse {
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BaseVoltageDepSynapseBody>
 }
 
 impl XML for BaseVoltageDepSynapse {
     fn from_node(node: &Node) -> Self {
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -761,13 +752,13 @@ impl XML for BaseVoltageDepSynapse {
                 "notes" => body.push(BaseVoltageDepSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BaseVoltageDepSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BaseVoltageDepSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BaseVoltageDepSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of BaseVoltageDepSynapse.")
             };
         }
         BaseVoltageDepSynapse {
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -775,14 +766,11 @@ impl XML for BaseVoltageDepSynapse {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BaseWithoutId {
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for BaseWithoutId {
     fn from_node(node: &Node) -> Self {
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         BaseWithoutId {
-            neuroLexId,
         }
     }
 }
@@ -801,7 +789,6 @@ pub enum BiophysicalPropertiesBody {
 pub struct BiophysicalProperties {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BiophysicalPropertiesBody>
 }
 
@@ -809,7 +796,6 @@ impl XML for BiophysicalProperties {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -822,13 +808,12 @@ impl XML for BiophysicalProperties {
                 "notes" => body.push(BiophysicalPropertiesBody::notes(String::from_node(&child))),
                 "property" => body.push(BiophysicalPropertiesBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BiophysicalPropertiesBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BiophysicalProperties.", t)
+                t => panic!("Unexpected tag {t} in body of BiophysicalProperties.")
             };
         }
         BiophysicalProperties {
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -848,7 +833,6 @@ pub enum BiophysicalProperties2CaPoolsBody {
 pub struct BiophysicalProperties2CaPools {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BiophysicalProperties2CaPoolsBody>
 }
 
@@ -856,7 +840,6 @@ impl XML for BiophysicalProperties2CaPools {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -869,13 +852,12 @@ impl XML for BiophysicalProperties2CaPools {
                 "notes" => body.push(BiophysicalProperties2CaPoolsBody::notes(String::from_node(&child))),
                 "property" => body.push(BiophysicalProperties2CaPoolsBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BiophysicalProperties2CaPoolsBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BiophysicalProperties2CaPools.", t)
+                t => panic!("Unexpected tag {t} in body of BiophysicalProperties2CaPools.")
             };
         }
         BiophysicalProperties2CaPools {
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -922,9 +904,9 @@ pub struct BlockingPlasticSynapse {
     pub tauRise: String,
     pub gbase: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<BlockingPlasticSynapseBody>
 }
 
@@ -934,9 +916,9 @@ impl XML for BlockingPlasticSynapse {
         let tauRise = node.attribute("tauRise").map(|s| s.to_string()).unwrap();
         let gbase = node.attribute("gbase").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -948,7 +930,7 @@ impl XML for BlockingPlasticSynapse {
                 "notes" => body.push(BlockingPlasticSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(BlockingPlasticSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(BlockingPlasticSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of BlockingPlasticSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of BlockingPlasticSynapse.")
             };
         }
         BlockingPlasticSynapse {
@@ -956,9 +938,9 @@ impl XML for BlockingPlasticSynapse {
             tauRise,
             gbase,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -994,9 +976,9 @@ pub enum CellBody {
 pub struct Cell {
     pub morphology: Option<String>,
     pub biophysicalProperties: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<CellBody>
 }
 
@@ -1004,9 +986,9 @@ impl XML for Cell {
     fn from_node(node: &Node) -> Self {
         let morphology = node.attribute("morphology").map(|s| s.to_string());
         let biophysicalProperties = node.attribute("biophysicalProperties").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1018,15 +1000,15 @@ impl XML for Cell {
                 "notes" => body.push(CellBody::notes(String::from_node(&child))),
                 "property" => body.push(CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Cell.", t)
+                t => panic!("Unexpected tag {t} in body of Cell.")
             };
         }
         Cell {
             morphology,
             biophysicalProperties,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1046,9 +1028,9 @@ pub enum Cell2CaPoolsBody {
 pub struct Cell2CaPools {
     pub morphology: Option<String>,
     pub biophysicalProperties: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<Cell2CaPoolsBody>
 }
 
@@ -1056,9 +1038,9 @@ impl XML for Cell2CaPools {
     fn from_node(node: &Node) -> Self {
         let morphology = node.attribute("morphology").map(|s| s.to_string());
         let biophysicalProperties = node.attribute("biophysicalProperties").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1071,15 +1053,15 @@ impl XML for Cell2CaPools {
                 "notes" => body.push(Cell2CaPoolsBody::notes(String::from_node(&child))),
                 "property" => body.push(Cell2CaPoolsBody::property(Property::from_node(&child))),
                 "annotation" => body.push(Cell2CaPoolsBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Cell2CaPools.", t)
+                t => panic!("Unexpected tag {t} in body of Cell2CaPools.")
             };
         }
         Cell2CaPools {
             morphology,
             biophysicalProperties,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1089,18 +1071,15 @@ impl XML for Cell2CaPools {
 pub struct CellSet {
     pub select: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for CellSet {
     fn from_node(node: &Node) -> Self {
         let select = node.attribute("select").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         CellSet {
             select,
             id,
-            neuroLexId,
         }
     }
 }
@@ -1119,7 +1098,6 @@ pub struct ChannelDensity {
     pub segment: Option<i64>,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelDensityBody>
 }
 
@@ -1132,7 +1110,6 @@ impl XML for ChannelDensity {
         let segment = node.attribute("segment").map(|s| s.parse::<i64>().unwrap());
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1140,7 +1117,7 @@ impl XML for ChannelDensity {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelDensity.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelDensity.")
             };
         }
         ChannelDensity {
@@ -1151,7 +1128,6 @@ impl XML for ChannelDensity {
             segment,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1165,7 +1141,6 @@ pub struct ChannelDensityGHK {
     pub segment: Option<String>,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for ChannelDensityGHK {
@@ -1176,7 +1151,6 @@ impl XML for ChannelDensityGHK {
         let segment = node.attribute("segment").map(|s| s.to_string());
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         ChannelDensityGHK {
             ionChannel,
             permeability,
@@ -1184,7 +1158,6 @@ impl XML for ChannelDensityGHK {
             segment,
             ion,
             id,
-            neuroLexId,
         }
     }
 }
@@ -1197,7 +1170,6 @@ pub struct ChannelDensityGHK2 {
     pub segment: Option<String>,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for ChannelDensityGHK2 {
@@ -1208,7 +1180,6 @@ impl XML for ChannelDensityGHK2 {
         let segment = node.attribute("segment").map(|s| s.to_string());
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         ChannelDensityGHK2 {
             ionChannel,
             condDensity,
@@ -1216,7 +1187,6 @@ impl XML for ChannelDensityGHK2 {
             segment,
             ion,
             id,
-            neuroLexId,
         }
     }
 }
@@ -1234,7 +1204,6 @@ pub struct ChannelDensityNernst {
     pub segment: Option<String>,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelDensityNernstBody>
 }
 
@@ -1246,7 +1215,6 @@ impl XML for ChannelDensityNernst {
         let segment = node.attribute("segment").map(|s| s.to_string());
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1254,7 +1222,7 @@ impl XML for ChannelDensityNernst {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNernstBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelDensityNernst.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelDensityNernst.")
             };
         }
         ChannelDensityNernst {
@@ -1264,7 +1232,6 @@ impl XML for ChannelDensityNernst {
             segment,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1283,7 +1250,6 @@ pub struct ChannelDensityNernstCa2 {
     pub segment: Option<String>,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelDensityNernstCa2Body>
 }
 
@@ -1295,7 +1261,6 @@ impl XML for ChannelDensityNernstCa2 {
         let segment = node.attribute("segment").map(|s| s.to_string());
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1303,7 +1268,7 @@ impl XML for ChannelDensityNernstCa2 {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNernstCa2Body::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelDensityNernstCa2.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelDensityNernstCa2.")
             };
         }
         ChannelDensityNernstCa2 {
@@ -1313,7 +1278,6 @@ impl XML for ChannelDensityNernstCa2 {
             segment,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1330,7 +1294,6 @@ pub struct ChannelDensityNonUniform {
     pub erev: String,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelDensityNonUniformBody>
 }
 
@@ -1340,7 +1303,6 @@ impl XML for ChannelDensityNonUniform {
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1348,7 +1310,7 @@ impl XML for ChannelDensityNonUniform {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNonUniformBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelDensityNonUniform.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelDensityNonUniform.")
             };
         }
         ChannelDensityNonUniform {
@@ -1356,7 +1318,6 @@ impl XML for ChannelDensityNonUniform {
             erev,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1372,7 +1333,6 @@ pub struct ChannelDensityNonUniformGHK {
     pub ionChannel: String,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelDensityNonUniformGHKBody>
 }
 
@@ -1381,7 +1341,6 @@ impl XML for ChannelDensityNonUniformGHK {
         let ionChannel = node.attribute("ionChannel").map(|s| s.to_string()).unwrap();
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1389,14 +1348,13 @@ impl XML for ChannelDensityNonUniformGHK {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNonUniformGHKBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelDensityNonUniformGHK.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelDensityNonUniformGHK.")
             };
         }
         ChannelDensityNonUniformGHK {
             ionChannel,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1412,7 +1370,6 @@ pub struct ChannelDensityNonUniformNernst {
     pub ionChannel: String,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelDensityNonUniformNernstBody>
 }
 
@@ -1421,7 +1378,6 @@ impl XML for ChannelDensityNonUniformNernst {
         let ionChannel = node.attribute("ionChannel").map(|s| s.to_string()).unwrap();
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1429,14 +1385,13 @@ impl XML for ChannelDensityNonUniformNernst {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityNonUniformNernstBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelDensityNonUniformNernst.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelDensityNonUniformNernst.")
             };
         }
         ChannelDensityNonUniformNernst {
             ionChannel,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1457,7 +1412,6 @@ pub struct ChannelDensityVShift {
     pub segment: Option<i64>,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelDensityVShiftBody>
 }
 
@@ -1471,7 +1425,6 @@ impl XML for ChannelDensityVShift {
         let segment = node.attribute("segment").map(|s| s.parse::<i64>().unwrap());
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1479,7 +1432,7 @@ impl XML for ChannelDensityVShift {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelDensityVShiftBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelDensityVShift.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelDensityVShift.")
             };
         }
         ChannelDensityVShift {
@@ -1491,7 +1444,6 @@ impl XML for ChannelDensityVShift {
             segment,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1511,7 +1463,6 @@ pub struct ChannelPopulation {
     pub segment: Option<i64>,
     pub ion: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ChannelPopulationBody>
 }
 
@@ -1524,7 +1475,6 @@ impl XML for ChannelPopulation {
         let segment = node.attribute("segment").map(|s| s.parse::<i64>().unwrap());
         let ion = node.attribute("ion").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1532,7 +1482,7 @@ impl XML for ChannelPopulation {
             }
             match child.tag_name().name() {
                 "variableParameter" => body.push(ChannelPopulationBody::variableParameter(VariableParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ChannelPopulation.", t)
+                t => panic!("Unexpected tag {t} in body of ChannelPopulation.")
             };
         }
         ChannelPopulation {
@@ -1543,7 +1493,6 @@ impl XML for ChannelPopulation {
             segment,
             ion,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1552,16 +1501,13 @@ impl XML for ChannelPopulation {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClosedState {
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for ClosedState {
     fn from_node(node: &Node) -> Self {
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         ClosedState {
             id,
-            neuroLexId,
         }
     }
 }
@@ -1570,6 +1516,7 @@ impl XML for ClosedState {
 pub enum ComponentTypeBody {
     Property(LEMS_Property),
     Parameter(Parameter),
+    DerivedParameter(DerivedParameter),
     Constant(Constant),
     Exposure(Exposure),
     Requirement(Requirement),
@@ -1598,12 +1545,13 @@ impl XML for ComponentType {
             match child.tag_name().name() {
                 "Property" => body.push(ComponentTypeBody::Property(LEMS_Property::from_node(&child))),
                 "Parameter" => body.push(ComponentTypeBody::Parameter(Parameter::from_node(&child))),
+                "DerivedParameter" => body.push(ComponentTypeBody::DerivedParameter(DerivedParameter::from_node(&child))),
                 "Constant" => body.push(ComponentTypeBody::Constant(Constant::from_node(&child))),
                 "Exposure" => body.push(ComponentTypeBody::Exposure(Exposure::from_node(&child))),
                 "Requirement" => body.push(ComponentTypeBody::Requirement(Requirement::from_node(&child))),
                 "InstanceRequirement" => body.push(ComponentTypeBody::InstanceRequirement(InstanceRequirement::from_node(&child))),
                 "Dynamics" => body.push(ComponentTypeBody::Dynamics(Dynamics::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ComponentType.", t)
+                t => panic!("Unexpected tag {t} in body of ComponentType.")
             };
         }
         ComponentType {
@@ -1629,7 +1577,6 @@ pub enum CompoundInputBody {
 pub struct CompoundInput {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<CompoundInputBody>
 }
 
@@ -1637,7 +1584,6 @@ impl XML for CompoundInput {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1650,13 +1596,12 @@ impl XML for CompoundInput {
                 "notes" => body.push(CompoundInputBody::notes(String::from_node(&child))),
                 "property" => body.push(CompoundInputBody::property(Property::from_node(&child))),
                 "annotation" => body.push(CompoundInputBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of CompoundInput.", t)
+                t => panic!("Unexpected tag {t} in body of CompoundInput.")
             };
         }
         CompoundInput {
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1676,7 +1621,6 @@ pub enum CompoundInputDLBody {
 pub struct CompoundInputDL {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<CompoundInputDLBody>
 }
 
@@ -1684,7 +1628,6 @@ impl XML for CompoundInputDL {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -1697,13 +1640,12 @@ impl XML for CompoundInputDL {
                 "notes" => body.push(CompoundInputDLBody::notes(String::from_node(&child))),
                 "property" => body.push(CompoundInputDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(CompoundInputDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of CompoundInputDL.", t)
+                t => panic!("Unexpected tag {t} in body of CompoundInputDL.")
             };
         }
         CompoundInputDL {
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -1736,7 +1678,7 @@ impl XML for ConditionalDerivedVariable {
             }
             match child.tag_name().name() {
                 "Case" => body.push(ConditionalDerivedVariableBody::Case(Case::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ConditionalDerivedVariable.", t)
+                t => panic!("Unexpected tag {t} in body of ConditionalDerivedVariable.")
             };
         }
         ConditionalDerivedVariable {
@@ -1757,8 +1699,8 @@ pub struct Connection {
     pub postCellId: String,
     pub postSegmentId: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for Connection {
@@ -1769,8 +1711,8 @@ impl XML for Connection {
         let postCellId = node.attribute("postCellId").map(|s| s.to_string()).unwrap();
         let postSegmentId = node.attribute("postSegmentId").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         Connection {
             preCellId,
             preSegmentId,
@@ -1778,8 +1720,8 @@ impl XML for Connection {
             postCellId,
             postSegmentId,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -1794,8 +1736,8 @@ pub struct ConnectionWD {
     pub postCellId: String,
     pub postSegmentId: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for ConnectionWD {
@@ -1808,8 +1750,8 @@ impl XML for ConnectionWD {
         let postCellId = node.attribute("postCellId").map(|s| s.to_string()).unwrap();
         let postSegmentId = node.attribute("postSegmentId").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         ConnectionWD {
             weight,
             delay,
@@ -1819,8 +1761,8 @@ impl XML for ConnectionWD {
             postCellId,
             postSegmentId,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -1858,8 +1800,8 @@ pub struct ContinuousConnection {
     pub postCell: String,
     pub postSegment: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for ContinuousConnection {
@@ -1872,8 +1814,8 @@ impl XML for ContinuousConnection {
         let postCell = node.attribute("postCell").map(|s| s.to_string()).unwrap();
         let postSegment = node.attribute("postSegment").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         ContinuousConnection {
             preComponent,
             postComponent,
@@ -1883,8 +1825,8 @@ impl XML for ContinuousConnection {
             postCell,
             postSegment,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -1899,8 +1841,8 @@ pub struct ContinuousConnectionInstance {
     pub postCell: String,
     pub postSegment: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for ContinuousConnectionInstance {
@@ -1913,8 +1855,8 @@ impl XML for ContinuousConnectionInstance {
         let postCell = node.attribute("postCell").map(|s| s.to_string()).unwrap();
         let postSegment = node.attribute("postSegment").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         ContinuousConnectionInstance {
             preComponent,
             postComponent,
@@ -1924,8 +1866,8 @@ impl XML for ContinuousConnectionInstance {
             postCell,
             postSegment,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -1941,8 +1883,8 @@ pub struct ContinuousConnectionInstanceW {
     pub postCell: String,
     pub postSegment: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for ContinuousConnectionInstanceW {
@@ -1956,8 +1898,8 @@ impl XML for ContinuousConnectionInstanceW {
         let postCell = node.attribute("postCell").map(|s| s.to_string()).unwrap();
         let postSegment = node.attribute("postSegment").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         ContinuousConnectionInstanceW {
             weight,
             preComponent,
@@ -1968,8 +1910,8 @@ impl XML for ContinuousConnectionInstanceW {
             postCell,
             postSegment,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -1986,7 +1928,6 @@ pub struct ContinuousProjection {
     pub presynapticPopulation: String,
     pub postsynapticPopulation: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ContinuousProjectionBody>
 }
 
@@ -1995,7 +1936,6 @@ impl XML for ContinuousProjection {
         let presynapticPopulation = node.attribute("presynapticPopulation").map(|s| s.to_string()).unwrap();
         let postsynapticPopulation = node.attribute("postsynapticPopulation").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2005,14 +1945,13 @@ impl XML for ContinuousProjection {
                 "continuousConnection" => body.push(ContinuousProjectionBody::continuousConnection(ContinuousConnection::from_node(&child))),
                 "continuousConnectionInstance" => body.push(ContinuousProjectionBody::continuousConnectionInstance(ContinuousConnectionInstance::from_node(&child))),
                 "continuousConnectionInstanceW" => body.push(ContinuousProjectionBody::continuousConnectionInstanceW(ContinuousConnectionInstanceW::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ContinuousProjection.", t)
+                t => panic!("Unexpected tag {t} in body of ContinuousProjection.")
             };
         }
         ContinuousProjection {
             presynapticPopulation,
             postsynapticPopulation,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2033,7 +1972,6 @@ pub struct DecayingPoolConcentrationModel {
     pub shellThickness: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<DecayingPoolConcentrationModelBody>
 }
 
@@ -2045,7 +1983,6 @@ impl XML for DecayingPoolConcentrationModel {
         let shellThickness = node.attribute("shellThickness").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2055,7 +1992,7 @@ impl XML for DecayingPoolConcentrationModel {
                 "notes" => body.push(DecayingPoolConcentrationModelBody::notes(String::from_node(&child))),
                 "property" => body.push(DecayingPoolConcentrationModelBody::property(Property::from_node(&child))),
                 "annotation" => body.push(DecayingPoolConcentrationModelBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of DecayingPoolConcentrationModel.", t)
+                t => panic!("Unexpected tag {t} in body of DecayingPoolConcentrationModel.")
             };
         }
         DecayingPoolConcentrationModel {
@@ -2065,8 +2002,30 @@ impl XML for DecayingPoolConcentrationModel {
             shellThickness,
             metaid,
             id,
-            neuroLexId,
             body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DerivedParameter {
+    pub value: String,
+    pub name: String,
+    pub dimension: String,
+    pub description: Option<String>,
+}
+
+impl XML for DerivedParameter {
+    fn from_node(node: &Node) -> Self {
+        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let dimension = node.attribute("dimension").map(|s| s.to_string()).unwrap();
+        let description = node.attribute("description").map(|s| s.to_string());
+        DerivedParameter {
+            value,
+            name,
+            dimension,
+            description,
         }
     }
 }
@@ -2127,9 +2086,9 @@ pub struct DoubleSynapse {
     pub synapse2: String,
     pub synapse1Path: String,
     pub synapse2Path: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<DoubleSynapseBody>
 }
 
@@ -2139,9 +2098,9 @@ impl XML for DoubleSynapse {
         let synapse2 = node.attribute("synapse2").map(|s| s.to_string()).unwrap();
         let synapse1Path = node.attribute("synapse1Path").map(|s| s.to_string()).unwrap();
         let synapse2Path = node.attribute("synapse2Path").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2151,7 +2110,7 @@ impl XML for DoubleSynapse {
                 "notes" => body.push(DoubleSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(DoubleSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(DoubleSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of DoubleSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of DoubleSynapse.")
             };
         }
         DoubleSynapse {
@@ -2159,9 +2118,9 @@ impl XML for DoubleSynapse {
             synapse2,
             synapse1Path,
             synapse2Path,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2173,6 +2132,10 @@ pub enum DynamicsBody {
     DerivedVariable(DerivedVariable),
     ConditionalDerivedVariable(ConditionalDerivedVariable),
     TimeDerivative(TimeDerivative),
+    OnStart(OnStart),
+    OnEvent(OnEvent),
+    OnCondition(OnCondition),
+    Regime(Regime),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -2192,7 +2155,11 @@ impl XML for Dynamics {
                 "DerivedVariable" => body.push(DynamicsBody::DerivedVariable(DerivedVariable::from_node(&child))),
                 "ConditionalDerivedVariable" => body.push(DynamicsBody::ConditionalDerivedVariable(ConditionalDerivedVariable::from_node(&child))),
                 "TimeDerivative" => body.push(DynamicsBody::TimeDerivative(TimeDerivative::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Dynamics.", t)
+                "OnStart" => body.push(DynamicsBody::OnStart(OnStart::from_node(&child))),
+                "OnEvent" => body.push(DynamicsBody::OnEvent(OnEvent::from_node(&child))),
+                "OnCondition" => body.push(DynamicsBody::OnCondition(OnCondition::from_node(&child))),
+                "Regime" => body.push(DynamicsBody::Regime(Regime::from_node(&child))),
+                t => panic!("Unexpected tag {t} in body of Dynamics.")
             };
         }
         Dynamics {
@@ -2227,9 +2194,9 @@ pub struct EIF_cond_alpha_isfa_ista {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<EIF_cond_alpha_isfa_istaBody>
 }
 
@@ -2252,9 +2219,9 @@ impl XML for EIF_cond_alpha_isfa_ista {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2264,7 +2231,7 @@ impl XML for EIF_cond_alpha_isfa_ista {
                 "notes" => body.push(EIF_cond_alpha_isfa_istaBody::notes(String::from_node(&child))),
                 "property" => body.push(EIF_cond_alpha_isfa_istaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(EIF_cond_alpha_isfa_istaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of EIF_cond_alpha_isfa_ista.", t)
+                t => panic!("Unexpected tag {t} in body of EIF_cond_alpha_isfa_ista.")
             };
         }
         EIF_cond_alpha_isfa_ista {
@@ -2285,9 +2252,9 @@ impl XML for EIF_cond_alpha_isfa_ista {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2319,9 +2286,9 @@ pub struct EIF_cond_exp_isfa_ista {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<EIF_cond_exp_isfa_istaBody>
 }
 
@@ -2344,9 +2311,9 @@ impl XML for EIF_cond_exp_isfa_ista {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2356,7 +2323,7 @@ impl XML for EIF_cond_exp_isfa_ista {
                 "notes" => body.push(EIF_cond_exp_isfa_istaBody::notes(String::from_node(&child))),
                 "property" => body.push(EIF_cond_exp_isfa_istaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(EIF_cond_exp_isfa_istaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of EIF_cond_exp_isfa_ista.", t)
+                t => panic!("Unexpected tag {t} in body of EIF_cond_exp_isfa_ista.")
             };
         }
         EIF_cond_exp_isfa_ista {
@@ -2377,9 +2344,9 @@ impl XML for EIF_cond_exp_isfa_ista {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2394,8 +2361,8 @@ pub struct ElectricalConnection {
     pub postCell: String,
     pub postSegment: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for ElectricalConnection {
@@ -2407,8 +2374,8 @@ impl XML for ElectricalConnection {
         let postCell = node.attribute("postCell").map(|s| s.to_string()).unwrap();
         let postSegment = node.attribute("postSegment").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         ElectricalConnection {
             synapse,
             preCell,
@@ -2417,8 +2384,8 @@ impl XML for ElectricalConnection {
             postCell,
             postSegment,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -2432,8 +2399,8 @@ pub struct ElectricalConnectionInstance {
     pub postCell: String,
     pub postSegment: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for ElectricalConnectionInstance {
@@ -2445,8 +2412,8 @@ impl XML for ElectricalConnectionInstance {
         let postCell = node.attribute("postCell").map(|s| s.to_string()).unwrap();
         let postSegment = node.attribute("postSegment").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         ElectricalConnectionInstance {
             synapse,
             preCell,
@@ -2455,8 +2422,8 @@ impl XML for ElectricalConnectionInstance {
             postCell,
             postSegment,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -2471,8 +2438,8 @@ pub struct ElectricalConnectionInstanceW {
     pub postCell: String,
     pub postSegment: i64,
     pub postFractionAlong: f64,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
 }
 
 impl XML for ElectricalConnectionInstanceW {
@@ -2485,8 +2452,8 @@ impl XML for ElectricalConnectionInstanceW {
         let postCell = node.attribute("postCell").map(|s| s.to_string()).unwrap();
         let postSegment = node.attribute("postSegment").or(Some("0")).map(|s| s.parse::<i64>().unwrap()).unwrap();
         let postFractionAlong = node.attribute("postFractionAlong").or(Some("0.5")).map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         ElectricalConnectionInstanceW {
             weight,
             synapse,
@@ -2496,8 +2463,8 @@ impl XML for ElectricalConnectionInstanceW {
             postCell,
             postSegment,
             postFractionAlong,
-            id,
             neuroLexId,
+            id,
         }
     }
 }
@@ -2514,7 +2481,6 @@ pub struct ElectricalProjection {
     pub presynapticPopulation: String,
     pub postsynapticPopulation: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ElectricalProjectionBody>
 }
 
@@ -2523,7 +2489,6 @@ impl XML for ElectricalProjection {
         let presynapticPopulation = node.attribute("presynapticPopulation").map(|s| s.to_string()).unwrap();
         let postsynapticPopulation = node.attribute("postsynapticPopulation").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2533,15 +2498,28 @@ impl XML for ElectricalProjection {
                 "electricalConnection" => body.push(ElectricalProjectionBody::electricalConnection(ElectricalConnection::from_node(&child))),
                 "electricalConnectionInstance" => body.push(ElectricalProjectionBody::electricalConnectionInstance(ElectricalConnectionInstance::from_node(&child))),
                 "electricalConnectionInstanceW" => body.push(ElectricalProjectionBody::electricalConnectionInstanceW(ElectricalConnectionInstanceW::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ElectricalProjection.", t)
+                t => panic!("Unexpected tag {t} in body of ElectricalProjection.")
             };
         }
         ElectricalProjection {
             presynapticPopulation,
             postsynapticPopulation,
             id,
-            neuroLexId,
             body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EventOut {
+    pub port: String,
+}
+
+impl XML for EventOut {
+    fn from_node(node: &Node) -> Self {
+        let port = node.attribute("port").map(|s| s.to_string()).unwrap();
+        EventOut {
+            port,
         }
     }
 }
@@ -2557,9 +2535,9 @@ pub enum ExpCondSynapseBody {
 pub struct ExpCondSynapse {
     pub e_rev: f64,
     pub tau_syn: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ExpCondSynapseBody>
 }
 
@@ -2567,9 +2545,9 @@ impl XML for ExpCondSynapse {
     fn from_node(node: &Node) -> Self {
         let e_rev = node.attribute("e_rev").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn = node.attribute("tau_syn").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2579,15 +2557,15 @@ impl XML for ExpCondSynapse {
                 "notes" => body.push(ExpCondSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpCondSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpCondSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ExpCondSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of ExpCondSynapse.")
             };
         }
         ExpCondSynapse {
             e_rev,
             tau_syn,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2603,18 +2581,18 @@ pub enum ExpCurrSynapseBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExpCurrSynapse {
     pub tau_syn: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ExpCurrSynapseBody>
 }
 
 impl XML for ExpCurrSynapse {
     fn from_node(node: &Node) -> Self {
         let tau_syn = node.attribute("tau_syn").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2624,14 +2602,14 @@ impl XML for ExpCurrSynapse {
                 "notes" => body.push(ExpCurrSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpCurrSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpCurrSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ExpCurrSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of ExpCurrSynapse.")
             };
         }
         ExpCurrSynapse {
             tau_syn,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2649,9 +2627,9 @@ pub struct ExpOneSynapse {
     pub tauDecay: String,
     pub gbase: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ExpOneSynapseBody>
 }
 
@@ -2660,9 +2638,9 @@ impl XML for ExpOneSynapse {
         let tauDecay = node.attribute("tauDecay").map(|s| s.to_string()).unwrap();
         let gbase = node.attribute("gbase").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2672,16 +2650,16 @@ impl XML for ExpOneSynapse {
                 "notes" => body.push(ExpOneSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpOneSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpOneSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ExpOneSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of ExpOneSynapse.")
             };
         }
         ExpOneSynapse {
             tauDecay,
             gbase,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2702,9 +2680,9 @@ pub struct ExpThreeSynapse {
     pub gbase1: String,
     pub gbase2: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ExpThreeSynapseBody>
 }
 
@@ -2716,9 +2694,9 @@ impl XML for ExpThreeSynapse {
         let gbase1 = node.attribute("gbase1").map(|s| s.to_string()).unwrap();
         let gbase2 = node.attribute("gbase2").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2728,7 +2706,7 @@ impl XML for ExpThreeSynapse {
                 "notes" => body.push(ExpThreeSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpThreeSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpThreeSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ExpThreeSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of ExpThreeSynapse.")
             };
         }
         ExpThreeSynapse {
@@ -2738,9 +2716,9 @@ impl XML for ExpThreeSynapse {
             gbase1,
             gbase2,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2759,9 +2737,9 @@ pub struct ExpTwoSynapse {
     pub tauRise: String,
     pub gbase: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ExpTwoSynapseBody>
 }
 
@@ -2771,9 +2749,9 @@ impl XML for ExpTwoSynapse {
         let tauRise = node.attribute("tauRise").map(|s| s.to_string()).unwrap();
         let gbase = node.attribute("gbase").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2783,7 +2761,7 @@ impl XML for ExpTwoSynapse {
                 "notes" => body.push(ExpTwoSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(ExpTwoSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(ExpTwoSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ExpTwoSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of ExpTwoSynapse.")
             };
         }
         ExpTwoSynapse {
@@ -2791,9 +2769,9 @@ impl XML for ExpTwoSynapse {
             tauRise,
             gbase,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2847,14 +2825,12 @@ pub enum ExtracellularPropertiesBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtracellularProperties {
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ExtracellularPropertiesBody>
 }
 
 impl XML for ExtracellularProperties {
     fn from_node(node: &Node) -> Self {
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2862,12 +2838,11 @@ impl XML for ExtracellularProperties {
             }
             match child.tag_name().name() {
                 "species" => body.push(ExtracellularPropertiesBody::species(Species::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ExtracellularProperties.", t)
+                t => panic!("Unexpected tag {t} in body of ExtracellularProperties.")
             };
         }
         ExtracellularProperties {
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2880,11 +2855,13 @@ pub enum ExtracellularPropertiesLocalBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtracellularPropertiesLocal {
+    pub id: String,
     pub body: Vec<ExtracellularPropertiesLocalBody>
 }
 
 impl XML for ExtracellularPropertiesLocal {
     fn from_node(node: &Node) -> Self {
+        let id = node.attribute("id").map(|s| s.to_string()).unwrap();
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2892,10 +2869,11 @@ impl XML for ExtracellularPropertiesLocal {
             }
             match child.tag_name().name() {
                 "species" => body.push(ExtracellularPropertiesLocalBody::species(Species::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of ExtracellularPropertiesLocal.", t)
+                t => panic!("Unexpected tag {t} in body of ExtracellularPropertiesLocal.")
             };
         }
         ExtracellularPropertiesLocal {
+            id,
             body,
         }
     }
@@ -2916,9 +2894,9 @@ pub struct FitzHughNagumo1969Cell {
     pub phi: String,
     pub V0: String,
     pub W0: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<FitzHughNagumo1969CellBody>
 }
 
@@ -2930,9 +2908,9 @@ impl XML for FitzHughNagumo1969Cell {
         let phi = node.attribute("phi").map(|s| s.to_string()).unwrap();
         let V0 = node.attribute("V0").map(|s| s.to_string()).unwrap();
         let W0 = node.attribute("W0").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2942,7 +2920,7 @@ impl XML for FitzHughNagumo1969Cell {
                 "notes" => body.push(FitzHughNagumo1969CellBody::notes(String::from_node(&child))),
                 "property" => body.push(FitzHughNagumo1969CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(FitzHughNagumo1969CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of FitzHughNagumo1969Cell.", t)
+                t => panic!("Unexpected tag {t} in body of FitzHughNagumo1969Cell.")
             };
         }
         FitzHughNagumo1969Cell {
@@ -2952,9 +2930,9 @@ impl XML for FitzHughNagumo1969Cell {
             phi,
             V0,
             W0,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -2970,18 +2948,18 @@ pub enum FitzHughNagumoCellBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FitzHughNagumoCell {
     pub I: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<FitzHughNagumoCellBody>
 }
 
 impl XML for FitzHughNagumoCell {
     fn from_node(node: &Node) -> Self {
         let I = node.attribute("I").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -2991,14 +2969,14 @@ impl XML for FitzHughNagumoCell {
                 "notes" => body.push(FitzHughNagumoCellBody::notes(String::from_node(&child))),
                 "property" => body.push(FitzHughNagumoCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(FitzHughNagumoCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of FitzHughNagumoCell.", t)
+                t => panic!("Unexpected tag {t} in body of FitzHughNagumoCell.")
             };
         }
         FitzHughNagumoCell {
             I,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3019,7 +2997,6 @@ pub struct FixedFactorConcentrationModel {
     pub rho: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<FixedFactorConcentrationModelBody>
 }
 
@@ -3031,7 +3008,6 @@ impl XML for FixedFactorConcentrationModel {
         let rho = node.attribute("rho").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3041,7 +3017,7 @@ impl XML for FixedFactorConcentrationModel {
                 "notes" => body.push(FixedFactorConcentrationModelBody::notes(String::from_node(&child))),
                 "property" => body.push(FixedFactorConcentrationModelBody::property(Property::from_node(&child))),
                 "annotation" => body.push(FixedFactorConcentrationModelBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of FixedFactorConcentrationModel.", t)
+                t => panic!("Unexpected tag {t} in body of FixedFactorConcentrationModel.")
             };
         }
         FixedFactorConcentrationModel {
@@ -3051,7 +3027,6 @@ impl XML for FixedFactorConcentrationModel {
             rho,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3062,7 +3037,6 @@ pub struct ForwardTransition {
     pub from: String,
     pub to: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for ForwardTransition {
@@ -3070,12 +3044,10 @@ impl XML for ForwardTransition {
         let from = node.attribute("from").map(|s| s.to_string()).unwrap();
         let to = node.attribute("to").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         ForwardTransition {
             from,
             to,
             id,
-            neuroLexId,
         }
     }
 }
@@ -3090,18 +3062,18 @@ pub enum GapJunctionBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct GapJunction {
     pub conductance: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GapJunctionBody>
 }
 
 impl XML for GapJunction {
     fn from_node(node: &Node) -> Self {
         let conductance = node.attribute("conductance").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3111,14 +3083,14 @@ impl XML for GapJunction {
                 "notes" => body.push(GapJunctionBody::notes(String::from_node(&child))),
                 "property" => body.push(GapJunctionBody::property(Property::from_node(&child))),
                 "annotation" => body.push(GapJunctionBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GapJunction.", t)
+                t => panic!("Unexpected tag {t} in body of GapJunction.")
             };
         }
         GapJunction {
             conductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3135,7 +3107,6 @@ pub enum GateFractionalBody {
 pub struct GateFractional {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateFractionalBody>
 }
 
@@ -3143,7 +3114,6 @@ impl XML for GateFractional {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3153,13 +3123,12 @@ impl XML for GateFractional {
                 "notes" => body.push(GateFractionalBody::notes(String::from_node(&child))),
                 "q10Settings" => body.push(GateFractionalBody::q10Settings(Q10Settings::from_node(&child))),
                 "subGate" => body.push(GateFractionalBody::subGate(GateFractionalSubgate::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateFractional.", t)
+                t => panic!("Unexpected tag {t} in body of GateFractional.")
             };
         }
         GateFractional {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3177,7 +3146,6 @@ pub enum GateFractionalSubgateBody {
 pub struct GateFractionalSubgate {
     pub fractionalConductance: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateFractionalSubgateBody>
 }
 
@@ -3185,7 +3153,6 @@ impl XML for GateFractionalSubgate {
     fn from_node(node: &Node) -> Self {
         let fractionalConductance = node.attribute("fractionalConductance").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3196,13 +3163,12 @@ impl XML for GateFractionalSubgate {
                 "q10Settings" => body.push(GateFractionalSubgateBody::q10Settings(Q10Settings::from_node(&child))),
                 "steadyState" => body.push(GateFractionalSubgateBody::steadyState(HHVariable::from_node(&child))),
                 "timeCourse" => body.push(GateFractionalSubgateBody::timeCourse(HHTime::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateFractionalSubgate.", t)
+                t => panic!("Unexpected tag {t} in body of GateFractionalSubgate.")
             };
         }
         GateFractionalSubgate {
             fractionalConductance,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3218,7 +3184,6 @@ pub enum GateHHInstantaneousBody {
 pub struct GateHHInstantaneous {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateHHInstantaneousBody>
 }
 
@@ -3226,7 +3191,6 @@ impl XML for GateHHInstantaneous {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3235,13 +3199,12 @@ impl XML for GateHHInstantaneous {
             match child.tag_name().name() {
                 "notes" => body.push(GateHHInstantaneousBody::notes(String::from_node(&child))),
                 "steadyState" => body.push(GateHHInstantaneousBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateHHInstantaneous.", t)
+                t => panic!("Unexpected tag {t} in body of GateHHInstantaneous.")
             };
         }
         GateHHInstantaneous {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3259,7 +3222,6 @@ pub enum GateHHRatesBody {
 pub struct GateHHRates {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateHHRatesBody>
 }
 
@@ -3267,7 +3229,6 @@ impl XML for GateHHRates {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3278,13 +3239,12 @@ impl XML for GateHHRates {
                 "q10Settings" => body.push(GateHHRatesBody::q10Settings(Q10Settings::from_node(&child))),
                 "forwardRate" => body.push(GateHHRatesBody::forwardRate(HHRate::from_node(&child))),
                 "reverseRate" => body.push(GateHHRatesBody::reverseRate(HHRate::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateHHRates.", t)
+                t => panic!("Unexpected tag {t} in body of GateHHRates.")
             };
         }
         GateHHRates {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3303,7 +3263,6 @@ pub enum GateHHRatesInfBody {
 pub struct GateHHRatesInf {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateHHRatesInfBody>
 }
 
@@ -3311,7 +3270,6 @@ impl XML for GateHHRatesInf {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3323,13 +3281,12 @@ impl XML for GateHHRatesInf {
                 "forwardRate" => body.push(GateHHRatesInfBody::forwardRate(HHRate::from_node(&child))),
                 "reverseRate" => body.push(GateHHRatesInfBody::reverseRate(HHRate::from_node(&child))),
                 "steadyState" => body.push(GateHHRatesInfBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateHHRatesInf.", t)
+                t => panic!("Unexpected tag {t} in body of GateHHRatesInf.")
             };
         }
         GateHHRatesInf {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3348,7 +3305,6 @@ pub enum GateHHRatesTauBody {
 pub struct GateHHRatesTau {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateHHRatesTauBody>
 }
 
@@ -3356,7 +3312,6 @@ impl XML for GateHHRatesTau {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3368,13 +3323,12 @@ impl XML for GateHHRatesTau {
                 "forwardRate" => body.push(GateHHRatesTauBody::forwardRate(HHRate::from_node(&child))),
                 "reverseRate" => body.push(GateHHRatesTauBody::reverseRate(HHRate::from_node(&child))),
                 "timeCourse" => body.push(GateHHRatesTauBody::timeCourse(HHTime::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateHHRatesTau.", t)
+                t => panic!("Unexpected tag {t} in body of GateHHRatesTau.")
             };
         }
         GateHHRatesTau {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3394,7 +3348,6 @@ pub enum GateHHRatesTauInfBody {
 pub struct GateHHRatesTauInf {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateHHRatesTauInfBody>
 }
 
@@ -3402,7 +3355,6 @@ impl XML for GateHHRatesTauInf {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3415,13 +3367,12 @@ impl XML for GateHHRatesTauInf {
                 "reverseRate" => body.push(GateHHRatesTauInfBody::reverseRate(HHRate::from_node(&child))),
                 "timeCourse" => body.push(GateHHRatesTauInfBody::timeCourse(HHTime::from_node(&child))),
                 "steadyState" => body.push(GateHHRatesTauInfBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateHHRatesTauInf.", t)
+                t => panic!("Unexpected tag {t} in body of GateHHRatesTauInf.")
             };
         }
         GateHHRatesTauInf {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3439,7 +3390,6 @@ pub enum GateHHTauInfBody {
 pub struct GateHHTauInf {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateHHTauInfBody>
 }
 
@@ -3447,7 +3397,6 @@ impl XML for GateHHTauInf {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3458,13 +3407,12 @@ impl XML for GateHHTauInf {
                 "q10Settings" => body.push(GateHHTauInfBody::q10Settings(Q10Settings::from_node(&child))),
                 "timeCourse" => body.push(GateHHTauInfBody::timeCourse(HHTime::from_node(&child))),
                 "steadyState" => body.push(GateHHTauInfBody::steadyState(HHVariable::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateHHTauInf.", t)
+                t => panic!("Unexpected tag {t} in body of GateHHTauInf.")
             };
         }
         GateHHTauInf {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3486,7 +3434,6 @@ pub struct GateHHUndetermined {
     pub instances: i64,
     pub r#type: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateHHUndeterminedBody>
 }
 
@@ -3495,7 +3442,6 @@ impl XML for GateHHUndetermined {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3509,14 +3455,13 @@ impl XML for GateHHUndetermined {
                 "timeCourse" => body.push(GateHHUndeterminedBody::timeCourse(HHTime::from_node(&child))),
                 "steadyState" => body.push(GateHHUndeterminedBody::steadyState(HHVariable::from_node(&child))),
                 "subGate" => body.push(GateHHUndeterminedBody::subGate(GateFractionalSubgate::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateHHUndetermined.", t)
+                t => panic!("Unexpected tag {t} in body of GateHHUndetermined.")
             };
         }
         GateHHUndetermined {
             instances,
             r#type,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3537,7 +3482,6 @@ pub enum GateKSBody {
 pub struct GateKS {
     pub instances: i64,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GateKSBody>
 }
 
@@ -3545,7 +3489,6 @@ impl XML for GateKS {
     fn from_node(node: &Node) -> Self {
         let instances = node.attribute("instances").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3559,13 +3502,12 @@ impl XML for GateKS {
                 "forwardTransition" => body.push(GateKSBody::forwardTransition(ForwardTransition::from_node(&child))),
                 "reverseTransition" => body.push(GateKSBody::reverseTransition(ReverseTransition::from_node(&child))),
                 "tauInfTransition" => body.push(GateKSBody::tauInfTransition(TauInfTransition::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GateKS.", t)
+                t => panic!("Unexpected tag {t} in body of GateKS.")
             };
         }
         GateKS {
             instances,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3585,9 +3527,9 @@ pub struct GradedSynapse {
     pub Vth: String,
     pub k: String,
     pub erev: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<GradedSynapseBody>
 }
 
@@ -3598,9 +3540,9 @@ impl XML for GradedSynapse {
         let Vth = node.attribute("Vth").map(|s| s.to_string()).unwrap();
         let k = node.attribute("k").map(|s| s.to_string()).unwrap();
         let erev = node.attribute("erev").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3610,7 +3552,7 @@ impl XML for GradedSynapse {
                 "notes" => body.push(GradedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(GradedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(GradedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of GradedSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of GradedSynapse.")
             };
         }
         GradedSynapse {
@@ -3619,9 +3561,9 @@ impl XML for GradedSynapse {
             Vth,
             k,
             erev,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3742,9 +3684,9 @@ pub struct HH_cond_exp {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<HH_cond_expBody>
 }
 
@@ -3764,9 +3706,9 @@ impl XML for HH_cond_exp {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3776,7 +3718,7 @@ impl XML for HH_cond_exp {
                 "notes" => body.push(HH_cond_expBody::notes(String::from_node(&child))),
                 "property" => body.push(HH_cond_expBody::property(Property::from_node(&child))),
                 "annotation" => body.push(HH_cond_expBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of HH_cond_exp.", t)
+                t => panic!("Unexpected tag {t} in body of HH_cond_exp.")
             };
         }
         HH_cond_exp {
@@ -3794,9 +3736,86 @@ impl XML for HH_cond_exp {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum HindmarshRose1984CellBody {
+    notes(String),
+    property(Property),
+    annotation(Annotation),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct HindmarshRose1984Cell {
+    pub a: String,
+    pub b: String,
+    pub c: String,
+    pub d: String,
+    pub s: String,
+    pub x1: String,
+    pub r: String,
+    pub x0: String,
+    pub y0: String,
+    pub z0: String,
+    pub v_scaling: String,
+    pub C: String,
+    pub neuroLexId: Option<String>,
+    pub metaid: Option<String>,
+    pub id: String,
+    pub body: Vec<HindmarshRose1984CellBody>
+}
+
+impl XML for HindmarshRose1984Cell {
+    fn from_node(node: &Node) -> Self {
+        let a = node.attribute("a").map(|s| s.to_string()).unwrap();
+        let b = node.attribute("b").map(|s| s.to_string()).unwrap();
+        let c = node.attribute("c").map(|s| s.to_string()).unwrap();
+        let d = node.attribute("d").map(|s| s.to_string()).unwrap();
+        let s = node.attribute("s").map(|s| s.to_string()).unwrap();
+        let x1 = node.attribute("x1").map(|s| s.to_string()).unwrap();
+        let r = node.attribute("r").map(|s| s.to_string()).unwrap();
+        let x0 = node.attribute("x0").map(|s| s.to_string()).unwrap();
+        let y0 = node.attribute("y0").map(|s| s.to_string()).unwrap();
+        let z0 = node.attribute("z0").map(|s| s.to_string()).unwrap();
+        let v_scaling = node.attribute("v_scaling").map(|s| s.to_string()).unwrap();
+        let C = node.attribute("C").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let metaid = node.attribute("metaid").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.to_string()).unwrap();
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "notes" => body.push(HindmarshRose1984CellBody::notes(String::from_node(&child))),
+                "property" => body.push(HindmarshRose1984CellBody::property(Property::from_node(&child))),
+                "annotation" => body.push(HindmarshRose1984CellBody::annotation(Annotation::from_node(&child))),
+                t => panic!("Unexpected tag {t} in body of HindmarshRose1984Cell.")
+            };
+        }
+        HindmarshRose1984Cell {
+            a,
+            b,
+            c,
+            d,
+            s,
+            x1,
+            r,
+            x0,
+            y0,
+            z0,
+            v_scaling,
+            C,
             neuroLexId,
+            metaid,
+            id,
             body,
         }
     }
@@ -3823,9 +3842,9 @@ pub struct IF_cond_alpha {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IF_cond_alphaBody>
 }
 
@@ -3843,9 +3862,9 @@ impl XML for IF_cond_alpha {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3855,7 +3874,7 @@ impl XML for IF_cond_alpha {
                 "notes" => body.push(IF_cond_alphaBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_cond_alphaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_cond_alphaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IF_cond_alpha.", t)
+                t => panic!("Unexpected tag {t} in body of IF_cond_alpha.")
             };
         }
         IF_cond_alpha {
@@ -3871,9 +3890,9 @@ impl XML for IF_cond_alpha {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3900,9 +3919,9 @@ pub struct IF_cond_exp {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IF_cond_expBody>
 }
 
@@ -3920,9 +3939,9 @@ impl XML for IF_cond_exp {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -3932,7 +3951,7 @@ impl XML for IF_cond_exp {
                 "notes" => body.push(IF_cond_expBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_cond_expBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_cond_expBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IF_cond_exp.", t)
+                t => panic!("Unexpected tag {t} in body of IF_cond_exp.")
             };
         }
         IF_cond_exp {
@@ -3948,9 +3967,9 @@ impl XML for IF_cond_exp {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -3975,9 +3994,9 @@ pub struct IF_curr_alpha {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IF_curr_alphaBody>
 }
 
@@ -3993,9 +4012,9 @@ impl XML for IF_curr_alpha {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4005,7 +4024,7 @@ impl XML for IF_curr_alpha {
                 "notes" => body.push(IF_curr_alphaBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_curr_alphaBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_curr_alphaBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IF_curr_alpha.", t)
+                t => panic!("Unexpected tag {t} in body of IF_curr_alpha.")
             };
         }
         IF_curr_alpha {
@@ -4019,9 +4038,9 @@ impl XML for IF_curr_alpha {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4046,9 +4065,9 @@ pub struct IF_curr_exp {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IF_curr_expBody>
 }
 
@@ -4064,9 +4083,9 @@ impl XML for IF_curr_exp {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4076,7 +4095,7 @@ impl XML for IF_curr_exp {
                 "notes" => body.push(IF_curr_expBody::notes(String::from_node(&child))),
                 "property" => body.push(IF_curr_expBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IF_curr_expBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IF_curr_exp.", t)
+                t => panic!("Unexpected tag {t} in body of IF_curr_exp.")
             };
         }
         IF_curr_exp {
@@ -4090,9 +4109,9 @@ impl XML for IF_curr_exp {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4112,9 +4131,9 @@ pub struct IafCell {
     pub reset: String,
     pub C: String,
     pub leakConductance: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IafCellBody>
 }
 
@@ -4125,9 +4144,9 @@ impl XML for IafCell {
         let reset = node.attribute("reset").map(|s| s.to_string()).unwrap();
         let C = node.attribute("C").map(|s| s.to_string()).unwrap();
         let leakConductance = node.attribute("leakConductance").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4137,7 +4156,7 @@ impl XML for IafCell {
                 "notes" => body.push(IafCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IafCell.", t)
+                t => panic!("Unexpected tag {t} in body of IafCell.")
             };
         }
         IafCell {
@@ -4146,9 +4165,9 @@ impl XML for IafCell {
             reset,
             C,
             leakConductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4169,9 +4188,9 @@ pub struct IafRefCell {
     pub reset: String,
     pub C: String,
     pub leakConductance: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IafRefCellBody>
 }
 
@@ -4183,9 +4202,9 @@ impl XML for IafRefCell {
         let reset = node.attribute("reset").map(|s| s.to_string()).unwrap();
         let C = node.attribute("C").map(|s| s.to_string()).unwrap();
         let leakConductance = node.attribute("leakConductance").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4195,7 +4214,7 @@ impl XML for IafRefCell {
                 "notes" => body.push(IafRefCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafRefCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafRefCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IafRefCell.", t)
+                t => panic!("Unexpected tag {t} in body of IafRefCell.")
             };
         }
         IafRefCell {
@@ -4205,9 +4224,9 @@ impl XML for IafRefCell {
             reset,
             C,
             leakConductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4226,9 +4245,9 @@ pub struct IafTauCell {
     pub thresh: String,
     pub reset: String,
     pub tau: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IafTauCellBody>
 }
 
@@ -4238,9 +4257,9 @@ impl XML for IafTauCell {
         let thresh = node.attribute("thresh").map(|s| s.to_string()).unwrap();
         let reset = node.attribute("reset").map(|s| s.to_string()).unwrap();
         let tau = node.attribute("tau").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4250,7 +4269,7 @@ impl XML for IafTauCell {
                 "notes" => body.push(IafTauCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafTauCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafTauCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IafTauCell.", t)
+                t => panic!("Unexpected tag {t} in body of IafTauCell.")
             };
         }
         IafTauCell {
@@ -4258,9 +4277,9 @@ impl XML for IafTauCell {
             thresh,
             reset,
             tau,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4280,9 +4299,9 @@ pub struct IafTauRefCell {
     pub thresh: String,
     pub reset: String,
     pub tau: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IafTauRefCellBody>
 }
 
@@ -4293,9 +4312,9 @@ impl XML for IafTauRefCell {
         let thresh = node.attribute("thresh").map(|s| s.to_string()).unwrap();
         let reset = node.attribute("reset").map(|s| s.to_string()).unwrap();
         let tau = node.attribute("tau").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4305,7 +4324,7 @@ impl XML for IafTauRefCell {
                 "notes" => body.push(IafTauRefCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IafTauRefCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IafTauRefCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IafTauRefCell.", t)
+                t => panic!("Unexpected tag {t} in body of IafTauRefCell.")
             };
         }
         IafTauRefCell {
@@ -4314,9 +4333,9 @@ impl XML for IafTauRefCell {
             thresh,
             reset,
             tau,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4361,7 +4380,6 @@ pub struct InhomogeneousParameter {
     pub variable: String,
     pub metric: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<InhomogeneousParameterBody>
 }
 
@@ -4370,7 +4388,6 @@ impl XML for InhomogeneousParameter {
         let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
         let metric = node.attribute("metric").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4379,14 +4396,13 @@ impl XML for InhomogeneousParameter {
             match child.tag_name().name() {
                 "proximal" => body.push(InhomogeneousParameterBody::proximal(ProximalDetails::from_node(&child))),
                 "distal" => body.push(InhomogeneousParameterBody::distal(DistalDetails::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of InhomogeneousParameter.", t)
+                t => panic!("Unexpected tag {t} in body of InhomogeneousParameter.")
             };
         }
         InhomogeneousParameter {
             variable,
             metric,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4428,26 +4444,26 @@ impl XML for InitMembPotential {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Input {
-    pub id: i64,
     pub target: String,
     pub destination: String,
     pub segmentId: Option<i64>,
     pub fractionAlong: Option<f64>,
+    pub id: i64,
 }
 
 impl XML for Input {
     fn from_node(node: &Node) -> Self {
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let target = node.attribute("target").map(|s| s.to_string()).unwrap();
         let destination = node.attribute("destination").map(|s| s.to_string()).unwrap();
         let segmentId = node.attribute("segmentId").map(|s| s.parse::<i64>().unwrap());
         let fractionAlong = node.attribute("fractionAlong").map(|s| s.parse::<f64>().unwrap());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         Input {
-            id,
             target,
             destination,
             segmentId,
             fractionAlong,
+            id,
         }
     }
 }
@@ -4463,7 +4479,6 @@ pub struct InputList {
     pub population: String,
     pub component: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<InputListBody>
 }
 
@@ -4472,7 +4487,6 @@ impl XML for InputList {
         let population = node.attribute("population").map(|s| s.to_string()).unwrap();
         let component = node.attribute("component").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4481,14 +4495,13 @@ impl XML for InputList {
             match child.tag_name().name() {
                 "input" => body.push(InputListBody::input(Input::from_node(&child))),
                 "inputW" => body.push(InputListBody::inputW(InputW::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of InputList.", t)
+                t => panic!("Unexpected tag {t} in body of InputList.")
             };
         }
         InputList {
             population,
             component,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4497,28 +4510,28 @@ impl XML for InputList {
 #[derive(Debug, Clone, PartialEq)]
 pub struct InputW {
     pub weight: f64,
-    pub id: i64,
     pub target: String,
     pub destination: String,
     pub segmentId: Option<i64>,
     pub fractionAlong: Option<f64>,
+    pub id: i64,
 }
 
 impl XML for InputW {
     fn from_node(node: &Node) -> Self {
         let weight = node.attribute("weight").map(|s| s.parse::<f64>().unwrap()).unwrap();
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let target = node.attribute("target").map(|s| s.to_string()).unwrap();
         let destination = node.attribute("destination").map(|s| s.to_string()).unwrap();
         let segmentId = node.attribute("segmentId").map(|s| s.parse::<i64>().unwrap());
         let fractionAlong = node.attribute("fractionAlong").map(|s| s.parse::<f64>().unwrap());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         InputW {
             weight,
-            id,
             target,
             destination,
             segmentId,
             fractionAlong,
+            id,
         }
     }
 }
@@ -4550,7 +4563,7 @@ impl XML for Instance {
             }
             match child.tag_name().name() {
                 "location" => body.push(InstanceBody::location(Location::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Instance.", t)
+                t => panic!("Unexpected tag {t} in body of Instance.")
             };
         }
         Instance {
@@ -4601,7 +4614,7 @@ impl XML for IntracellularProperties {
             match child.tag_name().name() {
                 "species" => body.push(IntracellularPropertiesBody::species(Species::from_node(&child))),
                 "resistivity" => body.push(IntracellularPropertiesBody::resistivity(Resistivity::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IntracellularProperties.", t)
+                t => panic!("Unexpected tag {t} in body of IntracellularProperties.")
             };
         }
         IntracellularProperties {
@@ -4631,7 +4644,7 @@ impl XML for IntracellularProperties2CaPools {
             match child.tag_name().name() {
                 "species" => body.push(IntracellularProperties2CaPoolsBody::species(Species::from_node(&child))),
                 "resistivity" => body.push(IntracellularProperties2CaPoolsBody::resistivity(Resistivity::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IntracellularProperties2CaPools.", t)
+                t => panic!("Unexpected tag {t} in body of IntracellularProperties2CaPools.")
             };
         }
         IntracellularProperties2CaPools {
@@ -4661,9 +4674,9 @@ pub struct IonChannel {
     pub species: Option<String>,
     pub r#type: Option<String>,
     pub conductance: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IonChannelBody>
 }
 
@@ -4672,9 +4685,9 @@ impl XML for IonChannel {
         let species = node.attribute("species").map(|s| s.to_string());
         let r#type = node.attribute("type").map(|s| s.to_string());
         let conductance = node.attribute("conductance").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4693,16 +4706,16 @@ impl XML for IonChannel {
                 "notes" => body.push(IonChannelBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IonChannel.", t)
+                t => panic!("Unexpected tag {t} in body of IonChannel.")
             };
         }
         IonChannel {
             species,
             r#type,
             conductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4729,9 +4742,9 @@ pub struct IonChannelHH {
     pub species: Option<String>,
     pub r#type: Option<String>,
     pub conductance: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IonChannelHHBody>
 }
 
@@ -4740,9 +4753,9 @@ impl XML for IonChannelHH {
         let species = node.attribute("species").map(|s| s.to_string());
         let r#type = node.attribute("type").map(|s| s.to_string());
         let conductance = node.attribute("conductance").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4761,16 +4774,16 @@ impl XML for IonChannelHH {
                 "notes" => body.push(IonChannelHHBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelHHBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelHHBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IonChannelHH.", t)
+                t => panic!("Unexpected tag {t} in body of IonChannelHH.")
             };
         }
         IonChannelHH {
             species,
             r#type,
             conductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4788,9 +4801,9 @@ pub enum IonChannelKSBody {
 pub struct IonChannelKS {
     pub species: Option<String>,
     pub conductance: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IonChannelKSBody>
 }
 
@@ -4798,9 +4811,9 @@ impl XML for IonChannelKS {
     fn from_node(node: &Node) -> Self {
         let species = node.attribute("species").map(|s| s.to_string());
         let conductance = node.attribute("conductance").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4811,15 +4824,15 @@ impl XML for IonChannelKS {
                 "notes" => body.push(IonChannelKSBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelKSBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelKSBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IonChannelKS.", t)
+                t => panic!("Unexpected tag {t} in body of IonChannelKS.")
             };
         }
         IonChannelKS {
             species,
             conductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4835,17 +4848,17 @@ pub enum IonChannelScalableBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct IonChannelScalable {
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IonChannelScalableBody>
 }
 
 impl XML for IonChannelScalable {
     fn from_node(node: &Node) -> Self {
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4856,13 +4869,13 @@ impl XML for IonChannelScalable {
                 "notes" => body.push(IonChannelScalableBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelScalableBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelScalableBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IonChannelScalable.", t)
+                t => panic!("Unexpected tag {t} in body of IonChannelScalable.")
             };
         }
         IonChannelScalable {
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4890,9 +4903,9 @@ pub struct IonChannelVShift {
     pub species: Option<String>,
     pub r#type: Option<String>,
     pub conductance: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IonChannelVShiftBody>
 }
 
@@ -4902,9 +4915,9 @@ impl XML for IonChannelVShift {
         let species = node.attribute("species").map(|s| s.to_string());
         let r#type = node.attribute("type").map(|s| s.to_string());
         let conductance = node.attribute("conductance").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4923,7 +4936,7 @@ impl XML for IonChannelVShift {
                 "notes" => body.push(IonChannelVShiftBody::notes(String::from_node(&child))),
                 "property" => body.push(IonChannelVShiftBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IonChannelVShiftBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IonChannelVShift.", t)
+                t => panic!("Unexpected tag {t} in body of IonChannelVShift.")
             };
         }
         IonChannelVShift {
@@ -4931,9 +4944,9 @@ impl XML for IonChannelVShift {
             species,
             r#type,
             conductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -4958,9 +4971,9 @@ pub struct Izhikevich2007Cell {
     pub c: String,
     pub d: String,
     pub C: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<Izhikevich2007CellBody>
 }
 
@@ -4976,9 +4989,9 @@ impl XML for Izhikevich2007Cell {
         let c = node.attribute("c").map(|s| s.to_string()).unwrap();
         let d = node.attribute("d").map(|s| s.to_string()).unwrap();
         let C = node.attribute("C").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -4988,7 +5001,7 @@ impl XML for Izhikevich2007Cell {
                 "notes" => body.push(Izhikevich2007CellBody::notes(String::from_node(&child))),
                 "property" => body.push(Izhikevich2007CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(Izhikevich2007CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Izhikevich2007Cell.", t)
+                t => panic!("Unexpected tag {t} in body of Izhikevich2007Cell.")
             };
         }
         Izhikevich2007Cell {
@@ -5002,9 +5015,9 @@ impl XML for Izhikevich2007Cell {
             c,
             d,
             C,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5025,9 +5038,9 @@ pub struct IzhikevichCell {
     pub b: String,
     pub c: String,
     pub d: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<IzhikevichCellBody>
 }
 
@@ -5039,9 +5052,9 @@ impl XML for IzhikevichCell {
         let b = node.attribute("b").map(|s| s.to_string()).unwrap();
         let c = node.attribute("c").map(|s| s.to_string()).unwrap();
         let d = node.attribute("d").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5051,7 +5064,7 @@ impl XML for IzhikevichCell {
                 "notes" => body.push(IzhikevichCellBody::notes(String::from_node(&child))),
                 "property" => body.push(IzhikevichCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(IzhikevichCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of IzhikevichCell.", t)
+                t => panic!("Unexpected tag {t} in body of IzhikevichCell.")
             };
         }
         IzhikevichCell {
@@ -5061,9 +5074,9 @@ impl XML for IzhikevichCell {
             b,
             c,
             d,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5117,7 +5130,7 @@ impl XML for Layout {
                 "random" => body.push(LayoutBody::random(RandomLayout::from_node(&child))),
                 "grid" => body.push(LayoutBody::grid(GridLayout::from_node(&child))),
                 "unstructured" => body.push(LayoutBody::unstructured(UnstructuredLayout::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Layout.", t)
+                t => panic!("Unexpected tag {t} in body of Layout.")
             };
         }
         Layout {
@@ -5137,18 +5150,18 @@ pub enum LinearGradedSynapseBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LinearGradedSynapse {
     pub conductance: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<LinearGradedSynapseBody>
 }
 
 impl XML for LinearGradedSynapse {
     fn from_node(node: &Node) -> Self {
         let conductance = node.attribute("conductance").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5158,14 +5171,14 @@ impl XML for LinearGradedSynapse {
                 "notes" => body.push(LinearGradedSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(LinearGradedSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(LinearGradedSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of LinearGradedSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of LinearGradedSynapse.")
             };
         }
         LinearGradedSynapse {
             conductance,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5246,7 +5259,7 @@ impl XML for MembraneProperties {
                 "spikeThresh" => body.push(MembranePropertiesBody::spikeThresh(SpikeThresh::from_node(&child))),
                 "specificCapacitance" => body.push(MembranePropertiesBody::specificCapacitance(SpecificCapacitance::from_node(&child))),
                 "initMembPotential" => body.push(MembranePropertiesBody::initMembPotential(InitMembPotential::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of MembraneProperties.", t)
+                t => panic!("Unexpected tag {t} in body of MembraneProperties.")
             };
         }
         MembraneProperties {
@@ -5298,7 +5311,7 @@ impl XML for MembraneProperties2CaPools {
                 "spikeThresh" => body.push(MembraneProperties2CaPoolsBody::spikeThresh(SpikeThresh::from_node(&child))),
                 "specificCapacitance" => body.push(MembraneProperties2CaPoolsBody::specificCapacitance(SpecificCapacitance::from_node(&child))),
                 "initMembPotential" => body.push(MembraneProperties2CaPoolsBody::initMembPotential(InitMembPotential::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of MembraneProperties2CaPools.", t)
+                t => panic!("Unexpected tag {t} in body of MembraneProperties2CaPools.")
             };
         }
         MembraneProperties2CaPools {
@@ -5320,7 +5333,6 @@ pub enum MorphologyBody {
 pub struct Morphology {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<MorphologyBody>
 }
 
@@ -5328,7 +5340,6 @@ impl XML for Morphology {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5340,13 +5351,12 @@ impl XML for Morphology {
                 "notes" => body.push(MorphologyBody::notes(String::from_node(&child))),
                 "property" => body.push(MorphologyBody::property(Property::from_node(&child))),
                 "annotation" => body.push(MorphologyBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Morphology.", t)
+                t => panic!("Unexpected tag {t} in body of Morphology.")
             };
         }
         Morphology {
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5417,9 +5427,9 @@ pub enum NetworkBody {
 pub struct Network {
     pub r#type: Option<String>,
     pub temperature: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<NetworkBody>
 }
 
@@ -5427,9 +5437,9 @@ impl XML for Network {
     fn from_node(node: &Node) -> Self {
         let r#type = node.attribute("type").map(|s| s.to_string());
         let temperature = node.attribute("temperature").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5450,15 +5460,15 @@ impl XML for Network {
                 "notes" => body.push(NetworkBody::notes(String::from_node(&child))),
                 "property" => body.push(NetworkBody::property(Property::from_node(&child))),
                 "annotation" => body.push(NetworkBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Network.", t)
+                t => panic!("Unexpected tag {t} in body of Network.")
             };
         }
         Network {
             r#type,
             temperature,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5501,6 +5511,7 @@ pub enum NeuroMLDocumentBody {
     fitzHughNagumoCell(FitzHughNagumoCell),
     fitzHughNagumo1969Cell(FitzHughNagumo1969Cell),
     pinskyRinzelCA3Cell(PinskyRinzelCA3Cell),
+    hindmarshRose1984Cell(HindmarshRose1984Cell),
     pulseGenerator(PulseGenerator),
     pulseGeneratorDL(PulseGeneratorDL),
     sineGenerator(SineGenerator),
@@ -5542,7 +5553,6 @@ pub enum NeuroMLDocumentBody {
 pub struct NeuroMLDocument {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<NeuroMLDocumentBody>
 }
 
@@ -5550,7 +5560,6 @@ impl XML for NeuroMLDocument {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5592,6 +5601,7 @@ impl XML for NeuroMLDocument {
                 "fitzHughNagumoCell" => body.push(NeuroMLDocumentBody::fitzHughNagumoCell(FitzHughNagumoCell::from_node(&child))),
                 "fitzHughNagumo1969Cell" => body.push(NeuroMLDocumentBody::fitzHughNagumo1969Cell(FitzHughNagumo1969Cell::from_node(&child))),
                 "pinskyRinzelCA3Cell" => body.push(NeuroMLDocumentBody::pinskyRinzelCA3Cell(PinskyRinzelCA3Cell::from_node(&child))),
+                "hindmarshRose1984Cell" => body.push(NeuroMLDocumentBody::hindmarshRose1984Cell(HindmarshRose1984Cell::from_node(&child))),
                 "pulseGenerator" => body.push(NeuroMLDocumentBody::pulseGenerator(PulseGenerator::from_node(&child))),
                 "pulseGeneratorDL" => body.push(NeuroMLDocumentBody::pulseGeneratorDL(PulseGeneratorDL::from_node(&child))),
                 "sineGenerator" => body.push(NeuroMLDocumentBody::sineGenerator(SineGenerator::from_node(&child))),
@@ -5627,13 +5637,136 @@ impl XML for NeuroMLDocument {
                 "notes" => body.push(NeuroMLDocumentBody::notes(String::from_node(&child))),
                 "property" => body.push(NeuroMLDocumentBody::property(Property::from_node(&child))),
                 "annotation" => body.push(NeuroMLDocumentBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of NeuroMLDocument.", t)
+                t => panic!("Unexpected tag {t} in body of NeuroMLDocument.")
             };
         }
         NeuroMLDocument {
             metaid,
             id,
-            neuroLexId,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OnConditionBody {
+    StateAssignment(StateAssignment),
+    EventOut(EventOut),
+    Transition(Transition),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OnCondition {
+    pub test: String,
+    pub body: Vec<OnConditionBody>
+}
+
+impl XML for OnCondition {
+    fn from_node(node: &Node) -> Self {
+        let test = node.attribute("test").map(|s| s.to_string()).unwrap();
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "StateAssignment" => body.push(OnConditionBody::StateAssignment(StateAssignment::from_node(&child))),
+                "EventOut" => body.push(OnConditionBody::EventOut(EventOut::from_node(&child))),
+                "Transition" => body.push(OnConditionBody::Transition(Transition::from_node(&child))),
+                t => panic!("Unexpected tag {t} in body of OnCondition.")
+            };
+        }
+        OnCondition {
+            test,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OnEntryBody {
+    StateAssignment(StateAssignment),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OnEntry {
+    pub body: Vec<OnEntryBody>
+}
+
+impl XML for OnEntry {
+    fn from_node(node: &Node) -> Self {
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "StateAssignment" => body.push(OnEntryBody::StateAssignment(StateAssignment::from_node(&child))),
+                t => panic!("Unexpected tag {t} in body of OnEntry.")
+            };
+        }
+        OnEntry {
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OnEventBody {
+    StateAssignment(StateAssignment),
+    EventOut(EventOut),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OnEvent {
+    pub port: String,
+    pub body: Vec<OnEventBody>
+}
+
+impl XML for OnEvent {
+    fn from_node(node: &Node) -> Self {
+        let port = node.attribute("port").map(|s| s.to_string()).unwrap();
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "StateAssignment" => body.push(OnEventBody::StateAssignment(StateAssignment::from_node(&child))),
+                "EventOut" => body.push(OnEventBody::EventOut(EventOut::from_node(&child))),
+                t => panic!("Unexpected tag {t} in body of OnEvent.")
+            };
+        }
+        OnEvent {
+            port,
+            body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OnStartBody {
+    StateAssignment(StateAssignment),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OnStart {
+    pub body: Vec<OnStartBody>
+}
+
+impl XML for OnStart {
+    fn from_node(node: &Node) -> Self {
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "StateAssignment" => body.push(OnStartBody::StateAssignment(StateAssignment::from_node(&child))),
+                t => panic!("Unexpected tag {t} in body of OnStart.")
+            };
+        }
+        OnStart {
             body,
         }
     }
@@ -5642,16 +5775,13 @@ impl XML for NeuroMLDocument {
 #[derive(Debug, Clone, PartialEq)]
 pub struct OpenState {
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for OpenState {
     fn from_node(node: &Node) -> Self {
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         OpenState {
             id,
-            neuroLexId,
         }
     }
 }
@@ -5697,7 +5827,7 @@ impl XML for Path {
             match child.tag_name().name() {
                 "from" => body.push(PathBody::from(SegmentEndPoint::from_node(&child))),
                 "to" => body.push(PathBody::to(SegmentEndPoint::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Path.", t)
+                t => panic!("Unexpected tag {t} in body of Path.")
             };
         }
         Path {
@@ -5736,9 +5866,9 @@ pub struct PinskyRinzelCA3Cell {
     pub alphac: String,
     pub betac: String,
     pub cm: String,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<PinskyRinzelCA3CellBody>
 }
 
@@ -5765,9 +5895,9 @@ impl XML for PinskyRinzelCA3Cell {
         let alphac = node.attribute("alphac").map(|s| s.to_string()).unwrap();
         let betac = node.attribute("betac").map(|s| s.to_string()).unwrap();
         let cm = node.attribute("cm").map(|s| s.to_string()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5777,7 +5907,7 @@ impl XML for PinskyRinzelCA3Cell {
                 "notes" => body.push(PinskyRinzelCA3CellBody::notes(String::from_node(&child))),
                 "property" => body.push(PinskyRinzelCA3CellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PinskyRinzelCA3CellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of PinskyRinzelCA3Cell.", t)
+                t => panic!("Unexpected tag {t} in body of PinskyRinzelCA3Cell.")
             };
         }
         PinskyRinzelCA3Cell {
@@ -5802,9 +5932,9 @@ impl XML for PinskyRinzelCA3Cell {
             alphac,
             betac,
             cm,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5870,7 +6000,6 @@ pub struct PoissonFiringSynapse {
     pub spikeTarget: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<PoissonFiringSynapseBody>
 }
 
@@ -5881,7 +6010,6 @@ impl XML for PoissonFiringSynapse {
         let spikeTarget = node.attribute("spikeTarget").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5891,7 +6019,7 @@ impl XML for PoissonFiringSynapse {
                 "notes" => body.push(PoissonFiringSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(PoissonFiringSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PoissonFiringSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of PoissonFiringSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of PoissonFiringSynapse.")
             };
         }
         PoissonFiringSynapse {
@@ -5900,7 +6028,6 @@ impl XML for PoissonFiringSynapse {
             spikeTarget,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5921,9 +6048,9 @@ pub struct Population {
     pub size: Option<i64>,
     pub r#type: Option<String>,
     pub extracellularProperties: Option<String>,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<PopulationBody>
 }
 
@@ -5933,9 +6060,9 @@ impl XML for Population {
         let size = node.attribute("size").map(|s| s.parse::<i64>().unwrap());
         let r#type = node.attribute("type").map(|s| s.to_string());
         let extracellularProperties = node.attribute("extracellularProperties").map(|s| s.to_string());
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5947,7 +6074,7 @@ impl XML for Population {
                 "notes" => body.push(PopulationBody::notes(String::from_node(&child))),
                 "property" => body.push(PopulationBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PopulationBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Population.", t)
+                t => panic!("Unexpected tag {t} in body of Population.")
             };
         }
         Population {
@@ -5955,9 +6082,9 @@ impl XML for Population {
             size,
             r#type,
             extracellularProperties,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -5975,7 +6102,6 @@ pub struct Projection {
     pub presynapticPopulation: String,
     pub postsynapticPopulation: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<ProjectionBody>
 }
 
@@ -5985,7 +6111,6 @@ impl XML for Projection {
         let presynapticPopulation = node.attribute("presynapticPopulation").map(|s| s.to_string()).unwrap();
         let postsynapticPopulation = node.attribute("postsynapticPopulation").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -5994,7 +6119,7 @@ impl XML for Projection {
             match child.tag_name().name() {
                 "connection" => body.push(ProjectionBody::connection(Connection::from_node(&child))),
                 "connectionWD" => body.push(ProjectionBody::connectionWD(ConnectionWD::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Projection.", t)
+                t => panic!("Unexpected tag {t} in body of Projection.")
             };
         }
         Projection {
@@ -6002,7 +6127,6 @@ impl XML for Projection {
             presynapticPopulation,
             postsynapticPopulation,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6053,7 +6177,6 @@ pub struct PulseGenerator {
     pub amplitude: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<PulseGeneratorBody>
 }
 
@@ -6064,7 +6187,6 @@ impl XML for PulseGenerator {
         let amplitude = node.attribute("amplitude").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6074,7 +6196,7 @@ impl XML for PulseGenerator {
                 "notes" => body.push(PulseGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(PulseGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PulseGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of PulseGenerator.", t)
+                t => panic!("Unexpected tag {t} in body of PulseGenerator.")
             };
         }
         PulseGenerator {
@@ -6083,7 +6205,6 @@ impl XML for PulseGenerator {
             amplitude,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6103,7 +6224,6 @@ pub struct PulseGeneratorDL {
     pub amplitude: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<PulseGeneratorDLBody>
 }
 
@@ -6114,7 +6234,6 @@ impl XML for PulseGeneratorDL {
         let amplitude = node.attribute("amplitude").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6124,7 +6243,7 @@ impl XML for PulseGeneratorDL {
                 "notes" => body.push(PulseGeneratorDLBody::notes(String::from_node(&child))),
                 "property" => body.push(PulseGeneratorDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(PulseGeneratorDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of PulseGeneratorDL.", t)
+                t => panic!("Unexpected tag {t} in body of PulseGeneratorDL.")
             };
         }
         PulseGeneratorDL {
@@ -6133,7 +6252,6 @@ impl XML for PulseGeneratorDL {
             amplitude,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6195,7 +6313,6 @@ pub struct RampGenerator {
     pub baselineAmplitude: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<RampGeneratorBody>
 }
 
@@ -6208,7 +6325,6 @@ impl XML for RampGenerator {
         let baselineAmplitude = node.attribute("baselineAmplitude").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6218,7 +6334,7 @@ impl XML for RampGenerator {
                 "notes" => body.push(RampGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(RampGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(RampGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of RampGenerator.", t)
+                t => panic!("Unexpected tag {t} in body of RampGenerator.")
             };
         }
         RampGenerator {
@@ -6229,7 +6345,6 @@ impl XML for RampGenerator {
             baselineAmplitude,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6251,7 +6366,6 @@ pub struct RampGeneratorDL {
     pub baselineAmplitude: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<RampGeneratorDLBody>
 }
 
@@ -6264,7 +6378,6 @@ impl XML for RampGeneratorDL {
         let baselineAmplitude = node.attribute("baselineAmplitude").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6274,7 +6387,7 @@ impl XML for RampGeneratorDL {
                 "notes" => body.push(RampGeneratorDLBody::notes(String::from_node(&child))),
                 "property" => body.push(RampGeneratorDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(RampGeneratorDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of RampGeneratorDL.", t)
+                t => panic!("Unexpected tag {t} in body of RampGeneratorDL.")
             };
         }
         RampGeneratorDL {
@@ -6285,7 +6398,6 @@ impl XML for RampGeneratorDL {
             baselineAmplitude,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6313,7 +6425,6 @@ pub struct ReactionScheme {
     pub source: String,
     pub r#type: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for ReactionScheme {
@@ -6321,12 +6432,48 @@ impl XML for ReactionScheme {
         let source = node.attribute("source").map(|s| s.to_string()).unwrap();
         let r#type = node.attribute("type").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         ReactionScheme {
             source,
             r#type,
             id,
-            neuroLexId,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum RegimeBody {
+    TimeDerivative(TimeDerivative),
+    OnEntry(OnEntry),
+    OnCondition(OnCondition),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Regime {
+    pub name: String,
+    pub initial: Option<String>,
+    pub body: Vec<RegimeBody>
+}
+
+impl XML for Regime {
+    fn from_node(node: &Node) -> Self {
+        let name = node.attribute("name").map(|s| s.to_string()).unwrap();
+        let initial = node.attribute("initial").map(|s| s.to_string());
+        let mut body = Vec::new();
+        for child in node.children() {
+            if child.is_comment() || child.is_text() {
+                continue;
+            }
+            match child.tag_name().name() {
+                "TimeDerivative" => body.push(RegimeBody::TimeDerivative(TimeDerivative::from_node(&child))),
+                "OnEntry" => body.push(RegimeBody::OnEntry(OnEntry::from_node(&child))),
+                "OnCondition" => body.push(RegimeBody::OnCondition(OnCondition::from_node(&child))),
+                t => panic!("Unexpected tag {t} in body of Regime.")
+            };
+        }
+        Regime {
+            name,
+            initial,
+            body,
         }
     }
 }
@@ -6335,18 +6482,15 @@ impl XML for ReactionScheme {
 pub struct Region {
     pub space: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for Region {
     fn from_node(node: &Node) -> Self {
         let space = node.attribute("space").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         Region {
             space,
             id,
-            neuroLexId,
         }
     }
 }
@@ -6393,7 +6537,6 @@ pub struct ReverseTransition {
     pub from: String,
     pub to: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for ReverseTransition {
@@ -6401,12 +6544,10 @@ impl XML for ReverseTransition {
         let from = node.attribute("from").map(|s| s.to_string()).unwrap();
         let to = node.attribute("to").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         ReverseTransition {
             from,
             to,
             id,
-            neuroLexId,
         }
     }
 }
@@ -6421,16 +6562,16 @@ pub enum SegmentBody {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Segment {
     pub name: Option<String>,
-    pub id: i64,
     pub neuroLexId: Option<String>,
+    pub id: i64,
     pub body: Vec<SegmentBody>
 }
 
 impl XML for Segment {
     fn from_node(node: &Node) -> Self {
         let name = node.attribute("name").map(|s| s.to_string());
-        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6440,13 +6581,13 @@ impl XML for Segment {
                 "parent" => body.push(SegmentBody::parent(SegmentParent::from_node(&child))),
                 "proximal" => body.push(SegmentBody::proximal(Point3DWithDiam::from_node(&child))),
                 "distal" => body.push(SegmentBody::distal(Point3DWithDiam::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Segment.", t)
+                t => panic!("Unexpected tag {t} in body of Segment.")
             };
         }
         Segment {
             name,
-            id,
             neuroLexId,
+            id,
             body,
         }
     }
@@ -6480,15 +6621,15 @@ pub enum SegmentGroupBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SegmentGroup {
-    pub id: String,
     pub neuroLexId: Option<String>,
+    pub id: String,
     pub body: Vec<SegmentGroupBody>
 }
 
 impl XML for SegmentGroup {
     fn from_node(node: &Node) -> Self {
-        let id = node.attribute("id").map(|s| s.to_string()).unwrap();
         let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
+        let id = node.attribute("id").map(|s| s.to_string()).unwrap();
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6503,12 +6644,12 @@ impl XML for SegmentGroup {
                 "path" => body.push(SegmentGroupBody::path(Path::from_node(&child))),
                 "subTree" => body.push(SegmentGroupBody::subTree(SubTree::from_node(&child))),
                 "inhomogeneousParameter" => body.push(SegmentGroupBody::inhomogeneousParameter(InhomogeneousParameter::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SegmentGroup.", t)
+                t => panic!("Unexpected tag {t} in body of SegmentGroup.")
             };
         }
         SegmentGroup {
-            id,
             neuroLexId,
+            id,
             body,
         }
     }
@@ -6540,17 +6681,17 @@ pub enum SilentSynapseBody {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SilentSynapse {
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SilentSynapseBody>
 }
 
 impl XML for SilentSynapse {
     fn from_node(node: &Node) -> Self {
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6560,13 +6701,13 @@ impl XML for SilentSynapse {
                 "notes" => body.push(SilentSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(SilentSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SilentSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SilentSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of SilentSynapse.")
             };
         }
         SilentSynapse {
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6588,7 +6729,6 @@ pub struct SineGenerator {
     pub period: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SineGeneratorBody>
 }
 
@@ -6601,7 +6741,6 @@ impl XML for SineGenerator {
         let period = node.attribute("period").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6611,7 +6750,7 @@ impl XML for SineGenerator {
                 "notes" => body.push(SineGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(SineGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SineGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SineGenerator.", t)
+                t => panic!("Unexpected tag {t} in body of SineGenerator.")
             };
         }
         SineGenerator {
@@ -6622,7 +6761,6 @@ impl XML for SineGenerator {
             period,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6644,7 +6782,6 @@ pub struct SineGeneratorDL {
     pub period: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SineGeneratorDLBody>
 }
 
@@ -6657,7 +6794,6 @@ impl XML for SineGeneratorDL {
         let period = node.attribute("period").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6667,7 +6803,7 @@ impl XML for SineGeneratorDL {
                 "notes" => body.push(SineGeneratorDLBody::notes(String::from_node(&child))),
                 "property" => body.push(SineGeneratorDLBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SineGeneratorDLBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SineGeneratorDL.", t)
+                t => panic!("Unexpected tag {t} in body of SineGeneratorDL.")
             };
         }
         SineGeneratorDL {
@@ -6678,7 +6814,6 @@ impl XML for SineGeneratorDL {
             period,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6693,7 +6828,6 @@ pub enum SpaceBody {
 pub struct Space {
     pub basedOn: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SpaceBody>
 }
 
@@ -6701,7 +6835,6 @@ impl XML for Space {
     fn from_node(node: &Node) -> Self {
         let basedOn = node.attribute("basedOn").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6709,13 +6842,12 @@ impl XML for Space {
             }
             match child.tag_name().name() {
                 "structure" => body.push(SpaceBody::structure(SpaceStructure::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Space.", t)
+                t => panic!("Unexpected tag {t} in body of Space.")
             };
         }
         Space {
             basedOn,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6752,29 +6884,29 @@ impl XML for SpaceStructure {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Species {
-    pub id: String,
     pub concentrationModel: String,
     pub ion: Option<String>,
     pub initialConcentration: String,
     pub initialExtConcentration: String,
     pub segmentGroup: String,
+    pub id: String,
 }
 
 impl XML for Species {
     fn from_node(node: &Node) -> Self {
-        let id = node.attribute("id").map(|s| s.to_string()).unwrap();
         let concentrationModel = node.attribute("concentrationModel").map(|s| s.to_string()).unwrap();
         let ion = node.attribute("ion").map(|s| s.to_string());
         let initialConcentration = node.attribute("initialConcentration").map(|s| s.to_string()).unwrap();
         let initialExtConcentration = node.attribute("initialExtConcentration").map(|s| s.to_string()).unwrap();
         let segmentGroup = node.attribute("segmentGroup").or(Some("all")).map(|s| s.to_string()).unwrap();
+        let id = node.attribute("id").map(|s| s.to_string()).unwrap();
         Species {
-            id,
             concentrationModel,
             ion,
             initialConcentration,
             initialExtConcentration,
             segmentGroup,
+            id,
         }
     }
 }
@@ -6800,18 +6932,15 @@ impl XML for SpecificCapacitance {
 pub struct Spike {
     pub time: String,
     pub id: i64,
-    pub neuroLexId: Option<String>,
 }
 
 impl XML for Spike {
     fn from_node(node: &Node) -> Self {
         let time = node.attribute("time").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.parse::<i64>().unwrap()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         Spike {
             time,
             id,
-            neuroLexId,
         }
     }
 }
@@ -6828,7 +6957,6 @@ pub enum SpikeArrayBody {
 pub struct SpikeArray {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SpikeArrayBody>
 }
 
@@ -6836,7 +6964,6 @@ impl XML for SpikeArray {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6847,13 +6974,12 @@ impl XML for SpikeArray {
                 "notes" => body.push(SpikeArrayBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeArrayBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeArrayBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SpikeArray.", t)
+                t => panic!("Unexpected tag {t} in body of SpikeArray.")
             };
         }
         SpikeArray {
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6871,7 +6997,6 @@ pub struct SpikeGenerator {
     pub period: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SpikeGeneratorBody>
 }
 
@@ -6880,7 +7005,6 @@ impl XML for SpikeGenerator {
         let period = node.attribute("period").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6890,14 +7014,13 @@ impl XML for SpikeGenerator {
                 "notes" => body.push(SpikeGeneratorBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SpikeGenerator.", t)
+                t => panic!("Unexpected tag {t} in body of SpikeGenerator.")
             };
         }
         SpikeGenerator {
             period,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6915,7 +7038,6 @@ pub struct SpikeGeneratorPoisson {
     pub averageRate: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SpikeGeneratorPoissonBody>
 }
 
@@ -6924,7 +7046,6 @@ impl XML for SpikeGeneratorPoisson {
         let averageRate = node.attribute("averageRate").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6934,14 +7055,13 @@ impl XML for SpikeGeneratorPoisson {
                 "notes" => body.push(SpikeGeneratorPoissonBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorPoissonBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorPoissonBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SpikeGeneratorPoisson.", t)
+                t => panic!("Unexpected tag {t} in body of SpikeGeneratorPoisson.")
             };
         }
         SpikeGeneratorPoisson {
             averageRate,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -6960,7 +7080,6 @@ pub struct SpikeGeneratorRandom {
     pub minISI: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SpikeGeneratorRandomBody>
 }
 
@@ -6970,7 +7089,6 @@ impl XML for SpikeGeneratorRandom {
         let minISI = node.attribute("minISI").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -6980,7 +7098,7 @@ impl XML for SpikeGeneratorRandom {
                 "notes" => body.push(SpikeGeneratorRandomBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorRandomBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorRandomBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SpikeGeneratorRandom.", t)
+                t => panic!("Unexpected tag {t} in body of SpikeGeneratorRandom.")
             };
         }
         SpikeGeneratorRandom {
@@ -6988,7 +7106,6 @@ impl XML for SpikeGeneratorRandom {
             minISI,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7007,7 +7124,6 @@ pub struct SpikeGeneratorRefPoisson {
     pub averageRate: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SpikeGeneratorRefPoissonBody>
 }
 
@@ -7017,7 +7133,6 @@ impl XML for SpikeGeneratorRefPoisson {
         let averageRate = node.attribute("averageRate").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7027,7 +7142,7 @@ impl XML for SpikeGeneratorRefPoisson {
                 "notes" => body.push(SpikeGeneratorRefPoissonBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeGeneratorRefPoissonBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeGeneratorRefPoissonBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SpikeGeneratorRefPoisson.", t)
+                t => panic!("Unexpected tag {t} in body of SpikeGeneratorRefPoisson.")
             };
         }
         SpikeGeneratorRefPoisson {
@@ -7035,7 +7150,6 @@ impl XML for SpikeGeneratorRefPoisson {
             averageRate,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7055,7 +7169,6 @@ pub struct SpikeSourcePoisson {
     pub rate: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<SpikeSourcePoissonBody>
 }
 
@@ -7066,7 +7179,6 @@ impl XML for SpikeSourcePoisson {
         let rate = node.attribute("rate").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7076,7 +7188,7 @@ impl XML for SpikeSourcePoisson {
                 "notes" => body.push(SpikeSourcePoissonBody::notes(String::from_node(&child))),
                 "property" => body.push(SpikeSourcePoissonBody::property(Property::from_node(&child))),
                 "annotation" => body.push(SpikeSourcePoissonBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SpikeSourcePoisson.", t)
+                t => panic!("Unexpected tag {t} in body of SpikeSourcePoisson.")
             };
         }
         SpikeSourcePoisson {
@@ -7085,7 +7197,6 @@ impl XML for SpikeSourcePoisson {
             rate,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7119,7 +7230,6 @@ pub enum StandaloneBody {
 pub struct Standalone {
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<StandaloneBody>
 }
 
@@ -7127,7 +7237,6 @@ impl XML for Standalone {
     fn from_node(node: &Node) -> Self {
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7137,14 +7246,30 @@ impl XML for Standalone {
                 "notes" => body.push(StandaloneBody::notes(String::from_node(&child))),
                 "property" => body.push(StandaloneBody::property(Property::from_node(&child))),
                 "annotation" => body.push(StandaloneBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of Standalone.", t)
+                t => panic!("Unexpected tag {t} in body of Standalone.")
             };
         }
         Standalone {
             metaid,
             id,
-            neuroLexId,
             body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StateAssignment {
+    pub variable: String,
+    pub value: String,
+}
+
+impl XML for StateAssignment {
+    fn from_node(node: &Node) -> Self {
+        let variable = node.attribute("variable").map(|s| s.to_string()).unwrap();
+        let value = node.attribute("value").map(|s| s.to_string()).unwrap();
+        StateAssignment {
+            variable,
+            value,
         }
     }
 }
@@ -7193,7 +7318,7 @@ impl XML for SubTree {
             match child.tag_name().name() {
                 "from" => body.push(SubTreeBody::from(SegmentEndPoint::from_node(&child))),
                 "to" => body.push(SubTreeBody::to(SegmentEndPoint::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of SubTree.", t)
+                t => panic!("Unexpected tag {t} in body of SubTree.")
             };
         }
         SubTree {
@@ -7204,6 +7329,7 @@ impl XML for SubTree {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SynapticConnection {
+    pub neuroLexId: Option<String>,
     pub from: String,
     pub to: String,
     pub synapse: String,
@@ -7212,11 +7338,13 @@ pub struct SynapticConnection {
 
 impl XML for SynapticConnection {
     fn from_node(node: &Node) -> Self {
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let from = node.attribute("from").map(|s| s.to_string()).unwrap();
         let to = node.attribute("to").map(|s| s.to_string()).unwrap();
         let synapse = node.attribute("synapse").map(|s| s.to_string()).unwrap();
         let destination = node.attribute("destination").map(|s| s.to_string());
         SynapticConnection {
+            neuroLexId,
             from,
             to,
             synapse,
@@ -7236,7 +7364,6 @@ pub struct TauInfTransition {
     pub from: String,
     pub to: String,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<TauInfTransitionBody>
 }
 
@@ -7245,7 +7372,6 @@ impl XML for TauInfTransition {
         let from = node.attribute("from").map(|s| s.to_string()).unwrap();
         let to = node.attribute("to").map(|s| s.to_string()).unwrap();
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7254,14 +7380,13 @@ impl XML for TauInfTransition {
             match child.tag_name().name() {
                 "steadyState" => body.push(TauInfTransitionBody::steadyState(HHVariable::from_node(&child))),
                 "timeCourse" => body.push(TauInfTransitionBody::timeCourse(HHTime::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of TauInfTransition.", t)
+                t => panic!("Unexpected tag {t} in body of TauInfTransition.")
             };
         }
         TauInfTransition {
             from,
             to,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7298,7 +7423,6 @@ pub struct TimedSynapticInput {
     pub spikeTarget: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<TimedSynapticInputBody>
 }
 
@@ -7308,7 +7432,6 @@ impl XML for TimedSynapticInput {
         let spikeTarget = node.attribute("spikeTarget").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7319,7 +7442,7 @@ impl XML for TimedSynapticInput {
                 "notes" => body.push(TimedSynapticInputBody::notes(String::from_node(&child))),
                 "property" => body.push(TimedSynapticInputBody::property(Property::from_node(&child))),
                 "annotation" => body.push(TimedSynapticInputBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of TimedSynapticInput.", t)
+                t => panic!("Unexpected tag {t} in body of TimedSynapticInput.")
             };
         }
         TimedSynapticInput {
@@ -7327,7 +7450,6 @@ impl XML for TimedSynapticInput {
             spikeTarget,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7349,7 +7471,6 @@ pub struct TransientPoissonFiringSynapse {
     pub spikeTarget: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<TransientPoissonFiringSynapseBody>
 }
 
@@ -7362,7 +7483,6 @@ impl XML for TransientPoissonFiringSynapse {
         let spikeTarget = node.attribute("spikeTarget").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7372,7 +7492,7 @@ impl XML for TransientPoissonFiringSynapse {
                 "notes" => body.push(TransientPoissonFiringSynapseBody::notes(String::from_node(&child))),
                 "property" => body.push(TransientPoissonFiringSynapseBody::property(Property::from_node(&child))),
                 "annotation" => body.push(TransientPoissonFiringSynapseBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of TransientPoissonFiringSynapse.", t)
+                t => panic!("Unexpected tag {t} in body of TransientPoissonFiringSynapse.")
             };
         }
         TransientPoissonFiringSynapse {
@@ -7383,8 +7503,21 @@ impl XML for TransientPoissonFiringSynapse {
             spikeTarget,
             metaid,
             id,
-            neuroLexId,
             body,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Transition {
+    pub regime: String,
+}
+
+impl XML for Transition {
+    fn from_node(node: &Node) -> Self {
+        let regime = node.attribute("regime").map(|s| s.to_string()).unwrap();
+        Transition {
+            regime,
         }
     }
 }
@@ -7426,7 +7559,7 @@ impl XML for VariableParameter {
             }
             match child.tag_name().name() {
                 "inhomogeneousValue" => body.push(VariableParameterBody::inhomogeneousValue(InhomogeneousValue::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of VariableParameter.", t)
+                t => panic!("Unexpected tag {t} in body of VariableParameter.")
             };
         }
         VariableParameter {
@@ -7452,7 +7585,6 @@ pub struct VoltageClamp {
     pub simpleSeriesResistance: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<VoltageClampBody>
 }
 
@@ -7464,7 +7596,6 @@ impl XML for VoltageClamp {
         let simpleSeriesResistance = node.attribute("simpleSeriesResistance").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7474,7 +7605,7 @@ impl XML for VoltageClamp {
                 "notes" => body.push(VoltageClampBody::notes(String::from_node(&child))),
                 "property" => body.push(VoltageClampBody::property(Property::from_node(&child))),
                 "annotation" => body.push(VoltageClampBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of VoltageClamp.", t)
+                t => panic!("Unexpected tag {t} in body of VoltageClamp.")
             };
         }
         VoltageClamp {
@@ -7484,7 +7615,6 @@ impl XML for VoltageClamp {
             simpleSeriesResistance,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7508,7 +7638,6 @@ pub struct VoltageClampTriple {
     pub simpleSeriesResistance: String,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<VoltageClampTripleBody>
 }
 
@@ -7523,7 +7652,6 @@ impl XML for VoltageClampTriple {
         let simpleSeriesResistance = node.attribute("simpleSeriesResistance").map(|s| s.to_string()).unwrap();
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7533,7 +7661,7 @@ impl XML for VoltageClampTriple {
                 "notes" => body.push(VoltageClampTripleBody::notes(String::from_node(&child))),
                 "property" => body.push(VoltageClampTripleBody::property(Property::from_node(&child))),
                 "annotation" => body.push(VoltageClampTripleBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of VoltageClampTriple.", t)
+                t => panic!("Unexpected tag {t} in body of VoltageClampTriple.")
             };
         }
         VoltageClampTriple {
@@ -7546,7 +7674,6 @@ impl XML for VoltageClampTriple {
             simpleSeriesResistance,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7566,9 +7693,9 @@ pub struct basePyNNCell {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<basePyNNCellBody>
 }
 
@@ -7579,9 +7706,9 @@ impl XML for basePyNNCell {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7591,7 +7718,7 @@ impl XML for basePyNNCell {
                 "notes" => body.push(basePyNNCellBody::notes(String::from_node(&child))),
                 "property" => body.push(basePyNNCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(basePyNNCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of basePyNNCell.", t)
+                t => panic!("Unexpected tag {t} in body of basePyNNCell.")
             };
         }
         basePyNNCell {
@@ -7600,9 +7727,9 @@ impl XML for basePyNNCell {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7627,9 +7754,9 @@ pub struct basePyNNIaFCell {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<basePyNNIaFCellBody>
 }
 
@@ -7645,9 +7772,9 @@ impl XML for basePyNNIaFCell {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7657,7 +7784,7 @@ impl XML for basePyNNIaFCell {
                 "notes" => body.push(basePyNNIaFCellBody::notes(String::from_node(&child))),
                 "property" => body.push(basePyNNIaFCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(basePyNNIaFCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of basePyNNIaFCell.", t)
+                t => panic!("Unexpected tag {t} in body of basePyNNIaFCell.")
             };
         }
         basePyNNIaFCell {
@@ -7671,9 +7798,9 @@ impl XML for basePyNNIaFCell {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }
@@ -7700,9 +7827,9 @@ pub struct basePyNNIaFCondCell {
     pub tau_syn_E: f64,
     pub tau_syn_I: f64,
     pub v_init: f64,
+    pub neuroLexId: Option<String>,
     pub metaid: Option<String>,
     pub id: String,
-    pub neuroLexId: Option<String>,
     pub body: Vec<basePyNNIaFCondCellBody>
 }
 
@@ -7720,9 +7847,9 @@ impl XML for basePyNNIaFCondCell {
         let tau_syn_E = node.attribute("tau_syn_E").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let tau_syn_I = node.attribute("tau_syn_I").map(|s| s.parse::<f64>().unwrap()).unwrap();
         let v_init = node.attribute("v_init").map(|s| s.parse::<f64>().unwrap()).unwrap();
+        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let metaid = node.attribute("metaid").map(|s| s.to_string());
         let id = node.attribute("id").map(|s| s.to_string()).unwrap();
-        let neuroLexId = node.attribute("neuroLexId").map(|s| s.to_string());
         let mut body = Vec::new();
         for child in node.children() {
             if child.is_comment() || child.is_text() {
@@ -7732,7 +7859,7 @@ impl XML for basePyNNIaFCondCell {
                 "notes" => body.push(basePyNNIaFCondCellBody::notes(String::from_node(&child))),
                 "property" => body.push(basePyNNIaFCondCellBody::property(Property::from_node(&child))),
                 "annotation" => body.push(basePyNNIaFCondCellBody::annotation(Annotation::from_node(&child))),
-                t => panic!("Unexpected tag {} in body of basePyNNIaFCondCell.", t)
+                t => panic!("Unexpected tag {t} in body of basePyNNIaFCondCell.")
             };
         }
         basePyNNIaFCondCell {
@@ -7748,9 +7875,9 @@ impl XML for basePyNNIaFCondCell {
             tau_syn_E,
             tau_syn_I,
             v_init,
+            neuroLexId,
             metaid,
             id,
-            neuroLexId,
             body,
         }
     }

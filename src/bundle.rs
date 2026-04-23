@@ -1,10 +1,11 @@
 use crate::{
+    Map, Set,
     acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
-    network::{self, get_cell_id, Connection, Network, Projection},
+    network::{self, Connection, Network, Projection, get_cell_id},
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
         PoissonFiringSynapse, PulseGenerator,
@@ -16,7 +17,6 @@ use crate::{
     nml2_error,
     nmodl::{self, Nmodl},
     xml::XML,
-    Map, Set,
 };
 use serde::Serialize;
 use serde_json;
@@ -155,10 +155,14 @@ impl SimulationData {
                 delay,
             } in connections
             {
-                let pre_cell_id = &net.populations[pre].component;
-                let threshold = cell_to_threshold[pre_cell_id];
                 let from_gid = pre_gid + from.cell;
                 let to_gid = post_gid + to.cell;
+                let pre_cell_id = &net.populations[pre].component;
+                let threshold = *cell_to_threshold.get(pre_cell_id).ok_or_else(|| {
+                    nml2_error!(
+                        "No threshold for {pre_cell_id} in connection {from_gid} -> {to_gid}."
+                    )
+                })?;
                 gid_to_detectors.entry(from_gid).or_default().push((
                     from.segment,
                     from.fraction.clone(),
@@ -312,7 +316,9 @@ fn export_template(lems: &LemsFile, nml: &[String], bundle: &str) -> Result<()> 
                 );
             }
             "network" => {
+                eprintln!("making net");
                 let inst = Instance::new(lems, node)?;
+                eprintln!("got net");
                 let net = Network::new(&inst)?;
                 nets.push(net);
             }
@@ -595,7 +601,7 @@ fn split_decor(
         // collect non uniform args as they must be kept as PARAMETERS
         for d in biophys.decor.iter() {
             match d {
-                Decor::Paint(ref r, Paintable::NonUniformMech { ref name, ns, .. })
+                Decor::Paint(r, Paintable::NonUniformMech { name, ns, .. })
                     if densities.contains(name) =>
                 {
                     for (k, v) in ns.iter() {

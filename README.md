@@ -188,7 +188,7 @@ acceptable to approximate the surface area as a sphere with `A = π diam^2`.
 $> nmlcc nmodl --parameter='-*' example/nml-gap-junction.xml
 $> cat gj1.mod
 NEURON {
-  JUNCTION gj1
+  JUNCTION_PROCESS gj1
   NONSPECIFIC_CURRENT i
   RANGE weight, conductance
 }

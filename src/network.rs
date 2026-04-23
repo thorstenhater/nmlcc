@@ -3,12 +3,13 @@
 use tracing::{trace, warn};
 
 use crate::{
+    Map,
     error::{Error, Result},
     expr::{Match, Path, Quantity, Select},
     instance::Instance,
     lems::file::LemsFile,
     neuroml::raw,
-    nml2_error, Map,
+    nml2_error,
 };
 
 #[derive(Clone, Debug)]
@@ -117,7 +118,7 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
         let ty = inp.component_type.name.as_str();
         match ty {
             "inputList" => {
-                let source = inp.attributes.get("component").unwrap().to_string();
+                let source = inp.references.get("component").unwrap().to_string();
                 if let Some(xs) = inp.children.get("inputs") {
                     for x in xs {
                         let attr = &x.attributes;
@@ -143,7 +144,9 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
                 }
             }
             "explicitInput" => {
-                warn!("Using 'ExplicitInput' is discouraged. Treated as targetting segment=0 fraction=0.5.");
+                warn!(
+                    "Using 'ExplicitInput' is discouraged. Treated as targetting segment=0 fraction=0.5."
+                );
                 let fraction = String::from("0.5");
                 let segment = 0;
                 let target = inp
@@ -152,7 +155,7 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
                     .ok_or_else(|| nml2_error!("No target in explicitInput."))?
                     .to_string();
                 let source = inp
-                    .attributes
+                    .references
                     .get("input")
                     .ok_or_else(|| nml2_error!("No input in explicitInput."))?
                     .to_string();
@@ -204,11 +207,11 @@ fn get_populations(pops: &[Instance]) -> Result<Map<String, Population>> {
                     "Unknown population type '{}' for id '{}'",
                     t,
                     id
-                ))
+                ));
             }
         };
         let component = pop
-            .attributes
+            .references
             .get("component")
             .ok_or_else(|| nml2_error!("Population {} without component", id))?
             .to_string();
@@ -253,7 +256,7 @@ fn get_projections(prjs: &[Instance]) -> Result<Vec<Projection>> {
             .ok_or_else(|| nml2_error!("No presynaptic in projection '{}'.", id))?
             .to_string();
         let synapse = prj
-            .attributes
+            .references
             .get("synapse")
             .ok_or_else(|| nml2_error!("No synapse in projection '{}'.", id))?
             .to_string();

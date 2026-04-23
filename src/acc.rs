@@ -1,4 +1,5 @@
 use crate::{
+    Map,
     error::{Error, Result},
     expr::Expr,
     expr::Quantity,
@@ -15,7 +16,6 @@ use crate::{
     },
     nml2_error,
     xml::XML,
-    Map,
 };
 
 use std::fmt::Write as _;
@@ -46,23 +46,19 @@ impl Cell {
 pub fn to_cell_list(lems: &LemsFile, nml: &[String], ions: &[String]) -> Result<Map<String, Cell>> {
     let mut cells = Map::new();
     process_files(nml, |_, node| {
-        if node.tag_name().name() == "cell" {
-            if let Some(id) = node.attribute("id") {
-                let mut cell: Cell = Default::default();
-                let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
-                for bpp in node.children() {
-                    if bpp.tag_name().name() == "biophysicalProperties" {
-                        let tmp = &mut biophys(
-                            &XML::from_node(&bpp),
-                            lems,
-                            ions,
-                            &inhomogeneous_parameters,
-                        )?;
-                        cell.append(tmp)?;
-                    }
+        if node.tag_name().name() == "cell"
+            && let Some(id) = node.attribute("id")
+        {
+            let mut cell: Cell = Default::default();
+            let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
+            for bpp in node.children() {
+                if bpp.tag_name().name() == "biophysicalProperties" {
+                    let tmp =
+                        &mut biophys(&XML::from_node(&bpp), lems, ions, &inhomogeneous_parameters)?;
+                    cell.append(tmp)?;
                 }
-                *cells.entry(id.to_string()).or_default() = cell;
             }
+            *cells.entry(id.to_string()).or_default() = cell;
         }
         Ok(())
     })?;
@@ -73,10 +69,10 @@ pub fn parse_inhomogeneous_parameters(
     cell: &roxmltree::Node<'_, '_>,
 ) -> Result<Map<String, ParsedInhomogeneousParameter>> {
     let mut inhomogeneous_parameters = Map::new();
-    let m = cell
-        .children()
-        .find(|n| n.has_tag_name("morphology"))
-        .ok_or(nml2_error!("no morphology tag"))?;
+    let Some(m) = cell.children().find(|n| n.has_tag_name("morphology")) else {
+        return Ok(inhomogeneous_parameters);
+    };
+
     for ihp in m
         .children()
         .filter(|n| n.has_tag_name("segmentGroup"))
@@ -104,9 +100,11 @@ pub fn parse_inhomogeneous_parameters(
                             ));
                         }
                     }
-                    distal(DistalDetails { .. }) => return Err(acc_unimplemented(
-                        "Endpoint normalization for inhomogeneous parameters is not yet supported",
-                    )),
+                    distal(DistalDetails { .. }) => {
+                        return Err(acc_unimplemented(
+                            "Endpoint normalization for inhomogeneous parameters is not yet supported",
+                        ));
+                    }
                 }
             }
             let metric = if subtract_the_minimum {
@@ -431,7 +429,7 @@ impl Sexp for Vec<Decor> {
     fn to_sexp(&self) -> String {
         let mut result = String::from(
             "(arbor-component
-  (meta-data (version \"0.9-dev\"))
+  (meta-data (version \"0.10-dev\"))
   (decor
 ",
         );
@@ -620,7 +618,7 @@ fn membrane(
             | channelDensityGHK(_)
             | channelDensityGHK2(_)
             | channelDensityNonUniformGHK(_) => {
-                return Err(acc_unimplemented("Complex channel type"))
+                return Err(acc_unimplemented("Complex channel type"));
             }
         }
     }
@@ -711,12 +709,14 @@ fn test_simple_ion() {
     assert!(result.len() == 1);
     assert!(simple_ion(&known_ions, &mut result, "k", "dend", "-90").is_ok());
     assert!(result.len() == 2);
-    assert!(simple_ion(&known_ions, &mut result, "na", "soma", "-90")
-        .and_then(|gs| if gs.len() == 1 {
-            Ok(())
-        } else {
-            Err(nml2_error!("non_specific"))
-        })
-        .is_ok());
+    assert!(
+        simple_ion(&known_ions, &mut result, "na", "soma", "-90")
+            .and_then(|gs| if gs.len() == 1 {
+                Ok(())
+            } else {
+                Err(nml2_error!("non_specific"))
+            })
+            .is_ok()
+    );
     assert!(result.len() == 2);
 }

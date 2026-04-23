@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<neuroml xmlns="http://www.neuroml.org/schema/neuroml2"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.neuroml.org/schema/neuroml2  ../Schemas/NeuroML2/NeuroML_v2beta5.xsd"
+         id="NML2_SynapseTypes">
+
+
+    <blockingPlasticSynapse id="blockStpSynDep" gbase="1nS" erev="0mV"
+                            tauRise="0.1ms" tauDecay="2ms">
+        <notes>A biexponential blocking synapse, with STD.</notes>
+        <plasticityMechanism type="tsodyksMarkramDepMechanism" id="dep"
+                           initReleaseProb="0.5" tauRec="120 ms"/>
+        <blockMechanism type="voltageConcDepBlockMechanism" species="mg" id="blk"
+                        blockConcentration="1.2 mM"
+                        scalingConc="1.920544 mM" scalingVolt="16.129 mV"/>
+    </blockingPlasticSynapse>
+
+</neuroml>
