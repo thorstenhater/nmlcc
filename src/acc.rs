@@ -46,24 +46,23 @@ impl Cell {
 pub fn to_cell_list(lems: &LemsFile, nml: &[String], ions: &[String]) -> Result<Map<String, Cell>> {
     let mut cells = Map::new();
     process_files(nml, |_, node| {
-        if node.tag_name().name() == "cell" {
-            if let Some(id) = node.attribute("id") {
-                let mut cell: Cell = Default::default();
-                let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
-                for bpp in node.children() {
-                    if bpp.tag_name().name() == "biophysicalProperties" {
-                        let tmp = &mut biophys(
-                            &XML::from_node(&bpp),
-                            lems,
-                            ions,
-                            &inhomogeneous_parameters,
-                        )?;
-                        cell.append(tmp)?;
-                    }
-                }
-                *cells.entry(id.to_string()).or_default() = cell;
-            }
-        }
+        if node.tag_name().name() == "cell" &&
+             let Some(id) = node.attribute("id") {
+                 let mut cell: Cell = Default::default();
+                 let inhomogeneous_parameters = parse_inhomogeneous_parameters(node)?;
+                 for bpp in node.children() {
+                     if bpp.tag_name().name() == "biophysicalProperties" {
+                         let tmp = &mut biophys(
+                             &XML::from_node(&bpp),
+                             lems,
+                             ions,
+                             &inhomogeneous_parameters,
+                         )?;
+                         cell.append(tmp)?;
+                     }
+                 }
+                 *cells.entry(id.to_string()).or_default() = cell;
+             }
         Ok(())
     })?;
     Ok(cells)

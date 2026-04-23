@@ -1,13 +1,13 @@
 use nml2::{
+    Map,
     acc::{self, Decor, Sexp},
-    bundle::{build_super_mechanisms, Cell, CellData},
+    bundle::{Cell, CellData, build_super_mechanisms},
     error::Result,
     instance::Instance,
     lems::file::LemsFile,
     neuroml::{self, raw::BiophysicalProperties},
     nmodl,
     xml::XML,
-    Map,
 };
 
 use pretty_assertions::assert_eq;

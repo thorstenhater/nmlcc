@@ -1,10 +1,11 @@
 use crate::{
+    Map, Set,
     acc::{self, Decor, Paintable, ParsedInhomogeneousParameter, Sexp},
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Context, Instance},
     lems::file::LemsFile,
-    network::{self, get_cell_id, Connection, Network, Projection},
+    network::{self, Connection, Network, Projection, get_cell_id},
     neuroml::raw::{
         BiophysicalProperties, BiophysicalPropertiesBody, ChannelDensity, MembranePropertiesBody,
         PoissonFiringSynapse, PulseGenerator,
@@ -16,7 +17,6 @@ use crate::{
     nml2_error,
     nmodl::{self, Nmodl},
     xml::XML,
-    Map, Set,
 };
 use serde::Serialize;
 use serde_json;
@@ -601,7 +601,7 @@ fn split_decor(
         // collect non uniform args as they must be kept as PARAMETERS
         for d in biophys.decor.iter() {
             match d {
-                Decor::Paint(ref r, Paintable::NonUniformMech { ref name, ns, .. })
+                Decor::Paint(r, Paintable::NonUniformMech { name, ns, .. })
                     if densities.contains(name) =>
                 {
                     for (k, v) in ns.iter() {

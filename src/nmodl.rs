@@ -4,6 +4,7 @@ use tracing::{info, trace, warn};
 
 use crate::expr::{self, Boolean};
 use crate::{
+    Map, Set,
     error::{Error, Result},
     expr::{Expr, Quantity, Stmnt},
     instance::{Collapsed, Instance},
@@ -11,7 +12,6 @@ use crate::{
     neuroml::process_files,
     nml2_error,
     variable::VarKind,
-    Map, Set,
 };
 
 fn nmodl_error<T: Into<String>>(what: T) -> Error {
@@ -419,7 +419,7 @@ impl Nmodl {
 
 pub fn mk_nmodl(n: Nmodl) -> Result<String> {
     let n = &n.simplify();
-    Ok(vec![
+    Ok([
         nmodl_neuron_block(n)?,
         nmodl_const_block(n)?,
         nmodl_param_block(n)?,

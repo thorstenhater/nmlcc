@@ -2,12 +2,12 @@ use roxmltree::Node;
 use tracing::{info, trace, warn};
 
 use crate::{
+    Map, Set,
     error::{Error, Result},
     expr::{Boolean, Expr, Match, Quantity, Select},
     lems::{self, raw::StructureBody},
     nml2_error,
     variable::{SelectBy, VarKind, Variable},
-    Map, Set,
 };
 
 /// Kinetic scheme from components
@@ -259,7 +259,7 @@ impl Collapsed {
             for (pfx, node) in &nodes {
                 // TODO This is a horrible hack and must be replaced by proper lookup
                 let mut qfx = Vec::new();
-                let Match(ref qs) = &ks.node;
+                let Match(qs) = &ks.node;
                 for q in qs {
                     match q {
                         Path::Up => {
@@ -416,10 +416,7 @@ impl Collapsed {
                         if ms.is_empty() {
                             trace!(
                                 "No instances found for name={} select={:?} via {:?} among {:?}",
-                                v.name,
-                                ps,
-                                by,
-                                ks
+                                v.name, ps, by, ks
                             );
                             Expr::F64(1.0)
                         } else {
@@ -623,17 +620,24 @@ impl ComponentType {
                                 attributes.push(component.to_string());
                             }
                             StructureBody::With(_) => {
-                                info!("Ignoring With in component type {name} (we are usually handling this explicitly elsewhere.)");
+                                info!(
+                                    "Ignoring With in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
                             }
                             StructureBody::EventConnection(_) => {
-                                info!("Ignoring EventConnection in component type {name} (we are usually handling this explicitly elsewhere.)");
-                                
+                                info!(
+                                    "Ignoring EventConnection in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
                             }
                             StructureBody::Tunnel(_) => {
-                                info!("Ignoring Tunnel in component type {name} (we are usually handling this explicitly elsewhere.)");
+                                info!(
+                                    "Ignoring Tunnel in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
                             }
                             StructureBody::ForEach(_) => {
-                                info!("Ignoring ForEach in component type {name} (we are usually handling this explicitly elsewhere.)");
+                                info!(
+                                    "Ignoring ForEach in component type {name} (we are usually handling this explicitly elsewhere.)"
+                                );
                                 todo!()
                             }
                         }
@@ -772,7 +776,7 @@ fn lems_dynamics(
                 for StateAssignment(a) in &v.body {
                     let it = variables.iter_mut().find(|x| x.name == a.variable);
                     if let Some(Variable {
-                        kind: VarKind::State(ref mut i, _),
+                        kind: VarKind::State(i, _),
                         ..
                     }) = it
                     {
@@ -829,7 +833,7 @@ fn lems_dynamics(
             TimeDerivative(v) => {
                 let it = variables.iter_mut().find(|x| x.name == v.variable);
                 if let Some(Variable {
-                    kind: VarKind::State(_, ref mut d),
+                    kind: VarKind::State(_, d),
                     ..
                 }) = it
                 {

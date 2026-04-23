@@ -1,14 +1,14 @@
 use tracing::trace;
 
 use super::{
-    raw::{Dimension, Unit},
     Lems,
+    raw::{Dimension, Unit},
 };
 use crate::{
+    Map,
     error::{Error, Result},
     expr::Quantity,
     instance::ComponentType,
-    Map,
 };
 use std::convert::TryInto;
 

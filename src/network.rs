@@ -3,12 +3,13 @@
 use tracing::{trace, warn};
 
 use crate::{
+    Map,
     error::{Error, Result},
     expr::{Match, Path, Quantity, Select},
     instance::Instance,
     lems::file::LemsFile,
     neuroml::raw,
-    nml2_error, Map,
+    nml2_error,
 };
 
 #[derive(Clone, Debug)]
@@ -143,7 +144,9 @@ fn get_inputs(inps: &[Instance]) -> Result<Vec<Input>> {
                 }
             }
             "explicitInput" => {
-                warn!("Using 'ExplicitInput' is discouraged. Treated as targetting segment=0 fraction=0.5.");
+                warn!(
+                    "Using 'ExplicitInput' is discouraged. Treated as targetting segment=0 fraction=0.5."
+                );
                 let fraction = String::from("0.5");
                 let segment = 0;
                 let target = inp
@@ -204,7 +207,7 @@ fn get_populations(pops: &[Instance]) -> Result<Map<String, Population>> {
                     "Unknown population type '{}' for id '{}'",
                     t,
                     id
-                ))
+                ));
             }
         };
         let component = pop

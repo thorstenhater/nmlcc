@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use tracing::trace;
 
 use crate::{
+    Set,
     error::{Error, Result},
-    nml2_error, Set,
+    nml2_error,
 };
 
 pub mod raw;
