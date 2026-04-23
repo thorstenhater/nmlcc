@@ -36,18 +36,19 @@ where
         for node in tree.descendants() {
             f(nml.to_str().unwrap(), &node)?;
             if node.tag_name().name() == "include"
-                && let Some(fd) = node.attribute("href") {
-                    let mut nxt = nml.parent().unwrap().to_path_buf();
-                    nxt.push(fd);
-                    nxt = nxt.canonicalize().map_err(|_| {
-                        nml2_error!(
-                            "Unknown file '{}', included by '{}'.",
-                            nxt.display(),
-                            nml.display()
-                        )
-                    })?;
-                    todo.push(nxt);
-                }
+                && let Some(fd) = node.attribute("href")
+            {
+                let mut nxt = nml.parent().unwrap().to_path_buf();
+                nxt.push(fd);
+                nxt = nxt.canonicalize().map_err(|_| {
+                    nml2_error!(
+                        "Unknown file '{}', included by '{}'.",
+                        nxt.display(),
+                        nml.display()
+                    )
+                })?;
+                todo.push(nxt);
+            }
         }
     }
     Ok(())

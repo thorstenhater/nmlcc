@@ -969,9 +969,11 @@ fn simplify_mul(es: &[Expr]) -> Expr {
     }
     for ex in result.iter_mut() {
         if let Expr::Pow(es) = ex
-            && es.len() == 2 && es[1] == Expr::F64(1.0) {
-                *ex = es[0].clone();
-            }
+            && es.len() == 2
+            && es[1] == Expr::F64(1.0)
+        {
+            *ex = es[0].clone();
+        }
     }
     result.sort_by(|a, b| a.partial_cmp(b).unwrap());
     if (lit - 1.0).abs() > f64::EPSILON {

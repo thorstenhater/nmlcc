@@ -213,26 +213,27 @@ impl Collapsed {
                             }
                         }
                         if ix < ps.len()
-                            && let Path::Fixed(q) = &ps[ix] {
-                                ix += 1;
-                                for (pfx, node) in &nodes {
-                                    if let Some(xs) = node.children.get(s) {
-                                        let mut pfx = pfx.clone();
-                                        pfx.push(s.clone());
-                                        nodes = xs
-                                            .iter()
-                                            .filter(|x| x.id == Some(q.to_string()))
-                                            .cloned()
-                                            .map(|x| {
-                                                let mut pfx = pfx.clone();
-                                                pfx.push(x.id.as_deref().unwrap().to_string());
-                                                (pfx, x)
-                                            })
-                                            .collect();
-                                        continue 'a;
-                                    }
+                            && let Path::Fixed(q) = &ps[ix]
+                        {
+                            ix += 1;
+                            for (pfx, node) in &nodes {
+                                if let Some(xs) = node.children.get(s) {
+                                    let mut pfx = pfx.clone();
+                                    pfx.push(s.clone());
+                                    nodes = xs
+                                        .iter()
+                                        .filter(|x| x.id == Some(q.to_string()))
+                                        .cloned()
+                                        .map(|x| {
+                                            let mut pfx = pfx.clone();
+                                            pfx.push(x.id.as_deref().unwrap().to_string());
+                                            (pfx, x)
+                                        })
+                                        .collect();
+                                    continue 'a;
                                 }
                             }
+                        }
                         panic!("Impossible path {:?}", ks.edge);
                     }
                     Path::When(s, Select::All) => {

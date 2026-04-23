@@ -375,9 +375,10 @@ fn dealias(tys: &Map<String, Type>, alias: &Map<String, Kind>) -> Map<String, Ty
         let mut t = ty.clone();
         for m in &mut t.members {
             if let Kind::Class(c) = &m.data
-                && let Some(a) = alias.get(c) {
-                    m.data = a.clone();
-                }
+                && let Some(a) = alias.get(c)
+            {
+                m.data = a.clone();
+            }
         }
 
         if let Body::Alt(es) = t.body {
