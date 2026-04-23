@@ -212,8 +212,8 @@ impl Collapsed {
                                 continue 'a;
                             }
                         }
-                        if ix < ps.len() {
-                            if let Path::Fixed(q) = &ps[ix] {
+                        if ix < ps.len()
+                            && let Path::Fixed(q) = &ps[ix] {
                                 ix += 1;
                                 for (pfx, node) in &nodes {
                                     if let Some(xs) = node.children.get(s) {
@@ -233,7 +233,6 @@ impl Collapsed {
                                     }
                                 }
                             }
-                        }
                         panic!("Impossible path {:?}", ks.edge);
                     }
                     Path::When(s, Select::All) => {
